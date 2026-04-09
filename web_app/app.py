@@ -281,14 +281,14 @@ def trigger_active_learning():
         target_df = df.loc[unconfirmed_idx]
         pred_cats, pred_tags = learner.predict(target_df)
         
-        cns_exact = ["Cell", "Nature", "Science (New York, N.Y.)"]
+        cns_list = ['cell', 'nature', 'science']
         def is_cns(journal_name):
             if pd.isna(journal_name): return False
-            return str(journal_name).strip() in cns_exact
+            j = str(journal_name).lower()
+            return any(kw in j for kw in cns_list)
 
-        last_batch_number = 999 
-        current_batch_number = next_batch
-        BATCH_SIZE = 30
+        batch_999_idx = []
+        remaining_unconfirmed_idx = []
         
         for k, idx in enumerate(unconfirmed_idx):
             cat = pred_cats[k]
@@ -303,17 +303,28 @@ def trigger_active_learning():
             predicted_count += 1
             
             if cat == "Research" and not is_cns(journal):
-                df.loc[idx, "annotation_batch"] = last_batch_number
+                batch_999_idx.append(idx)
             else:
-                current_len = len(df[(df["annotation_batch"] == current_batch_number) & (df["is_manually_confirmed"] == False)])
-                if current_len >= BATCH_SIZE:
-                    current_batch_number += 1
-                df.loc[idx, "annotation_batch"] = current_batch_number
+                remaining_unconfirmed_idx.append(idx)
+                
+        df.loc[batch_999_idx, "annotation_batch"] = 999
         
+        curr_batch = int(next_batch) if next_batch else 1
+        while remaining_unconfirmed_idx:
+            conf_in_curr = len(confirmed_df[confirmed_df["annotation_batch"] == curr_batch])
+            target_size = 50 * (2 ** (curr_batch - 1))
+            needed = max(0, target_size - conf_in_curr)
+            
+            take_idx = remaining_unconfirmed_idx[:needed]
+            df.loc[take_idx, "annotation_batch"] = curr_batch
+            
+            remaining_unconfirmed_idx = remaining_unconfirmed_idx[needed:]
+            curr_batch += 1
+            
     save_df(df)
 
     return {
-        "message": f"🧠 主动学习与分类推断完成！\n本次吸收了 {len(train_df_final)} 条已标注经验。\n上批次(Batch {completed_batches[-1] if completed_batches else 0}) 验证 大类准确率：{last_accuracy:.1%}\n\n已成功对 {predicted_count} 条全量未标定数据进行了归类推断，将非CNS正刊【研究】退至 Batch 999 储备，为您重组出全新待验证目标 Batch {next_batch}！",
+        "message": f"🧠 主动学习与分类推断完成！\n本次重新验证吸收了全量标定经验。\n已自动按指数扩大并推断剩余数据，将非CNS正刊【研究】退至 Batch 999 储备，已生成下一被标注目标：Batch {next_batch}！",
         "accuracy": last_accuracy,
         "next_batch": next_batch,
         "predicted_count": predicted_count,

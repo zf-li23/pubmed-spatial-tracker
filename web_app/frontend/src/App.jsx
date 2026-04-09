@@ -17,7 +17,8 @@ function App() {
   
   // Filters
   const [filterCategory, setFilterCategory] = useState("");
-  const [filterConfirmed, setFilterConfirmed] = useState("all"); 
+  const [filterConfirmed, setFilterConfirmed] = useState("all");
+   const [currentRound, setCurrentRound] = useState(0); 
   const [filterBatch, setFilterBatch] = useState("all");
   const [filterPmid, setFilterPmid] = useState("");
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
@@ -211,6 +212,9 @@ function App() {
                <button onClick={triggerActiveLearning} className="bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-purple-700 shadow-md transition-all flex items-center gap-1">
                  🚀 AI 本地学习并预测下批
                </button>
+               <span className="ml-3 font-semibold text-gray-700 bg-white px-3 py-1.5 rounded shadow-sm border border-gray-200">
+                  当前待标定轮次：【第 {currentRound} 轮】
+               </span>
             </div>
          </div>
          
