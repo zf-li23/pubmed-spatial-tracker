@@ -6,24 +6,37 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multiclass import OneVsRestClassifier
 
-TAG_GROUPS = {
-  "metaCategory": ["General", "Technology", "Database", "Data Analysis"],
-  "domain": ["Neuroscience", "Development", "Cancer", "Reproduction"],
-  "technology": ["Visium", "MERFISH", "Slide-seq", "Stereo-seq", "Xenium", "CosMx"],
-  "analysis": ["Clustering", "Deconvolution", "Imputation", "Cell Communication", "Spatial Trajectory"]
-}
+import os
+import json
+
+# Load centralized tags
+TAGS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tags.json")
+try:
+    with open(TAGS_PATH, "r", encoding="utf-8") as f:
+        TAG_GROUPS = json.load(f)
+except Exception:
+    # Fallback if tags.json is somehow missing
+    TAG_GROUPS = {
+      "metaCategory": ["General", "Technology", "Database", "Data Analysis"],
+      "domain": ["Neuroscience", "Development", "Cancer", "Reproduction"],
+      "technology": ["Visium", "MERFISH", "Slide-seq", "Stereo-seq", "Xenium", "CosMx"],
+      "analysis": ["Clustering", "Deconvolution", "Imputation", "Cell Communication", "Spatial Trajectory"]
+    }
+
 ALL_KNOWN_TAGS = set(sum(TAG_GROUPS.values(), []))
 
-def augment_text(title, abstract, pub_year=None, journal=None, mesh=None, kw=None):
+def augment_text(title, abstract, pub_year=None, journal=None, mesh=None, kw=None, naive_cat=None, naive_tags=None):
     title = str(title) if pd.notna(title) else ""
     abstract = str(abstract) if pd.notna(abstract) else ""
     pub_year_str = str(pub_year) if pd.notna(pub_year) else ""
     journal_str = str(journal) if pd.notna(journal) else ""
     mesh_str = str(mesh) if pd.notna(mesh) else ""
     kw_str = str(kw) if pd.notna(kw) else ""
+    ncat_str = str(naive_cat) if pd.notna(naive_cat) else ""
+    ntag_str = str(naive_tags) if pd.notna(naive_tags) else ""
     
     prefix = " HAS_COLON " if ":" in title else " "
-    return title + prefix + abstract + " " + pub_year_str + " " + journal_str + " " + mesh_str + " " + kw_str
+    return title + prefix + abstract + " " + pub_year_str + " " + journal_str + " " + mesh_str + " " + kw_str + " " + ncat_str + " " + ntag_str
 
 def extract_top_tags(probs, classes, allowed_set, max_n=3, prob_thresh=0.3):
     valid_tags = []
@@ -105,14 +118,16 @@ class AutomatedActiveLearner:
 
     def predict(self, pred_df):
         X_target = [
-            augment_text(t, a, py, j, m, k) 
-            for t, a, py, j, m, k in zip(
+            augment_text(t, a, py, j, m, k, nc, nt) 
+            for t, a, py, j, m, k, nc, nt in zip(
                 pred_df["title"], 
                 pred_df["abstract"],
                 pred_df["pub_year"],
                 pred_df["journal"],
                 pred_df["mesh_terms"],
-                pred_df["keywords"]
+                pred_df["keywords"],
+                pred_df.get("naive_category", [""]*len(pred_df)),
+                pred_df.get("naive_tags", [""]*len(pred_df))
             )
         ]
         

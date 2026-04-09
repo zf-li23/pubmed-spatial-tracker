@@ -45,7 +45,8 @@ def create_template(filename: str):
         "pmid", "doi", "title", "journal", "pub_year", "category", "tags",
         "is_manually_confirmed", "annotation_batch", "pdf_path", "url", 
         "abstract", "mesh_terms", "keywords", "is_preprint", "is_method_note", 
-        "citation_count", "notes", "auto_predicted_category", "auto_predicted_tags"
+        "citation_count", "notes", "auto_predicted_category", "auto_predicted_tags",
+        "naive_category", "naive_tags"
     ]
     df = pd.DataFrame(columns=columns)
     df.to_excel(filename, index=False)
@@ -162,10 +163,10 @@ def parse_article(record: dict) -> dict:
         "keywords": keywords_str
     }
 
-def classify_article(parsed_data: dict) -> dict:
+def classify_article(parsed_data: dict) -> tuple:
     """
     基于简单的关键字规则对文献进行预分类和打标签。
-    将 category, tags, is_preprint, is_method_note 添加到字典中。
+    因为新机制，我们仅计算并在 main() 将其赋值给 naive_category 和 naive_tags。
     """
     title_lower = parsed_data["title"].lower()
     abstract_lower = parsed_data["abstract"].lower()
@@ -174,7 +175,6 @@ def classify_article(parsed_data: dict) -> dict:
 
     category = "Research"  # 默认类别
     tags = []
-    notes = ""
     
     # ==== 1. 预印本判定 ====
     is_preprint = any(pj in journal_lower for pj in PREPRINT_JOURNALS)
@@ -340,8 +340,16 @@ def main():
             if not parsed.get("pmid"):
                 continue
                 
-            # 第二阶段: 基于规则进行预分类分析
-            final_record = classify_article(parsed)
+            # 第二阶段: 基于规则进行预分类分析，存入 naive columns
+            naive_cat, naive_tag = classify_article(parsed)
+            # Make sure we don't mess up old structure but map to new
+            final_record = parsed
+            final_record["naive_category"] = naive_cat
+            final_record["naive_tags"] = naive_tag
+            final_record["category"] = ""
+            final_record["tags"] = ""
+            final_record["is_manually_confirmed"] = False
+            
             processed_data.append(final_record)
         except Exception as e:
             pmid_attempt = rec.get("MedlineCitation", {}).get("PMID", "Unknown")

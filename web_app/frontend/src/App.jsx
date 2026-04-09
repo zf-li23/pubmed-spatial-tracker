@@ -29,14 +29,22 @@ function App() {
   
   const [selectedRow, setSelectedRow] = useState(null);
   
-  const [storedTags, setStoredTags] = useState(() => {
-    const saved = localStorage.getItem('pubmed_tracker_tags_dict');
-    return saved ? JSON.parse(saved) : DEFAULT_TAG_DICT;
-  });
+  const [storedTags, setStoredTags] = useState(DEFAULT_TAG_DICT);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/tags')
+      .then(res => res.json())
+      .then(data => setStoredTags(data))
+      .catch(err => console.error("Failed to load tags", err));
+  }, []);
 
   const updateStoredTags = (newDict) => {
      setStoredTags(newDict);
-     localStorage.setItem('pubmed_tracker_tags_dict', JSON.stringify(newDict));
+     fetch('http://localhost:8000/api/tags', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify(newDict)
+     }).catch(err => console.error("Failed to save tags", err));
   };
 
   const loadData = () => {
@@ -228,8 +236,8 @@ function App() {
                       <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider">批次</th>
                       <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider w-1/3">标题</th>
                       <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider">年份</th>
-                      <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider">大类(预测)</th>
-                      <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider w-[10rem]">Tag(预测)</th>
+                      <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider">大类</th>
+                      <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider w-[10rem]">Tag</th>
                       <th className="px-3 py-2.5 text-center text-gray-600 font-bold tracking-wider">本地 PDF</th>
                       <th className="px-3 py-2.5 text-center text-gray-600 font-bold tracking-wider">URL 外链</th>
                       <th className="px-3 py-2.5 text-center text-gray-600 font-bold tracking-wider">负样本标记</th>
@@ -245,23 +253,30 @@ function App() {
                           <td className="px-3 py-2.5">
                              <div className="flex items-center">
                                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                    row.category==='Review'?'bg-yellow-200 text-yellow-800':
-                                    row.category==='Technology'?'bg-purple-200 text-purple-800':
-                                    row.category==='Research'?'bg-green-200 text-green-800':
-                                    'bg-blue-200 text-blue-800'}`}>
-                                    {row.category}
+                                    row.category ? (row.category==='Review'?'bg-yellow-200 text-yellow-800' : row.category==='Technology'?'bg-purple-200 text-purple-800' : row.category==='Research'?'bg-green-200 text-green-800':'bg-blue-200 text-blue-800') : 
+                                    row.auto_predicted_category ? 'bg-indigo-100 text-indigo-800 border border-indigo-300 border-dashed' :
+                                    row.naive_category ? 'bg-gray-100 text-gray-600 border border-gray-300 border-dotted' : 'bg-gray-50 text-gray-400'}`}>
+                                    {row.category || row.auto_predicted_category || row.naive_category}
                                  </span>
-                                 {row.auto_predicted_category && row.auto_predicted_category !== row.category && (
-                                    <span className="ml-1 text-[10px] text-gray-400" title={`原始预测: ${row.auto_predicted_category}`}>🔧</span>
+                                 {(!row.category && !row.auto_predicted_category) && row.naive_category && (
+                                    <span className="ml-1 text-[10px] text-gray-400" title={`Naive: ${row.naive_category}`}>🤖</span>
+                                 )}
+                                 {(!row.category) && row.auto_predicted_category && (
+                                    <span className="ml-1 text-[10px] text-gray-400" title={`AI: ${row.auto_predicted_category}`}>🔧</span>
                                  )}
                              </div>
                           </td>
                           <td className="px-3 py-2.5">
                              <div className="flex items-center truncate max-w-[10rem] text-xs text-gray-600" title={row.tags}>
-                                {row.tags || <span className="text-gray-300 italic">未打标签</span>}
-                                {row.auto_predicted_tags && row.auto_predicted_tags !== row.tags && (
-                                   <span className="ml-1 text-[10px] text-gray-400" title={`原始预测: ${row.auto_predicted_tags}`}>🔧</span>
-                                )}
+                                <span className={row.tags?'text-gray-800' : row.auto_predicted_tags?'text-indigo-600' : 'text-gray-500'}>
+                                        {row.tags || row.auto_predicted_tags || row.naive_tags || <span className="text-gray-300 italic">未打标签</span>}
+                                     </span>
+                                     {(!row.tags && !row.auto_predicted_tags) && row.naive_tags && (
+                                        <span className="ml-1 text-[10px] text-gray-400" title={`Naive: ${row.naive_tags}`}>🤖</span>
+                                     )}
+                                     {(!row.tags) && row.auto_predicted_tags && (
+                                        <span className="ml-1 text-[10px] text-gray-400" title={`AI: ${row.auto_predicted_tags}`}>🔧</span>
+                                     )}
                              </div>
                           </td>
                           <td className="px-3 py-2.5 text-center">

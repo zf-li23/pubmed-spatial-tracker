@@ -124,3 +124,12 @@ python app.py
 - **多维度元数据特征提取**：机器学习分类器的输入 `Text` 现已全面整合并吸收了文献的 `pub_year` (发表年份), `journal` (期刊全称), `mesh_terms` (MeSH 医学主题词) 以及 `keywords` (作者自定义关键词) 等特征。大大增强了文本的表征能力。
 - **严格匹配与非CNS隔离清洗**：为了避免繁杂零碎的普通文献污染核心前沿综述与工具评估，我们将基于 `Research` 类别的文章增加了最严格的顶刊匹配（严卡 `"Nature"`, `"Cell"`, `"Science (New York, N.Y.)"`，完全杜绝诸如 *Nature communications* 等子刊带来的假阳性），未命中的非顶刊 `Research` 原文会自动在预测时被置入 `Batch 999` 等极远期搁置批次，保证了早期人工校对池的极致精华度与纯净度。
 - **详尽指标度量跟踪**：通过动态累加输出 `ML_Performance_Report.csv` 文件，全面跟进并记录当批数据的 `Macro F1-Score` 与 `Micro F1-Score`，辅助评估小众标签学习效果。
+
+## Recent Updates
+- Centralized tag groups via `tags.json` for frontend, crawler, and ML pipeline.
+- Fixed active learning category bug and enabled priority-based Naive/AI predictions in the UI.
+- Removed unused `patch*.py` scripts and temporary logic.
+## Recent Updates
+- Centralized tag groups via `tags.json` for frontend, crawler, and ML pipeline.
+- Fixed active learning category bug and enabled priority-based Naive/AI predictions in the UI.
+- Removed unused `patch*.py` scripts and temporary logic.

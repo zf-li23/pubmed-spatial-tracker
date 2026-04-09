@@ -1,0 +1,6 @@
+{
+  "metaCategory": ["General", "Technology", "Database", "Data Analysis"],
+  "domain": ["Neuroscience", "Development", "Cancer", "Reproduction"],
+  "technology": ["Visium", "MERFISH", "Slide-seq", "Stereo-seq", "Xenium", "CosMx"],
+  "analysis": ["Clustering", "Deconvolution", "Imputation", "Cell Communication", "Spatial Trajectory"]
+}

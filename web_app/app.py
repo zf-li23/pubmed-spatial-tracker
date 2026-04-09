@@ -535,5 +535,30 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
+
+@app.get("/api/tags")
+def get_tags():
+    tags_path = os.path.join(PROJECT_ROOT, "tags.json")
+    if os.path.exists(tags_path):
+        import json
+        with open(tags_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {
+        "metaCategory": ["General", "Technology", "Database", "Data Analysis"],
+        "domain": ["Neuroscience", "Development", "Cancer", "Reproduction"],
+        "technology": ["Visium", "MERFISH", "Slide-seq", "Stereo-seq", "Xenium", "CosMx"],
+        "analysis": ["Clustering", "Deconvolution", "Imputation", "Cell Communication", "Spatial Trajectory"]
+    }
+
+@app.post("/api/tags")
+async def update_tags(request: Request):
+    tags_data = await request.json()
+    tags_path = os.path.join(PROJECT_ROOT, "tags.json")
+    import json
+    with open(tags_path, "w", encoding="utf-8") as f:
+        json.dump(tags_data, f, ensure_ascii=False, indent=2)
+    return {"status": "success", "message": "Tags updated"}
+
 if __name__ == "__main__":
+
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
