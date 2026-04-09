@@ -1,0 +1,8 @@
+biopython>=1.81
+pandas>=2.0.0
+openpyxl>=3.1.2
+tqdm>=4.65.0
+fastapi
+uvicorn
+python-multipart
+requests

@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+node_modules/
+web_app/frontend/node_modules/
+web_app/frontend/dist/
+.DS_Store
+PDF_Archive/
+~$*.xlsx
