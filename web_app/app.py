@@ -281,11 +281,10 @@ def trigger_active_learning():
         target_df = df.loc[unconfirmed_idx]
         pred_cats, pred_tags = learner.predict(target_df)
         
-        cns_list = ['cell', 'nature', 'science']
+        cns_exact = ["Cell", "Nature", "Science (New York, N.Y.)"]
         def is_cns(journal_name):
             if pd.isna(journal_name): return False
-            j = str(journal_name).lower()
-            return any(kw in j for kw in cns_list)
+            return str(journal_name).strip() in cns_exact
 
         batch_999_idx = []
         remaining_unconfirmed_idx = []
