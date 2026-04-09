@@ -27,10 +27,15 @@ app.add_middleware(
 )
 
 def safe_filename(name):
-    if not name:
+    if pd.isna(name) or not str(name).strip() or str(name).strip().lower() == "nan":
         return "Unknown"
+    # Filter out `.pdf` if it was accidentally appended
+    clean_str = str(name).strip()
+    if clean_str.lower().endswith(".pdf"):
+        clean_str = clean_str[:-4]
+    clean_str = re.sub(r'[\r\n]+', '', clean_str)
     # Replace anything not alphanumeric or basic punctuation with _
-    return re.sub(r'[\\/*?:"<>|; ]', '_', str(name))
+    return re.sub(r'[\\/*?:"<>|; ]', '_', clean_str)
 
 def get_df():
     if not os.path.exists(DATA_FILE):
@@ -353,7 +358,20 @@ async def upload_pdf(pmid: str, category: str = Form(...), tags: str = Form(...)
     if idx.empty:
         raise HTTPException(status_code=404, detail="Article not found")
         
-    filename = f"{safe_filename(pub_year)}_{safe_filename(tags)}_{safe_filename(doi)}.pdf"
+    row = df.loc[idx].iloc[0]
+    
+    # Priority: FormData -> Database Row -> "Unknown"
+    final_pub_year = pub_year if (pd.notna(pub_year) and str(pub_year).strip() and pub_year != "Unknown") else str(row.get("pub_year", ""))
+    if pd.isna(final_pub_year) or not final_pub_year: final_pub_year = "Unknown"
+    
+    final_tags = tags if (pd.notna(tags) and str(tags).strip()) else str(row.get("tags", category))
+    if pd.isna(final_tags) or not final_tags: final_tags = category
+    
+    final_doi = doi if (pd.notna(doi) and str(doi).strip()) else str(row.get("doi", ""))
+    if pd.isna(final_doi) or not final_doi: 
+        final_doi = str(row.get("pmid", pmid))
+        
+    filename = f"{safe_filename(final_pub_year)}_{safe_filename(final_tags)}_{safe_filename(final_doi)}.pdf"
     
     cat_dir = os.path.join(PDF_DIR, safe_filename(category))
     os.makedirs(cat_dir, exist_ok=True)
@@ -362,7 +380,8 @@ async def upload_pdf(pmid: str, category: str = Form(...), tags: str = Form(...)
     with open(filepath, "wb") as f:
         shutil.copyfileobj(file.file, f)
         
-    df.loc[idx, "pdf_path"] = filepath
+    db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(category)}/{filename}"
+    df.loc[idx, "pdf_path"] = db_relative_path
     df.loc[idx, "url"] = url
     df.loc[idx, "category"] = category
     df.loc[idx, "tags"] = tags
@@ -389,7 +408,18 @@ def upload_pdf_url(pmid: str, data: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to download from URL: {e}")
 
-    filename = f"{safe_filename(pub_year)}_{safe_filename(tags)}_{safe_filename(doi)}.pdf"
+    row = df.loc[idx].iloc[0]
+    final_pub_year = pub_year if (pd.notna(pub_year) and str(pub_year).strip() and pub_year != "Unknown") else str(row.get("pub_year", ""))
+    if pd.isna(final_pub_year) or not final_pub_year: final_pub_year = "Unknown"
+    
+    final_tags = tags if (pd.notna(tags) and str(tags).strip()) else str(row.get("tags", category))
+    if pd.isna(final_tags) or not final_tags: final_tags = category
+    
+    final_doi = doi if (pd.notna(doi) and str(doi).strip()) else str(row.get("doi", ""))
+    if pd.isna(final_doi) or not final_doi: 
+        final_doi = str(row.get("pmid", pmid))
+
+    filename = f"{safe_filename(final_pub_year)}_{safe_filename(final_tags)}_{safe_filename(final_doi)}.pdf"
     cat_dir = os.path.join(PDF_DIR, safe_filename(category))
     os.makedirs(cat_dir, exist_ok=True)
     filepath = os.path.join(cat_dir, filename)
@@ -398,7 +428,8 @@ def upload_pdf_url(pmid: str, data: dict):
         for chunk in r.iter_content(chunk_size=8192):
             f.write(chunk)
             
-    df.loc[idx, "pdf_path"] = filepath
+    db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(category)}/{filename}"
+    df.loc[idx, "pdf_path"] = db_relative_path
     df.loc[idx, "url"] = url
     df.loc[idx, "category"] = category
     df.loc[idx, "tags"] = tags
@@ -429,9 +460,20 @@ def save_pdf_link(pmid: str, data: dict):
 
 @app.get("/pdf")
 def serve_pdf(path: str):
-    if not os.path.exists(path):
+    if not path:
+        raise HTTPException(status_code=400, detail="Path is empty")
+        
+    # Check if the path format includes the upper repo directory 
+    # e.g., PubMed_Spatial_Tracker/PDF_Archive/...
+    if path.startswith("PubMed_Spatial_Tracker/"):
+        abs_path = os.path.join(os.path.dirname(BASE_DIR), path)
+    else:
+        # Fallback if the path is relative or absolute
+        abs_path = path if os.path.isabs(path) else os.path.join(BASE_DIR, path)
+        
+    if not os.path.exists(abs_path):
         raise HTTPException(status_code=404, detail="PDF not found")
-    return FileResponse(path, media_type="application/pdf")
+    return FileResponse(abs_path, media_type="application/pdf")
 
 
 class TagRenameData(BaseModel):
