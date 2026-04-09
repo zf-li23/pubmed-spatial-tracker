@@ -42,10 +42,10 @@ def create_template(filename: str):
     生成一个空的 Excel 模板文件（仅包含列头），供用户参考。
     """
     columns = [
-        "pmid", "doi", "url", "title", "abstract", "pub_year", "journal",
-        "category", "tags", "mesh_terms", "keywords", "is_preprint",
-        "is_method_note", "citation_count", "is_manually_confirmed", "pdf_path", "notes",
-        "annotation_batch", "auto_predicted_category", "auto_predicted_tags"
+        "pmid", "doi", "title", "journal", "pub_year", "category", "tags",
+        "is_manually_confirmed", "annotation_batch", "pdf_path", "url", 
+        "abstract", "mesh_terms", "keywords", "is_preprint", "is_method_note", 
+        "citation_count", "notes", "auto_predicted_category", "auto_predicted_tags"
     ]
     df = pd.DataFrame(columns=columns)
     df.to_excel(filename, index=False)
