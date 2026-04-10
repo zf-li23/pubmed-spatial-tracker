@@ -142,18 +142,18 @@ class AutomatedActiveLearner:
         pred_cats = []
         pred_tags = []
         
+        # Batch predictions to save time
+        pred_cats_all = self.clf_category.predict(X_target) if self.clf_category is not None else [self.fallback_cat] * len(X_target)
+        pred_tags_probs_all = self.clf_tags.predict_proba(X_target) if self.clf_tags is not None else None
+        is_discard_all = self.clf_discard.predict(X_target) if self.clf_discard is not None else [0] * len(X_target)
+
         for i in range(len(X_target)):
-            x_i = X_target[i:i+1]
-            
-            if self.clf_category is not None:
-                cat = self.clf_category.predict(x_i)[0]
-            else:
-                cat = self.fallback_cat
+            cat = pred_cats_all[i]
             pred_cats.append(cat)
             
             tags = []
             if self.clf_tags is not None:
-                probs = self.clf_tags.predict_proba(x_i)[0]
+                probs = pred_tags_probs_all[i]
                 if cat == "Review":
                     allowed = set(TAG_GROUPS["metaCategory"] + TAG_GROUPS["domain"])
                     tags = extract_top_tags(probs, self.mlb.classes_, allowed, max_n=1, prob_thresh=0.1)
@@ -172,10 +172,7 @@ class AutomatedActiveLearner:
                     tags = extract_top_tags(probs, self.mlb.classes_, None, max_n=2, prob_thresh=0.3)
             
             # Independent Discard check
-            is_discard = 0
-            if self.clf_discard is not None:
-                is_discard = self.clf_discard.predict(x_i)[0]
-            
+            is_discard = is_discard_all[i]
             if is_discard:
                 tags.append("Discarded")
                  

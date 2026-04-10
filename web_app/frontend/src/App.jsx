@@ -62,6 +62,14 @@ function App() {
            return oa - ob;
          });
          setData(result);
+         
+         const unconfirmed = result.filter(r => r.is_manually_confirmed === false);
+         if (unconfirmed.length > 0) {
+             const minBatch = Math.min(...unconfirmed.map(r => parseInt(r.annotation_batch) || 999));
+             setCurrentRound(minBatch);
+         } else {
+             setCurrentRound("已完成");
+         }
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));

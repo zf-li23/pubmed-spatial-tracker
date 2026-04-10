@@ -42,8 +42,23 @@ def get_df():
         return pd.DataFrame()
     return pd.read_excel(DATA_FILE)
 
+from threading import Lock
+df_lock = Lock()
+
 def save_df(df):
-    df.to_excel(DATA_FILE, index=False)
+    with df_lock:
+        temp_file = DATA_FILE + ".writing.xlsx"
+        t_bak = DATA_FILE + ".backup.xlsx"
+        
+        # 1. Write fully to a temp file
+        df.to_excel(temp_file, index=False)
+        
+        # 2. Swap atomically (or near-atomically across platforms)
+        import shutil
+        if os.path.exists(DATA_FILE):
+            shutil.copyfile(DATA_FILE, t_bak) # keep a quick backup
+            
+        os.replace(temp_file, DATA_FILE)
 
 from Bio import Entrez
 import io
@@ -314,10 +329,11 @@ def trigger_active_learning():
             target_size = 50 * (2 ** (curr_batch - 1))
             needed = max(0, target_size - conf_in_curr)
             
-            take_idx = remaining_unconfirmed_idx[:needed]
-            df.loc[take_idx, "annotation_batch"] = curr_batch
+            if needed > 0:
+                take_idx = remaining_unconfirmed_idx[:needed]
+                df.loc[take_idx, "annotation_batch"] = curr_batch
+                remaining_unconfirmed_idx = remaining_unconfirmed_idx[needed:]
             
-            remaining_unconfirmed_idx = remaining_unconfirmed_idx[needed:]
             curr_batch += 1
             
     save_df(df)

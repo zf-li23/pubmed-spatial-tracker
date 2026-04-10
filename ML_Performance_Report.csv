@@ -1,4 +1,4 @@
 Trained_On_Batches,Tested_On_Batch,Test_Samples,Category_Accuracy,Tag_Micro_F1,Tag_Macro_F1
 Baseline(0),1,50,0.52,0.0,0.0
-[1],2,100,0.8,0.438,0.086
-"[1, 2]",3,200,0.765,0.401,0.074
+[1],2,100,0.84,0.472,0.086
+"[1, 2]",3,200,0.775,0.408,0.076
