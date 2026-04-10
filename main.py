@@ -329,6 +329,35 @@ def main():
     # 1. 抓取文章
     raw_articles = fetch_pubmed(email=EMAIL, query=QUERY, max_results=MAX_RESULTS)
     
+    # 1.5 抓取手动导入的文献（为了复现环境）
+    manual_pmids_path = "manual_imported_pmids.txt"
+    if os.path.exists(manual_pmids_path):
+        try:
+            with open(manual_pmids_path, "r", encoding="utf-8") as fpmids:
+                manual_ids = [line.strip() for line in fpmids if line.strip().isdigit()]
+            if manual_ids:
+                print(f"[*] 发现 {len(manual_ids)} 个手动记录的 PMID，正在补充下载...")
+                # 避免重复
+                existing_ids = {str(art.get("MedlineCitation", {}).get("PMID", "")) for art in raw_articles}
+                needed_ids = [pid for pid in manual_ids if pid not in existing_ids]
+                
+                if needed_ids:
+                    from Bio import Entrez
+                    Entrez.email = EMAIL
+                    batch_size = 200
+                    for start in range(0, len(needed_ids), batch_size):
+                        end = min(len(needed_ids), start + batch_size)
+                        batch = needed_ids[start:end]
+                        try:
+                            fetch_handle = Entrez.efetch(db="pubmed", id=",".join(batch), retmode="xml")
+                            batch_results = Entrez.read(fetch_handle)
+                            fetch_handle.close()
+                            raw_articles.extend(batch_results.get("PubmedArticle", []))
+                        except Exception as e:
+                            print(f"[-] 手动批量下载第 {start}-{end} 时失败: {e}")
+        except Exception as e:
+            print(f"读取手动PMID列表失败: {e}")
+
     processed_data = []
     print(f"[*] 开始解析并自动分类，共 {len(raw_articles)} 篇...")
     

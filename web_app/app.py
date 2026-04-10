@@ -94,11 +94,18 @@ async def upload_pmids(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"下载时出错 NCBI E-utilities Error: {str(e)}")
         
-    # Assign new ones to max batch so they are the current focus. Wait, just let them be unconfirmed.
-    # Set them to be in the "current" active unconfirmed batch, or max batch.
-    max_b = int(df["annotation_batch"].max()) if not df.empty and "annotation_batch" in df.columns else 1
-    unconf_b = df[df["is_manually_confirmed"] == False]["annotation_batch"].min()
-    target_batch = int(unconf_b) if pd.notna(unconf_b) else max_b
+    # "新加入的数据直接被标注成除了999批以外的最后一个batch，自动被naive方法分类"
+    max_b = 1
+    if not df.empty and "annotation_batch" in df.columns:
+        valid_batches = df[df["annotation_batch"] != 999]["annotation_batch"]
+        if not valid_batches.dropna().empty:
+            max_b = int(valid_batches.max())
+    target_batch = max_b
+    
+    import sys
+    if BASE_DIR not in sys.path:
+        sys.path.append(BASE_DIR)
+    from migrate_naive import get_naive
     
     new_rows = []
     from datetime import datetime
@@ -124,6 +131,8 @@ async def upload_pmids(file: UploadFile = File(...)):
         abstract_texts = article.get("Abstract", {}).get("AbstractText", [])
         abstract = " ".join([str(t) for t in abstract_texts]) if abstract_texts else ""
         
+        # 自动被naive方法分类
+        naive_cat, naive_tags = get_naive(title, abstract, journal)
         row = {
             "pmid": pmid,
             "doi": doi,
@@ -132,13 +141,15 @@ async def upload_pmids(file: UploadFile = File(...)):
             "abstract": abstract,
             "pub_year": pub_year,
             "journal": journal,
-            "category": "",
-            "tags": "",
+            "category": naive_cat,
+            "tags": naive_tags,
+            "naive_category": naive_cat,
+            "naive_tags": naive_tags,
             "is_manually_confirmed": False,
             "pdf_path": "",
             "annotation_batch": target_batch,
-            "auto_predicted_category": "",
-            "auto_predicted_tags": ""
+            "auto_predicted_category": naive_cat,
+            "auto_predicted_tags": naive_tags
         }
         new_rows.append(row)
         
@@ -153,6 +164,16 @@ async def upload_pmids(file: UploadFile = File(...)):
                 df[c] = ""
         df = pd.concat([df, df_new], ignore_index=True)
         save_df(df)
+        
+        # 记录手动导入的PMID，以便复现
+        manual_pmids_path = os.path.join(BASE_DIR, "manual_imported_pmids.txt")
+        new_pmids_list = df_new["pmid"].tolist()
+        try:
+            with open(manual_pmids_path, "a", encoding="utf-8") as fpmids:
+                for np_id in new_pmids_list:
+                    fpmids.write(f"{np_id}\n")
+        except Exception as e:
+            print(f"Failed to write manual pmids to {manual_pmids_path}: {e}")
         
     return {"message": f"成功下载并导入了 {len(new_rows)} 篇由于您手动提供的 PubMed文献！为了方便您打标，它们已被临时分配在当前工作批次 (Batch {target_batch})。"}
 
@@ -183,6 +204,13 @@ def trigger_active_learning():
         return {"message": "✅ 恭喜！当前库中所有文章均已校验完毕！", "status": "done"}
         
     next_batch = int(unconfirmed_df["annotation_batch"].min())
+    
+    # 如果其中有零散的被我标注了的数据，应该会被整合到当前batch，包括第999批中的数据
+    scattered_mask = (df["is_manually_confirmed"] == True) & (df["annotation_batch"] > next_batch)
+    if scattered_mask.any():
+        df.loc[scattered_mask, "annotation_batch"] = next_batch
+        confirmed_df = df[df["is_manually_confirmed"] == True]
+        save_df(df)
     
     if confirmed_df.empty:
         return {
