@@ -33,14 +33,18 @@ print("---------- Step 2: Machine Learning Active Prediction ----------")
 train_df = df[df["is_manually_confirmed"] == True].copy()
 unlabeled_df = df[df["is_manually_confirmed"] != True].copy()
 
+if "uncertainty_score" not in df.columns:
+    df["uncertainty_score"] = 0.0
+
 if len(train_df) > 0:
     learner = AutomatedActiveLearner()
     learner.fit(train_df)
     
     if len(unlabeled_df) > 0:
-        pred_cats, pred_tags = learner.predict(unlabeled_df)
+        pred_cats, pred_tags, uncertainties = learner.predict(unlabeled_df)
         df.loc[df["is_manually_confirmed"] != True, "auto_predicted_category"] = pred_cats
         df.loc[df["is_manually_confirmed"] != True, "auto_predicted_tags"] = pred_tags
+        df.loc[df["is_manually_confirmed"] != True, "uncertainty_score"] = uncertainties
 
 try:
     df.to_sql("literature", engine, index=False, if_exists="replace")

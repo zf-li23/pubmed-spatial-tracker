@@ -7,3 +7,6 @@ uvicorn
 python-multipart
 requests
 sqlalchemy
+scikit-learn
+sentence-transformers
+joblib
