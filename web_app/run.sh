@@ -18,14 +18,22 @@ else
 fi
 cd ../../
 
-# Step 2: Clean up zombie port 8000 processes
+# Step 2: Clean up zombie port 8000 processes SAFELY
 echo "=> Cleaning up any processes on port 8000..."
 PORT_PIDS=$(lsof -t -i:8000 || true)
 if [ ! -z "$PORT_PIDS" ]; then
     echo "   Found processes holding port 8000: $PORT_PIDS"
-    echo "   Killing them..."
-    kill -9 $PORT_PIDS
-    sleep 1
+    echo "   Sending graceful termination signal (kill -15)..."
+    kill -15 $PORT_PIDS
+    sleep 2
+    
+    # Check if they are still alive
+    PORT_PIDS_REMAINING=$(lsof -t -i:8000 || true)
+    if [ ! -z "$PORT_PIDS_REMAINING" ]; then
+        echo "   Processes still running. Forcing termination (kill -9)..."
+        kill -9 $PORT_PIDS_REMAINING
+        sleep 1
+    fi
 fi
 
 # Step 3: Run FastAPI

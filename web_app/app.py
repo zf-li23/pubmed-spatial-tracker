@@ -538,7 +538,7 @@ def delete_tag(data: TagDeleteData):
 
 @app.get("/api/tags")
 def get_tags():
-    tags_path = os.path.join(PROJECT_ROOT, "tags.json")
+    tags_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tags.json")
     if os.path.exists(tags_path):
         import json
         with open(tags_path, "r", encoding="utf-8") as f:
@@ -553,7 +553,7 @@ def get_tags():
 @app.post("/api/tags")
 async def update_tags(request: Request):
     tags_data = await request.json()
-    tags_path = os.path.join(PROJECT_ROOT, "tags.json")
+    tags_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tags.json")
     import json
     with open(tags_path, "w", encoding="utf-8") as f:
         json.dump(tags_data, f, ensure_ascii=False, indent=2)
