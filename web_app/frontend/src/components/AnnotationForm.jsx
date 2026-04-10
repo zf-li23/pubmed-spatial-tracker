@@ -11,9 +11,11 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-     setCat(row.category || "Research");
-     setTags(row.tags ? row.tags.split(';').map(t=>t.trim()).filter(Boolean) : []);
-  }, [row.pmid, row.category, row.tags]);
+     const defaultCat = row.category || row.auto_predicted_category || row.naive_category || "Research";
+     const defaultTagsStr = row.tags || row.auto_predicted_tags || row.naive_tags || "";
+     setCat(defaultCat);
+     setTags(defaultTagsStr ? defaultTagsStr.split(';').map(t=>t.trim()).filter(Boolean) : []);
+  }, [row.pmid, row.category, row.auto_predicted_category, row.naive_category, row.tags, row.auto_predicted_tags, row.naive_tags]);
 
   const toggleTag = (t) => {
      if(tags.includes(t)) setTags(tags.filter(x=>x!==t));

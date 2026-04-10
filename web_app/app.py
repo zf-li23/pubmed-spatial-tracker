@@ -529,11 +529,11 @@ def delete_tag(data: TagDeleteData):
     save_df(df)
     return {"message": "Success"}
 
-# Set up static directory for React
 
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "frontend", "dist")
-os.makedirs(STATIC_DIR, exist_ok=True)
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+
+
+
 
 
 @app.get("/api/tags")
@@ -558,6 +558,13 @@ async def update_tags(request: Request):
     with open(tags_path, "w", encoding="utf-8") as f:
         json.dump(tags_data, f, ensure_ascii=False, indent=2)
     return {"status": "success", "message": "Tags updated"}
+
+# Set up static directory for React
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+os.makedirs(STATIC_DIR, exist_ok=True)
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
 
 if __name__ == "__main__":
 

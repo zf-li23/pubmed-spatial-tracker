@@ -254,8 +254,8 @@ function App() {
                              <div className="flex items-center">
                                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                                     row.category ? (row.category==='Review'?'bg-yellow-200 text-yellow-800' : row.category==='Technology'?'bg-purple-200 text-purple-800' : row.category==='Research'?'bg-green-200 text-green-800':'bg-blue-200 text-blue-800') : 
-                                    row.auto_predicted_category ? 'bg-indigo-100 text-indigo-800 border border-indigo-300 border-dashed' :
-                                    row.naive_category ? 'bg-gray-100 text-gray-600 border border-gray-300 border-dotted' : 'bg-gray-50 text-gray-400'}`}>
+                                    row.auto_predicted_category ? (row.auto_predicted_category==='Review'?'bg-yellow-200 text-yellow-800' : row.auto_predicted_category==='Technology'?'bg-purple-200 text-purple-800' : row.auto_predicted_category==='Research'?'bg-green-200 text-green-800':'bg-blue-200 text-blue-800') :
+                                    row.naive_category ? (row.naive_category==='Review'?'bg-yellow-200 text-yellow-800' : row.naive_category==='Technology'?'bg-purple-200 text-purple-800' : row.naive_category==='Research'?'bg-green-200 text-green-800':'bg-blue-200 text-blue-800') : 'bg-gray-50 text-gray-400'}`}>
                                     {row.category || row.auto_predicted_category || row.naive_category}
                                  </span>
                                  {(!row.category && !row.auto_predicted_category) && row.naive_category && (
@@ -268,7 +268,7 @@ function App() {
                           </td>
                           <td className="px-3 py-2.5">
                              <div className="flex items-center truncate max-w-[10rem] text-xs text-gray-600" title={row.tags}>
-                                <span className={row.tags?'text-gray-800' : row.auto_predicted_tags?'text-indigo-600' : 'text-gray-500'}>
+                                <span className="text-gray-800">
                                         {row.tags || row.auto_predicted_tags || row.naive_tags || <span className="text-gray-300 italic">未打标签</span>}
                                      </span>
                                      {(!row.tags && !row.auto_predicted_tags) && row.naive_tags && (
