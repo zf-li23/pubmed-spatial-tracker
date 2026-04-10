@@ -85,15 +85,23 @@ class AutomatedActiveLearner:
         else:
             self.clf_discard.fit(X_train, y_discard)
             
-        non_discard_idx = [i for i, y in enumerate(y_discard) if y == 0]
-        if not non_discard_idx:
-            return # Everything is discarded
+        X_valid = []
+        y_cat_valid = []
+        y_tags_clean = []
+        for i in range(len(X_train)):
+            if pd.notna(categories[i]) and str(categories[i]).strip():
+                X_valid.append(X_train[i])
+                y_cat_valid.append(categories[i])
+                raw_t = [tt.strip() for t in str(tags_list[i]).split(';') for tt in [t] if tt.strip() and tt.strip() != 'Discarded']
+                y_tags_clean.append(raw_t)
 
-        X_non_discard = [X_train[i] for i in non_discard_idx]
-        y_cat_non_discard = [categories[i] for i in non_discard_idx]
-        
-        y_tags_raw = [str(tags_list[i]).split(';') for i in non_discard_idx]
-        y_tags_clean = [[tt.strip() for t in ts for tt in [t] if tt.strip() and tt.strip() != 'Discarded'] for ts in y_tags_raw]
+        if not X_valid:
+            X_valid = X_train
+            y_cat_valid = ["Research"] * len(X_train)
+            y_tags_clean = [[]] * len(X_train)
+
+        X_non_discard = X_valid  # Rename for compatibility below
+        y_cat_non_discard = y_cat_valid
         
         # Ensure variance for categories
         if len(set(y_cat_non_discard)) > 1:
@@ -137,21 +145,13 @@ class AutomatedActiveLearner:
         for i in range(len(X_target)):
             x_i = X_target[i:i+1]
             
-            is_discard = 0
-            if self.clf_discard is not None:
-                is_discard = self.clf_discard.predict(x_i)[0]
-                
-            if is_discard:
-                pred_cats.append("Discard")
-                pred_tags.append("Discarded")
-                continue
-                
             if self.clf_category is not None:
                 cat = self.clf_category.predict(x_i)[0]
             else:
                 cat = self.fallback_cat
             pred_cats.append(cat)
             
+            tags = []
             if self.clf_tags is not None:
                 probs = self.clf_tags.predict_proba(x_i)[0]
                 if cat == "Review":
@@ -170,6 +170,16 @@ class AutomatedActiveLearner:
                     tags = extract_top_tags(probs, self.mlb.classes_, None, max_n=2, prob_thresh=0.2)
                 else:
                     tags = extract_top_tags(probs, self.mlb.classes_, None, max_n=2, prob_thresh=0.3)
+            
+            # Independent Discard check
+            is_discard = 0
+            if self.clf_discard is not None:
+                is_discard = self.clf_discard.predict(x_i)[0]
+            
+            if is_discard:
+                tags.append("Discarded")
+                 
+            if len(tags) > 0:
                 pred_tags.append("; ".join(tags))
             else:
                 pred_tags.append("")

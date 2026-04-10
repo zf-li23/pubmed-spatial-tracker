@@ -245,7 +245,7 @@ function App() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {paginatedData.map((row) => (
-                       <tr key={row.pmid} onClick={()=>setSelectedRow(row)} className={`cursor-pointer transition-colors ${selectedRow?.pmid === row.pmid ? 'bg-blue-100 hover:bg-blue-200' : 'hover:bg-blue-50'}`}>
+                       <tr key={row.pmid} onClick={()=>setSelectedRow(row)} className={`cursor-pointer transition-colors ${selectedRow?.pmid === row.pmid ? 'bg-blue-100 hover:bg-blue-200' : 'hover:bg-blue-50'} ${((row.tags || '').includes('Discarded') || (row.auto_predicted_tags || '').includes('Discarded') || (row.naive_tags || '').includes('Discarded')) ? 'opacity-50 grayscale bg-gray-50' : ''}`}>
                           <td className="px-3 py-2.5 text-lg">{row.is_manually_confirmed ? '✅' : '⬜'}</td>
                           <td className="px-3 py-2.5 font-bold text-gray-500">B{row.annotation_batch || 0}</td>
                           <td className="px-3 py-2.5 font-medium truncate max-w-[20rem]" title={row.title}>{row.title}</td>
