@@ -18,8 +18,8 @@ function App() {
   // Filters
   const [filterCategory, setFilterCategory] = useState("");
   const [filterConfirmed, setFilterConfirmed] = useState("all");
-   const [currentRound, setCurrentRound] = useState(0); 
-  const [filterBatch, setFilterBatch] = useState("all");
+    
+  
   const [filterPmid, setFilterPmid] = useState("");
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   
@@ -63,13 +63,7 @@ function App() {
          });
          setData(result);
          
-         const unconfirmed = result.filter(r => r.is_manually_confirmed === false);
-         if (unconfirmed.length > 0) {
-             const minBatch = Math.min(...unconfirmed.map(r => parseInt(r.annotation_batch) || 999));
-             setCurrentRound(minBatch);
-         } else {
-             setCurrentRound("已完成");
-         }
+         // Removed batch logic
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
@@ -83,20 +77,16 @@ function App() {
        if (filterCategory && item.category !== filterCategory) return false;
        if (filterConfirmed === 'yes' && !item.is_manually_confirmed) return false;
        if (filterConfirmed === 'no' && item.is_manually_confirmed) return false;
-       if (filterBatch !== 'all' && String(item.annotation_batch) !== filterBatch) return false;
        return true;
     });
-  }, [data, filterCategory, filterConfirmed, filterBatch, filterPmid]);
+  }, [data, filterCategory, filterConfirmed, filterPmid]);
 
-  // Derive unique batches
-  const availableBatches = useMemo(() => {
-     return [...new Set(data.map(d => d.annotation_batch).filter(b => b != null))].sort((a,b) => a - b);
-  }, [data]);
+  
 
   // Reset pagination when filters change
   useEffect(() => {
      setCurrentPage(1);
-  }, [filterCategory, filterConfirmed, filterBatch, filterPmid]);
+  }, [filterCategory, filterConfirmed, filterPmid]);
 
   // Calculate current page data
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -181,7 +171,7 @@ function App() {
             else {
                 alert(data.message);
                 if(data.status === "success") {
-                    setFilterBatch(String(data.next_batch));
+                    
                     setFilterConfirmed("all");
                     loadData(); // Resync updated ML rows
                 }
@@ -204,10 +194,7 @@ function App() {
                  onChange={e=>setFilterPmid(e.target.value)} 
                  className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-300 w-32"
                />
-               <select className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white" value={filterBatch} onChange={e=>setFilterBatch(e.target.value)}>
-                 <option value="all">所有批次</option>
-                 {availableBatches.map(b=><option key={b} value={b}>Batch {b}</option>)}
-               </select>
+               
                <select className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white" value={filterCategory} onChange={e=>setFilterCategory(e.target.value)}>
                  <option value="">所有分类</option>
                  {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
@@ -226,10 +213,10 @@ function App() {
                  🔖 管理 Tags
                </button>
                <button onClick={triggerActiveLearning} className="bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-purple-700 shadow-md transition-all flex items-center gap-1">
-                 🚀 AI 本地学习并预测下批
+                 🚀 提交并让 AI 重新学习
                </button>
                <span className="ml-3 font-semibold text-gray-700 bg-white px-3 py-1.5 rounded shadow-sm border border-gray-200">
-                  当前待标定轮次：【第 {currentRound} 轮】
+                  🔥 优先攻克顶部的疑难文献
                </span>
             </div>
          </div>
@@ -241,7 +228,7 @@ function App() {
                   <thead className="bg-[#f8fafc] sticky top-[-1rem] shadow-sm z-10">
                     <tr>
                       <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider">校验</th>
-                      <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider">批次</th>
+                      <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider" title="模型对该篇的预测困惑度，越高越需要人工介入">不确定性分数</th>
                       <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider w-1/3">标题</th>
                       <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider">年份</th>
                       <th className="px-3 py-2.5 text-left text-gray-600 font-bold tracking-wider">大类</th>
@@ -255,7 +242,7 @@ function App() {
                     {paginatedData.map((row) => (
                        <tr key={row.pmid} onClick={()=>setSelectedRow(row)} className={`cursor-pointer transition-colors ${selectedRow?.pmid === row.pmid ? 'bg-blue-100 hover:bg-blue-200' : 'hover:bg-blue-50'} ${((row.tags || '').includes('Discarded') || (row.auto_predicted_tags || '').includes('Discarded') || (row.naive_tags || '').includes('Discarded')) ? 'opacity-50 grayscale bg-gray-50' : ''}`}>
                           <td className="px-3 py-2.5 text-lg">{row.is_manually_confirmed ? '✅' : '⬜'}</td>
-                          <td className="px-3 py-2.5 font-bold text-gray-500">B{row.annotation_batch || 0}</td>
+                          <td className="px-3 py-2.5 font-bold text-gray-500">{row.is_manually_confirmed ? "-" : (row.uncertainty_score ? Number(row.uncertainty_score).toFixed(3) : "-")}</td>
                           <td className="px-3 py-2.5 font-medium truncate max-w-[20rem]" title={row.title}>{row.title}</td>
                           <td className="px-3 py-2.5 text-gray-600">{row.pub_year}</td>
                           <td className="px-3 py-2.5">

@@ -175,12 +175,22 @@ async def upload_pmids(file: UploadFile = File(...)):
     return {"message": f"成功下载并导入了 {len(new_rows)} 篇由于您手动提供的 PubMed文献！为了方便您打标，它们已被临时分配在当前工作批次 (Batch {target_batch})。"}
 
 @app.get("/api/articles")
-@app.get("/api/articles")
 def get_articles():
     df = get_df()
     if df.empty:
         return []
+    
+    if "uncertainty_score" not in df.columns:
+        df["uncertainty_score"] = 0.0
+        
     df = df.fillna("")
+    
+    # 按照 is_manually_confirmed=False 置顶，并在 False 组内部随机性分数为 DESC (高置信度=低分, 越不懂得分越高)
+    df['is_confirmed_num'] = df['is_manually_confirmed'].astype(int)
+    df['uncertainty_score_num'] = pd.to_numeric(df['uncertainty_score'], errors='coerce').fillna(0.0)
+    df = df.sort_values(by=['is_confirmed_num', 'uncertainty_score_num'], ascending=[True, False])
+    df = df.drop(columns=['is_confirmed_num', 'uncertainty_score_num'])
+    
     return df.to_dict(orient="records")
 
 class AnnotationData(BaseModel):
@@ -191,29 +201,16 @@ class AnnotationData(BaseModel):
 def trigger_active_learning():
     df = get_df()
     
-    if "annotation_batch" not in df.columns:
-        raise HTTPException(status_code=400, detail="Database not upgraded with active learning schema.")
-        
     confirmed_df = df[df["is_manually_confirmed"] == True]
     unconfirmed_df = df[df["is_manually_confirmed"] == False]
     
     if unconfirmed_df.empty:
         return {"message": "✅ 恭喜！当前库中所有文章均已校验完毕！", "status": "done"}
-        
-    next_batch = int(unconfirmed_df["annotation_batch"].min())
     
-    # 如果其中有零散的被我标注了的数据，应该会被整合到当前batch，包括第999批中的数据
-    scattered_mask = (df["is_manually_confirmed"] == True) & (df["annotation_batch"] > next_batch)
-    if scattered_mask.any():
-        df.loc[scattered_mask, "annotation_batch"] = next_batch
-        confirmed_df = df[df["is_manually_confirmed"] == True]
-        save_df(df)
-    
-    if confirmed_df.empty:
+    if len(confirmed_df) < 5:
         return {
-            "message": "请至少先标注并校验【第 1 批次】的部分数据，模型才拥有基线样本来学习！", 
-            "status": "need_data",
-            "next_batch": next_batch
+            "message": f"当前仅标注了 {len(confirmed_df)} 篇，请至少先标注并校验 10~20 篇数据，模型才拥有足够的基线样本来学习！", 
+            "status": "need_data"
         }
 
     try:
@@ -221,153 +218,23 @@ def trigger_active_learning():
     except ImportError as e:
         raise HTTPException(status_code=500, detail=f"Please install required ML libraries! {str(e)}")
 
-    # ========= SIMULATION FOR ML_PERFORMANCE_REPORT (V3.0 Logic) =========
-    # Rewriting ML report based on retrospective simulation
-    report_rows = []
-    
-    # To properly simulate, we sort batches. We ONLY use batches that are fully completed
-    # Any batch >= next_batch has unconfirmed items, meaning it's incomplete.
-    all_confirmed_batches = sorted(confirmed_df["annotation_batch"].unique().tolist())
-    completed_batches = [b for b in all_confirmed_batches if b < next_batch]
-    
     learner = AutomatedActiveLearner()
     
-    for i in range(len(completed_batches)):
-        b = completed_batches[i]
-        
-        # Test phase for the current completed batch
-        b_df = confirmed_df[confirmed_df["annotation_batch"] == b]
-        y_true_cat = b_df["category"].tolist()
-        
-        if i == 0:
-            # First batch baseline evaluation
-            y_pred_cat = b_df["auto_predicted_category"].fillna("Research").tolist()
-            correct = sum(1 for yt, yp in zip(y_true_cat, y_pred_cat) if yt == yp)
-            acc = correct / len(y_true_cat) if len(y_true_cat) > 0 else 0
-            report_rows.append({
-                "Trained_On_Batches": "Baseline(0)",
-                "Tested_On_Batch": b,
-                "Test_Samples": len(y_true_cat),
-                "Category_Accuracy": round(acc, 3),
-                "Tag_Micro_F1": 0,
-                "Tag_Macro_F1": 0
-            })
-        else:
-            # We already have trained the model on batch < b in the previous iterations
-            pred_cats, pred_tags = learner.predict(b_df)
-            
-            correct = sum(1 for yt, yp in zip(y_true_cat, pred_cats) if yt == yp)
-            acc = correct / len(y_true_cat) if len(y_true_cat) > 0 else 0
-            
-            # calculate F1 scores for tags here
-            # using learner.mlb metrics
-            from sklearn.metrics import f1_score
-            y_true_tags_raw = [str(t).split(';') for t in b_df["tags"].tolist()]
-            y_true_tags_clean = [[t.strip() for t in ts if t.strip()] for ts in y_true_tags_raw]
-            
-            y_pred_tags_raw = [str(t).split(';') for t in pred_tags]
-            y_pred_tags_clean = [[t.strip() for t in ts if t.strip()] for ts in y_pred_tags_raw]
-            
-            if learner.mlb is not None and hasattr(learner.mlb, "classes_"):
-                from sklearn.preprocessing import MultiLabelBinarizer
-                import warnings
-                tmp_mlb = MultiLabelBinarizer(classes=learner.mlb.classes_)
-                try:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        y_true_bin = tmp_mlb.fit_transform(y_true_tags_clean)
-                        y_pred_bin = tmp_mlb.transform(y_pred_tags_clean)
-                        micro_f1 = f1_score(y_true_bin, y_pred_bin, average="micro", zero_division=0)
-                        macro_f1 = f1_score(y_true_bin, y_pred_bin, average="macro", zero_division=0)
-                except Exception:
-                    micro_f1, macro_f1 = 0, 0
-            else:
-                micro_f1, macro_f1 = 0, 0
-            
-            # Rewrite original prediction columns for historical batches to match new model
-            df.loc[b_df.index, "auto_predicted_category"] = pred_cats
-            df.loc[b_df.index, "auto_predicted_tags"] = pred_tags
-            
-            report_rows.append({
-                "Trained_On_Batches": str(completed_batches[:i]),
-                "Tested_On_Batch": b,
-                "Test_Samples": len(y_true_cat),
-                "Category_Accuracy": round(acc, 3),
-                "Tag_Micro_F1": round(micro_f1, 3),
-                "Tag_Macro_F1": round(macro_f1, 3)
-            })
-            
-        # Train phase utilizing current batch as well
-        train_df = confirmed_df[confirmed_df["annotation_batch"] <= b]
-        learner.fit(train_df)
-        
-    last_accuracy = report_rows[-1]["Category_Accuracy"] if report_rows else 0
-
-    # Save progressive report to CSV
-    if report_rows:
-        report_df = pd.DataFrame(report_rows)
-        report_path = os.path.join(BASE_DIR, "ML_Performance_Report.csv")
-        report_df.to_csv(report_path, index=False)
-
-    # Finally, retrain on ALL fully completed batches before predicting on the new unconfirmed batch
-    train_df_final = confirmed_df[confirmed_df["annotation_batch"] < next_batch]
-    if not train_df_final.empty:
-        learner.fit(train_df_final)
-
-    # ========= PREDICT ON ALL UNCONFIRMED =========
-    unconfirmed_idx = df[(df["is_manually_confirmed"] == False)].index
-    predicted_count = 0
-    if not unconfirmed_idx.empty:
-        target_df = df.loc[unconfirmed_idx]
-        pred_cats, pred_tags = learner.predict(target_df)
-        
-        cns_exact = ["Cell", "Nature", "Science (New York, N.Y.)"]
-        def is_cns(journal_name):
-            if pd.isna(journal_name): return False
-            return str(journal_name).strip() in cns_exact
-
-        batch_999_idx = []
-        remaining_unconfirmed_idx = []
-        
-        for k, idx in enumerate(unconfirmed_idx):
-            cat = pred_cats[k]
-            tag = pred_tags[k]
-            journal = df.loc[idx, "journal"]
-            
-            df.loc[idx, "category"] = cat
-            df.loc[idx, "auto_predicted_category"] = cat
-            df.loc[idx, "tags"] = tag
-            df.loc[idx, "auto_predicted_tags"] = tag
-            
-            predicted_count += 1
-            
-            if cat == "Research" and not is_cns(journal):
-                batch_999_idx.append(idx)
-            else:
-                remaining_unconfirmed_idx.append(idx)
-                
-        df.loc[batch_999_idx, "annotation_batch"] = 999
-        
-        curr_batch = int(next_batch) if next_batch else 1
-        while remaining_unconfirmed_idx:
-            conf_in_curr = len(confirmed_df[confirmed_df["annotation_batch"] == curr_batch])
-            target_size = 50 * (2 ** (curr_batch - 1))
-            needed = max(0, target_size - conf_in_curr)
-            
-            if needed > 0:
-                take_idx = remaining_unconfirmed_idx[:needed]
-                df.loc[take_idx, "annotation_batch"] = curr_batch
-                remaining_unconfirmed_idx = remaining_unconfirmed_idx[needed:]
-            
-            curr_batch += 1
-            
+    # 在全部人工确认的数据上进行拟合（Active Learning 的知识吸取）
+    learner.fit(confirmed_df)
+    
+    # 在全部未确认的数据上推送最新预测与计算疑惑度 (Uncertainty Score)
+    pred_cats, pred_tags, uncertainties = learner.predict(unconfirmed_df)
+    
+    # 更新推断与分数
+    df.loc[df["is_manually_confirmed"] == False, "auto_predicted_category"] = pred_cats
+    df.loc[df["is_manually_confirmed"] == False, "auto_predicted_tags"] = pred_tags
+    df.loc[df["is_manually_confirmed"] == False, "uncertainty_score"] = uncertainties
+    
     save_df(df)
 
     return {
-        "message": f"🧠 主动学习与分类推断完成！\n本次重新验证吸收了全量标定经验。\n已自动按指数扩大并推断剩余数据，将非CNS正刊【研究】退至 Batch 999 储备，已生成下一被标注目标：Batch {next_batch}！",
-        "accuracy": last_accuracy,
-        "next_batch": next_batch,
-        "predicted_count": predicted_count,
+        "message": f"🎉 AI 重训成功！\n基于已标注的 {len(confirmed_df)} 篇样本重构了认知网络。\n余下无标签文献已按【不确定性分数】重新计算并置顶排列，\n请在上方优先标注最具有信息量（最棘手）的一批文章！",
         "status": "success"
     }
 
