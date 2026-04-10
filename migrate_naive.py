@@ -24,38 +24,44 @@ def get_naive(title, abstract, journal):
     
     tags = []
     
+    category = "Research" # 默认兜底
+    
+    # 根据在 tags.json 匹配到的标签所在的 group 来动态推断大类
+    group_counts = {g: 0 for g in TAG_GROUPS.keys()}
+    
     for group, group_tags in TAG_GROUPS.items():
         for tag in group_tags:
-            t_lower = tag.lower()
+            t_lower = str(tag).lower()
+            # 简单的全词匹配，避免部分前缀匹配（为简单起见先使用in，但可使用正则来提升精度）
             if t_lower in combined_text or t_lower.replace("-", "") in combined_text:
                 tags.append(tag)
+                group_counts[group] += 1
                 
-    is_method_note = False
-    if "brief communication" in str(title).lower():
-        is_method_note = True
-        
-    category = "Research"
-    if "database" in title_lower or "resource" in journal_lower:
-        category = "Database"
-    elif "review" in title_lower or "review" in journal_lower or is_method_note:
+    # 去重
+    tags = list(set(tags))
+    
+    if "Review".lower() in title_lower or "Review".lower() in journal_lower:
         category = "Review"
-    elif "tool" in title_lower or "software" in title_lower or "benchmark" in title_lower or "comparison" in title_lower:
-        category = "Data Analysis"
-    elif "sequencing" in combined_text and ("spatial" in title_lower or "resolve" in title_lower):
+    elif group_counts.get("database", 0) > 0 or "database".lower() in title_lower:
+        category = "Database"
+    elif group_counts.get("technology", 0) > 0 and group_counts.get("analysis", 0) == 0:
         category = "Technology"
+    elif group_counts.get("analysis", 0) > 0:
+        category = "Data Analysis"
         
     return category, "; ".join(tags)
 
-df = pd.read_excel("spatial_literature.xlsx")
-if "naive_category" not in df.columns:
-    df["naive_category"] = ""
-if "naive_tags" not in df.columns:
-    df["naive_tags"] = ""
-    
-for idx, row in df.iterrows():
-    cat, tags = get_naive(row["title"], row["abstract"], row["journal"])
-    df.at[idx, "naive_category"] = cat
-    df.at[idx, "naive_tags"] = tags
-    
-df.to_excel("spatial_literature.xlsx", index=False)
-print("Naive re-computed with new tags!")
+if __name__ == "__main__":
+    df = pd.read_excel("spatial_literature.xlsx")
+    if "naive_category" not in df.columns:
+        df["naive_category"] = ""
+    if "naive_tags" not in df.columns:
+        df["naive_tags"] = ""
+        
+    for idx, row in df.iterrows():
+        cat, tags = get_naive(row["title"], row["abstract"], row["journal"])
+        df.at[idx, "naive_category"] = cat
+        df.at[idx, "naive_tags"] = tags
+        
+    df.to_excel("spatial_literature.xlsx", index=False)
+    print("Naive re-computed with new tags!")

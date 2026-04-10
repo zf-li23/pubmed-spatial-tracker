@@ -58,14 +58,16 @@ class AutomatedActiveLearner:
         
     def fit(self, train_df):
         X_train = [
-            augment_text(t, a, py, j, m, k) 
-            for t, a, py, j, m, k in zip(
+            augment_text(t, a, py, j, m, k, nc, nt) 
+            for t, a, py, j, m, k, nc, nt in zip(
                 train_df["title"], 
                 train_df["abstract"],
                 train_df["pub_year"],
                 train_df["journal"],
                 train_df["mesh_terms"],
-                train_df["keywords"]
+                train_df["keywords"],
+                train_df.get("naive_category", [""]*len(train_df)),
+                train_df.get("naive_tags", [""]*len(train_df))
             )
         ]
         
@@ -75,7 +77,8 @@ class AutomatedActiveLearner:
         y_discard = [1 if "Discarded" in str(tg) else 0 for tg in tags_list]
         self.clf_discard = Pipeline([
             ('tfidf', TfidfVectorizer(stop_words='english', max_features=5000)),
-            ('clf', LogisticRegression(class_weight='balanced', max_iter=1000))
+            # 偏置控制：提高判定 Discard (1) 的门槛，加重误删 (0当成1) 的惩罚
+            ('clf', LogisticRegression(class_weight={0: 5, 1: 1}, max_iter=1000))
         ])
         
         # Guard against zero variance

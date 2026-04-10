@@ -11,6 +11,28 @@ from Bio import Entrez
 import urllib.error
 import time
 from tqdm import tqdm
+import json
+import migrate_naive
+
+# ---------------------------------------------------------
+# 动态加载 tags.json 与 构建检索式
+# ---------------------------------------------------------
+TAG_GROUPS = migrate_naive.TAG_GROUPS
+
+# 从 tags.json 的 technology 列表中抽取技术关键词，并动态拼装到 PubMed 检索式中
+tech_tags = TAG_GROUPS.get("technology", [])
+tech_queries = [f"{t}[Title/Abstract]" if t.lower() not in ["visium"] else f"({t}[Title/Abstract] AND transcriptom*[Title/Abstract])" for t in tech_tags]
+
+# 核心空间转录组学通用词
+base_queries = [
+    '"spatial transcriptomics"[Title/Abstract]',
+    '"spatially resolved transcriptomics"[Title/Abstract]',
+    '"spatial gene expression"[Title/Abstract]',
+    '"spatial omics"[Title/Abstract]'
+]
+
+# 完全动态拼接
+QUERY = " OR ".join(base_queries + tech_queries)
 
 # ---------------------------------------------------------
 # 配置参数
@@ -19,22 +41,13 @@ from tqdm import tqdm
 EMAIL = "zf-li23@mails.tsinghua.edu.cn"  
 MAX_RESULTS = 10000  # 为了测试，默认获取 100 篇。如需获取全部，可以自行增大该数值（例如 10000）
 
-# 空间转录组检索式
-QUERY = '("spatial transcriptomics"[Title/Abstract] OR "spatially resolved transcriptomics"[Title/Abstract] ' \
-        'OR "spatial gene expression"[Title/Abstract] OR "spatial omics"[Title/Abstract] ' \
-        'OR (Visium[Title/Abstract] AND transcriptom*[Title/Abstract]) OR MERFISH[Title/Abstract] ' \
-        'OR Slide-seq[Title/Abstract] OR Stereo-seq[Title/Abstract] OR seqFISH[Title/Abstract] ' \
-        'OR CosMx[Title/Abstract] OR Xenium[Title/Abstract] OR Pixel-seq[Title/Abstract])'
-
 # 输出文件名配置
 EXCEL_OUTPUT_FILE = "spatial_literature.xlsx"
 TEMPLATE_FILE = "template.xlsx"
 
 # ---------------------------------------------------------
-# 规则分类字典
+# 外部常数 (用于预印本判定等)
 # ---------------------------------------------------------
-TECH_KEYWORDS = ["Visium", "merfish", "Slide-seq", "Stereo-seq", "seqfish", "CosMx", "Xenium", "pixel-seq", "starmap"]
-ANALYSIS_KEYWORDS = ["pipeline", "tool", "software", "algorithm", "benchmark", "integration", "interaction", "computational", "spatially variable", "deconvolution"]
 PREPRINT_JOURNALS = ["biorxiv", "medrxiv", "arxiv"]
 
 def create_template(filename: str):
@@ -166,15 +179,12 @@ def parse_article(record: dict) -> dict:
 def classify_article(parsed_data: dict) -> tuple:
     """
     基于简单的关键字规则对文献进行预分类和打标签。
-    因为新机制，我们仅计算并在 main() 将其赋值给 naive_category 和 naive_tags。
+    通过调用 migrate_naive 中的 get_naive 方法，统一采用 tags.json 管理。
     """
-    title_lower = parsed_data["title"].lower()
-    abstract_lower = parsed_data["abstract"].lower()
-    journal_lower = parsed_data["journal"].lower()
-    combined_text = title_lower + " " + abstract_lower
-
-    category = "Research"  # 默认类别
-    tags = []
+    import migrate_naive
+    
+    title_lower = str(parsed_data.get("title", "")).lower()
+    journal_lower = str(parsed_data.get("journal", "")).lower()
     
     # ==== 1. 预印本判定 ====
     is_preprint = any(pj in journal_lower for pj in PREPRINT_JOURNALS)
@@ -182,47 +192,18 @@ def classify_article(parsed_data: dict) -> tuple:
     # ==== 2. 方法注释/评论判定 ====
     is_method_note = any(kw in title_lower for kw in ["method note", "protocol", "comment", "erratum", "correction"])
     
-    # ==== 3. 标签匹配 (Tags) ====
-    # 匹配Technology名称
-    for tech in TECH_KEYWORDS:
-        if tech in combined_text:
-            tags.append(tech.upper() if tech != "pixel-seq" else "Pixel-seq")
+    # ==== 3. 依赖 rules 获取 category 和 tags ====
+    category, tags_str = migrate_naive.get_naive(
+        parsed_data.get("title", ""),
+        parsed_data.get("abstract", ""),
+        parsed_data.get("journal", "")
+    )
     
-    # 匹配分析词汇放入 tag
-    if "clustering" in combined_text or "cluster" in combined_text:
-        tags.append("Clustering")
-    if "deconvolution" in combined_text:
-        tags.append("Deconvolution")
-    if "imputation" in combined_text:
-        tags.append("Imputation")
-    if "cellphone" in combined_text or "communication" in combined_text:
-        tags.append("Cell Communication")
-    if "trajectory" in combined_text:
-        tags.append("Spatial Trajectory")
-        
-    # 去重标签
-    tags = list(set(tags))
-
-    # ==== 4. 主类别判定 (Category) ====
-    if "review" in title_lower or "Review" in title_lower:
-        category = "Review"
-    elif "database" in title_lower or "database" in abstract_lower:
-        category = "Database"
-    elif any(kw in title_lower for kw in ANALYSIS_KEYWORDS) and not any(kw in title_lower for kw in TECH_KEYWORDS):
-        # 认为只谈及计算分析而不在标题标榜新实验Technology的为“Data Analysis”
-        category = "Data Analysis"
-    elif any(kw in title_lower for kw in TECH_KEYWORDS) and ("novel" in title_lower or "new" in title_lower or "method" in title_lower):
-        # 标题包含空间测序Technology，且提到“新”、“方法”的，判断为“Technology”开发文章
-        category = "Technology"
-    else:
-        # 其他有测序数据，解决生物问题的通常为“Research”
-        category = "Research"
-
     parsed_data["category"] = category
-    parsed_data["tags"] = "; ".join(tags)
+    parsed_data["tags"] = tags_str
     parsed_data["is_preprint"] = is_preprint
     parsed_data["is_method_note"] = is_method_note
-    parsed_data["notes"] = notes
+    parsed_data["notes"] = ""
     parsed_data["citation_count"] = "N/A" # 暂不通过PubMed直接抓取被引量，推荐第三方API
 
     # 按照 PubMed 和要求的先后顺序编排字段并返回
