@@ -78,20 +78,28 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      fd.append("pub_year", row.pub_year || "Unknown");
      fd.append("url", pdfUrl);
 
-     // 乐观立即执行跳转，不等待后端返回
-     onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl, pdf_path: "(上传中...)" });
+     // 在上传时不要直接跳转走，先保留在当前页并给出加载提示
+     // 更新部分状态，但不包含会引起跳转的完整乐观数据
+     onUpdateContent({ ...row, pdf_path: "(上传中...)" });
 
      fetch(`/api/articles/${row.pmid}/pdf/upload`, {
         method: "POST",
         body: fd
      }).then(res => res.json()).then(res => {
-        if(res.path){
-           // 后台上传成功后静默补充真实路经，如果需要的话可以分发一个事件，但其实列表再次刷新时就能看到
-           console.log("PDF 归档成功");
+        setUploading(false);
+        if(res.db_path){
+           console.log("PDF 归档成功", res.db_path);
+           // 上传成功后再发送真实的数据更新，使其产生自然的跳转与查看按钮显示
+           onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl, pdf_path: res.db_path });
         } else {
-           console.error("上传失败！");
+           alert("上传失败！" + JSON.stringify(res));
+           onUpdateContent({ ...row, pdf_path: null }); // 回滚状态
         }
-     }).catch(err => console.error("Upload error:", err));
+     }).catch(err => {
+         setUploading(false);
+         console.error("Upload error:", err);
+         alert("上传失败");
+     });
   };
 
   const onUrlSubmit = (e) => {

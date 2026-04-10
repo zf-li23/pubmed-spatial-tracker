@@ -272,7 +272,7 @@ async def upload_pdf(pmid: str, category: str = Form(...), tags: str = Form(...)
     if not row:
         raise HTTPException(status_code=404, detail="Article not found")
         
-    row = df.loc[idx].iloc[0]
+    row = df[df["pmid"] == pmid].iloc[0]
     
     # Priority: FormData -> Database Row -> "Unknown"
     final_pub_year = pub_year if (pd.notna(pub_year) and str(pub_year).strip() and pub_year != "Unknown") else str(row.get("pub_year", ""))
@@ -295,13 +295,13 @@ async def upload_pdf(pmid: str, category: str = Form(...), tags: str = Form(...)
         shutil.copyfileobj(file.file, f)
         
     db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(category)}/{filename}"
-    df.loc[idx, "pdf_path"] = db_relative_path
-    df.loc[idx, "url"] = url
-    df.loc[idx, "category"] = category
-    df.loc[idx, "tags"] = tags
-    df.loc[idx, "is_manually_confirmed"] = True
+    df.loc[df["pmid"] == pmid, "pdf_path"] = db_relative_path
+    df.loc[df["pmid"] == pmid, "url"] = url
+    df.loc[df["pmid"] == pmid, "category"] = category
+    df.loc[df["pmid"] == pmid, "tags"] = tags
+    df.loc[df["pmid"] == pmid, "is_manually_confirmed"] = True
     with engine.connect() as con:
-        con.execute(text("UPDATE literature SET pdf_path=:path WHERE pmid=:pmid"), {"path": pdf_path, "pmid": pmid})
+        con.execute(text("UPDATE literature SET pdf_path=:path WHERE pmid=:pmid"), {"path": db_relative_path, "pmid": pmid})
         con.commit()
     return {"message": "PDF uploaded", "path": filepath}
 
