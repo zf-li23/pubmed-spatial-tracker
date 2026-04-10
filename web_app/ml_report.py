@@ -1,14 +1,19 @@
 import pandas as pd
 import os
 from sklearn.metrics import classification_report, accuracy_score
+from sqlalchemy import create_engine
 
-db_path = "/home/zf-li23/yangxueruilab/PubMed_Spatial_Tracker/spatial_literature.xlsx"
-df = pd.read_excel(db_path)
+db_path = "/home/zf-li23/yangxueruilab/PubMed_Spatial_Tracker/spatial_literature.db"
+engine = create_engine(f"sqlite:///{db_path}")
+df = pd.read_sql("SELECT * FROM literature", engine)
 
 confirmed_df = df[df["is_manually_confirmed"] == True]
-# Let's say we analyze Batch 1
 b1 = confirmed_df[confirmed_df["annotation_batch"] == 1]
-b1_cat_acc = accuracy_score(b1['category'].astype(str), b1['auto_predicted_category'].astype(str)) if not b1.empty else 0
+
+if "auto_predicted_category" in b1.columns:
+    b1_cat_acc = accuracy_score(b1['category'].astype(str), b1['auto_predicted_category'].astype(str)) if not b1.empty else 0
+else:
+    b1_cat_acc = 0
 
 report_data = {
     "batch": [1],

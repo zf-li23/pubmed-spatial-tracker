@@ -3,9 +3,12 @@ from web_app.ml_pipeline import AutomatedActiveLearner
 from migrate_naive import get_naive
 import sys
 
-FILE_PATH = "spatial_literature.xlsx"
+FILE_PATH = "spatial_literature.db"
+import sqlite3
+from sqlalchemy import create_engine
+engine = create_engine(f"sqlite:///{FILE_PATH}")
 try:
-    df = pd.read_excel(FILE_PATH)
+    df = pd.read_sql("SELECT * FROM literature", engine)
 except Exception as e:
     print(f"Error loading {FILE_PATH}: {e}")
     sys.exit(1)
@@ -40,7 +43,7 @@ if len(train_df) > 0:
         df.loc[df["is_manually_confirmed"] != True, "auto_predicted_tags"] = pred_tags
 
 try:
-    df.to_excel(FILE_PATH, index=False)
+    df.to_sql("literature", engine, index=False, if_exists="replace")
     print("Pipeline run successfully! Data safely updated.")
     import os
     os.remove(backup_path) # cleanup backup after success

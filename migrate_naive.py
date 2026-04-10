@@ -52,7 +52,9 @@ def get_naive(title, abstract, journal):
     return category, "; ".join(tags)
 
 if __name__ == "__main__":
-    df = pd.read_excel("spatial_literature.xlsx")
+    from sqlalchemy import create_engine
+    engine = create_engine("sqlite:///spatial_literature.db")
+    df = pd.read_sql("SELECT * FROM literature", engine)
     if "naive_category" not in df.columns:
         df["naive_category"] = ""
     if "naive_tags" not in df.columns:
@@ -63,5 +65,5 @@ if __name__ == "__main__":
         df.at[idx, "naive_category"] = cat
         df.at[idx, "naive_tags"] = tags
         
-    df.to_excel("spatial_literature.xlsx", index=False)
+    df.to_sql("literature", engine, index=False, if_exists="replace")
     print("Naive re-computed with new tags!")

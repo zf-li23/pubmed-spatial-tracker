@@ -12,7 +12,7 @@ PubMed_Spatial_Tracker/
 ├── main.py                             # 文献抓取脚本：利用 Biothon 从 PubMed 爬取指定关键字文献，扩展本地数据库
 ├── migrate_naive.py                    # 朴素规则库：记录硬编码的规则（通过关键字正则或简单匹配）实现初筛
 ├── requirements.txt                    # Python 后端及算法环境依赖列表
-├── spatial_literature.xlsx             # [核心数据库] 存储了所有已爬取文献的内容、已确认标记与分类器跑出的结果
+├── spatial_literature.db             # [核心数据库] 存储了所有已爬取文献的内容、已确认标记与分类器跑出的结果
 ├── tags.json                           # [本体论字典] 用户统一管理的标签（Tag）体系，供全系统渲染与下拉选择
 ├── template.xlsx                       # 原始文献数据库结构模板
 ├── PDF_Archive/                        # 本地文档存储库：存放用户通过工具上传到本地的原始 PDF 副本
@@ -51,7 +51,7 @@ cd ../../
 ```bash
 python main.py
 ```
-这会自动把抓取下来的最新论文按标题去重并追加入 `spatial_literature.xlsx`。
+这会自动把抓取下来的最新论文按标题去重并追加入 `spatial_literature.db`。
 
 ### 3. 数据推理流水线 (Prediction Pipeline)
 当你引入了新文献（还未人工标注），或者在前端新增了手动标签想要重训模型时，随时可以重跑流水线：
@@ -103,4 +103,4 @@ bash run_server.sh
 
 ### C. 数据库管理器 (`web_app/app.py` 的关键逻辑)
 - **`save_df(df)`**
-  系统底层统一封装了无冲突文件存储写入逻辑，保证前台点击多重触发下不会破坏原始的 `spatial_literature.xlsx` 内部数据。
+  系统底层统一封装了无冲突文件存储写入逻辑，保证前台点击多重触发下不会破坏原始的 `spatial_literature.db` 内部数据。

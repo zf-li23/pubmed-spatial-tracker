@@ -42,7 +42,10 @@ EMAIL = "zf-li23@mails.tsinghua.edu.cn"
 MAX_RESULTS = 10000  # 为了测试，默认获取 100 篇。如需获取全部，可以自行增大该数值（例如 10000）
 
 # 输出文件名配置
-EXCEL_OUTPUT_FILE = "spatial_literature.xlsx"
+DB_OUTPUT_FILE = "spatial_literature.db"
+import sqlite3
+from sqlalchemy import create_engine
+engine = create_engine(f"sqlite:///{DB_OUTPUT_FILE}")
 TEMPLATE_FILE = "template.xlsx"
 
 # ---------------------------------------------------------
