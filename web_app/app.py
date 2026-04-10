@@ -143,7 +143,7 @@ async def upload_pmids(file: UploadFile = File(...)):
             "tags": naive_tags,
             "naive_category": naive_cat,
             "naive_tags": naive_tags,
-            "is_manually_confirmed": False,
+            "is_manually_confirmed": 0,
             "pdf_path": "",
             "annotation_batch": target_batch,
             "auto_predicted_category": naive_cat,
@@ -184,13 +184,14 @@ def get_articles():
     if "uncertainty_score" not in df.columns:
         df["uncertainty_score"] = 0.0
         
+    df['is_manually_confirmed'] = pd.to_numeric(df['is_manually_confirmed'], errors='coerce').fillna(0).astype(int)
+    
     df = df.fillna("")
     
-    # 按照 is_manually_confirmed=False 置顶，并在 False 组内部随机性分数为 DESC (高置信度=低分, 越不懂得分越高)
-    df['is_confirmed_num'] = df['is_manually_confirmed'].astype(int)
+    # 置顶未核验记录，高不确定性分数靠前
     df['uncertainty_score_num'] = pd.to_numeric(df['uncertainty_score'], errors='coerce').fillna(0.0)
-    df = df.sort_values(by=['is_confirmed_num', 'uncertainty_score_num'], ascending=[True, False])
-    df = df.drop(columns=['is_confirmed_num', 'uncertainty_score_num'])
+    df = df.sort_values(by=['is_manually_confirmed', 'uncertainty_score_num'], ascending=[True, False])
+    df = df.drop(columns=['uncertainty_score_num'])
     
     return df.to_dict(orient="records")
 
@@ -202,8 +203,8 @@ class AnnotationData(BaseModel):
 def trigger_active_learning():
     df = get_df()
     
-    confirmed_df = df[df["is_manually_confirmed"] == True]
-    unconfirmed_df = df[df["is_manually_confirmed"] == False]
+    confirmed_df = df[df["is_manually_confirmed"] == 1]
+    unconfirmed_df = df[df["is_manually_confirmed"] == 0]
     
     if unconfirmed_df.empty:
         return {"message": "✅ 恭喜！当前库中所有文章均已校验完毕！", "status": "done"}
@@ -228,9 +229,9 @@ def trigger_active_learning():
     pred_cats, pred_tags, uncertainties = learner.predict(unconfirmed_df)
     
     # 更新推断与分数
-    df.loc[df["is_manually_confirmed"] == False, "auto_predicted_category"] = pred_cats
-    df.loc[df["is_manually_confirmed"] == False, "auto_predicted_tags"] = pred_tags
-    df.loc[df["is_manually_confirmed"] == False, "uncertainty_score"] = uncertainties
+    df.loc[df["is_manually_confirmed"] == 0, "auto_predicted_category"] = pred_cats
+    df.loc[df["is_manually_confirmed"] == 0, "auto_predicted_tags"] = pred_tags
+    df.loc[df["is_manually_confirmed"] == 0, "uncertainty_score"] = uncertainties
     
     save_df(df)
 
@@ -303,7 +304,7 @@ async def upload_pdf(pmid: str, category: str = Form(""), tags: str = Form(""), 
     df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
     df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
     df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
-    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = True
+    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = 1
     save_df(df)
     return {"message": "PDF uploaded", "path": filepath, "db_path": db_relative_path}
 
@@ -326,11 +327,22 @@ def download_pdf_from_url(pmid: str, request_data: URLDownloadData):
         raise HTTPException(status_code=400, detail="No URL provided")
         
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Connection': 'keep-alive',
+        }
         r = requests.get(url, stream=True, timeout=15, headers=headers)
         r.raise_for_status()
+        
+        # Guard against HTML responses when PDF is requested (e.g. Publisher paywalls/CAPTCHAs)
+        content_type = r.headers.get("Content-Type", "")
+        if "text/html" in content_type:
+            raise Exception("URL returned HTML webpage instead of a PDF file. The publisher may require login, Javascript execution, or CAPTCHA. Please manually download and upload.")
+            
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to download from URL: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to download PDF from URL: {str(e)}")
         
     df = get_df()
     with engine.connect() as con:
@@ -360,7 +372,7 @@ def download_pdf_from_url(pmid: str, request_data: URLDownloadData):
     df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
     df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
     df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
-    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = True
+    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = 1
     save_df(df)
     
     return {"message": "Downloaded", "path": pdf_path, "db_path": db_relative_path}
@@ -384,7 +396,7 @@ def save_link_only(pmid: str, request_data: SaveLinkData):
     df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
     df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
     df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
-    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = True
+    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = 1
     save_df(df)
 
     with engine.connect() as con:
