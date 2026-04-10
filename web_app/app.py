@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import requests
 import re
+from typing import Optional, Any
 from pydantic import BaseModel
 
 # Setup Paths
@@ -267,12 +268,14 @@ def discard_article(pmid: str):
     return {"message": "Discard tagged successfully"}
 
 @app.post("/api/articles/{pmid}/pdf/upload")
-async def upload_pdf(pmid: str, category: str = Form(...), tags: str = Form(...), doi: str = Form(...), pub_year: str = Form(...), url: str = Form(...), file: UploadFile = File(...)):
+async def upload_pdf(pmid: str, category: str = Form(""), tags: str = Form(""), doi: str = Form(""), pub_year: str = Form(""), url: str = Form(""), file: UploadFile = File(...)):
+    df = get_df()
+    pmid_str = str(pmid)
     with engine.connect() as con: row = con.execute(text("SELECT pmid FROM literature WHERE pmid=:pmid"), {"pmid": pmid}).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Article not found")
         
-    row = df[df["pmid"] == pmid].iloc[0]
+    row = df[df["pmid"].astype(str) == pmid_str].iloc[0]
     
     # Priority: FormData -> Database Row -> "Unknown"
     final_pub_year = pub_year if (pd.notna(pub_year) and str(pub_year).strip() and pub_year != "Unknown") else str(row.get("pub_year", ""))
@@ -295,30 +298,29 @@ async def upload_pdf(pmid: str, category: str = Form(...), tags: str = Form(...)
         shutil.copyfileobj(file.file, f)
         
     db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(category)}/{filename}"
-    df.loc[df["pmid"] == pmid, "pdf_path"] = db_relative_path
-    df.loc[df["pmid"] == pmid, "url"] = url
-    df.loc[df["pmid"] == pmid, "category"] = category
-    df.loc[df["pmid"] == pmid, "tags"] = tags
-    df.loc[df["pmid"] == pmid, "is_manually_confirmed"] = True
-    with engine.connect() as con:
-        con.execute(text("UPDATE literature SET pdf_path=:path WHERE pmid=:pmid"), {"path": db_relative_path, "pmid": pmid})
-        con.commit()
-    return {"message": "PDF uploaded", "path": filepath}
+    pmid_str = str(pmid)
+    df.loc[df["pmid"].astype(str) == pmid_str, "pdf_path"] = db_relative_path
+    df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
+    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
+    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
+    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = True
+    save_df(df)
+    return {"message": "PDF uploaded", "path": filepath, "db_path": db_relative_path}
 
 class URLDownloadData(BaseModel):
-    url: str
-    category: str
-    tags: str
-    doi: str = ""
-    pub_year: str = ""
+    url: Optional[Any] = ""
+    category: Optional[Any] = ""
+    tags: Optional[Any] = ""
+    doi: Optional[Any] = ""
+    pub_year: Optional[Any] = ""
 
 @app.post("/api/articles/{pmid}/pdf/url")
 def download_pdf_from_url(pmid: str, request_data: URLDownloadData):
-    url = request_data.url
-    category = request_data.category
-    tags = request_data.tags
-    doi = request_data.doi
-    pub_year = request_data.pub_year
+    url = str(request_data.url) if request_data.url else ""
+    category = str(request_data.category) if request_data.category else ""
+    tags = str(request_data.tags) if request_data.tags else ""
+    doi = str(request_data.doi) if request_data.doi else ""
+    pub_year = str(request_data.pub_year) if request_data.pub_year else ""
     
     if not url:
         raise HTTPException(status_code=400, detail="No URL provided")
@@ -361,23 +363,18 @@ def download_pdf_from_url(pmid: str, request_data: URLDownloadData):
     df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = True
     save_df(df)
     
-    with engine.connect() as con:
-        con.execute(text("UPDATE literature SET pdf_path=:pdf_path, url=:url, category=:category, tags=:tags, is_manually_confirmed=1 WHERE pmid=:pmid"), 
-                    {"pdf_path": db_relative_path, "url": url, "category": category, "tags": tags, "pmid": pmid})
-        con.commit()
-    
     return {"message": "Downloaded", "path": pdf_path, "db_path": db_relative_path}
 
 class SaveLinkData(BaseModel):
-    url: str
-    category: str
-    tags: str
+    url: Optional[Any] = ""
+    category: Optional[Any] = ""
+    tags: Optional[Any] = ""
 
 @app.post("/api/articles/{pmid}/pdf/save_link")
 def save_link_only(pmid: str, request_data: SaveLinkData):
-    url = request_data.url
-    category = request_data.category
-    tags = request_data.tags
+    url = str(request_data.url) if request_data.url else ""
+    category = str(request_data.category) if request_data.category else ""
+    tags = str(request_data.tags) if request_data.tags else ""
     
     if not url:
         raise HTTPException(status_code=400, detail="No URL provided")
