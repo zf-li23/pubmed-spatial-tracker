@@ -109,8 +109,8 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      const finalTags = tags.filter(t => !["聚类","去卷积","缺失值插补","细胞通讯"].includes(t));
      const joinedTags = finalTags.join("; ");
 
-     // 乐观跳转
-     onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl, pdf_path: "(后台爬取中)" });
+     // 保留在当前页，提供加载态
+     onUpdateContent({ ...row, pdf_path: "(后台爬取中...)" });
 
      fetch(`/api/articles/${row.pmid}/pdf/url`, {
          method: "POST",
@@ -123,9 +123,21 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
              pub_year: row.pub_year || "Unknown"
          })
      }).then(res => res.json()).then(data => {
-         if(data.path) console.log("爬取完成", data.path);
-         else console.error(data.detail);
-     }).catch(err => console.error("URL err", err));
+         setUploading(false);
+         if(data.db_path) {
+             console.log("爬取完成", data.db_path);
+             onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl, pdf_path: data.db_path });
+         }
+         else {
+             console.error(data.detail);
+             alert("爬取失败！" + JSON.stringify(data));
+             onUpdateContent({ ...row, pdf_path: null });
+         }
+     }).catch(err => {
+         setUploading(false);
+         console.error("URL err", err);
+         alert("爬取失败");
+     });
   };
 
   const onSaveUrlOnly = (e) => {
@@ -134,9 +146,6 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      setUploading(true);
      const finalTags = tags.filter(t => !["聚类","去卷积","缺失值插补","细胞通讯"].includes(t));
      const joinedTags = finalTags.join("; ");
-
-     // 乐观跳转
-     onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl });
 
      fetch(`/api/articles/${row.pmid}/pdf/save_link`, {
          method: "POST",
@@ -147,9 +156,19 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
              tags: joinedTags
          })
      }).then(res => res.json()).then(data => {
-         if(data.path) console.log("仅保存外链成功", data.path);
-         else console.error(data.detail);
-     }).catch(err => console.error("Link err", err));
+         setUploading(false);
+         if(data.path) {
+             console.log("仅保存外链成功", data.path);
+             onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl });
+         } else {
+             console.error(data.detail);
+             alert("保存外链失败: " + JSON.stringify(data));
+         }
+     }).catch(err => {
+         setUploading(false);
+         console.error("Link err", err);
+         alert("保存外链失败");
+     });
   };
 
   const renderTagGroup = (title, groupKey, items) => (

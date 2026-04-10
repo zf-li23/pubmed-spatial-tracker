@@ -305,53 +305,91 @@ async def upload_pdf(pmid: str, category: str = Form(...), tags: str = Form(...)
         con.commit()
     return {"message": "PDF uploaded", "path": filepath}
 
+class URLDownloadData(BaseModel):
+    url: str
+    category: str
+    tags: str
+    doi: str = ""
+    pub_year: str = ""
+
 @app.post("/api/articles/{pmid}/pdf/url")
-def download_pdf_from_url(pmid: str, request_data: dict):
-    url = request_data.get("url", "")
-    category = request_data.get("category", "")
-    tags = request_data.get("tags", "")
+def download_pdf_from_url(pmid: str, request_data: URLDownloadData):
+    url = request_data.url
+    category = request_data.category
+    tags = request_data.tags
+    doi = request_data.doi
+    pub_year = request_data.pub_year
     
     if not url:
         raise HTTPException(status_code=400, detail="No URL provided")
         
     try:
-        r = requests.get(url, stream=True, timeout=15)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        r = requests.get(url, stream=True, timeout=15, headers=headers)
         r.raise_for_status()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to download from URL: {e}")
         
+    df = get_df()
     with engine.connect() as con:
         row = con.execute(text("SELECT title FROM literature WHERE pmid=:pmid"), {"pmid": pmid}).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Article not found")
         title = row[0]
     
-    cat_dir = category if category in CATEGORIES else "Research"
-    save_name = f"{pmid}_{safe_filename(title)}.pdf"
-    pdf_path = os.path.join(PDF_DIR, cat_dir, save_name)
+    cat_dir = os.path.join(PDF_DIR, safe_filename(category))
+    os.makedirs(cat_dir, exist_ok=True)
+    
+    final_pub_year = pub_year if (pd.notna(pub_year) and str(pub_year).strip() and pub_year != "Unknown") else "Unknown"
+    final_tags = tags if (pd.notna(tags) and str(tags).strip()) else category
+    final_doi = doi if (pd.notna(doi) and str(doi).strip()) else pmid
+        
+    filename = f"{safe_filename(final_pub_year)}_{safe_filename(final_tags)}_{safe_filename(final_doi)}.pdf"
+    pdf_path = os.path.join(cat_dir, filename)
     
     with open(pdf_path, "wb") as f_out:
         for chunk in r.iter_content(chunk_size=8192):
             f_out.write(chunk)
             
-    rel_path = os.path.join(cat_dir, save_name)
+    db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(category)}/{filename}"
+    
+    pmid_str = str(pmid)
+    df.loc[df["pmid"].astype(str) == pmid_str, "pdf_path"] = db_relative_path
+    df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
+    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
+    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
+    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = True
+    save_df(df)
     
     with engine.connect() as con:
-        con.execute(text("UPDATE literature SET pdf_path=:pdf_path, category=:category, tags=:tags, is_manually_confirmed=1 WHERE pmid=:pmid"), 
-                    {"pdf_path": rel_path, "category": category, "tags": tags, "pmid": pmid})
+        con.execute(text("UPDATE literature SET pdf_path=:pdf_path, url=:url, category=:category, tags=:tags, is_manually_confirmed=1 WHERE pmid=:pmid"), 
+                    {"pdf_path": db_relative_path, "url": url, "category": category, "tags": tags, "pmid": pmid})
         con.commit()
     
-    return {"message": "Downloaded", "path": rel_path}
+    return {"message": "Downloaded", "path": pdf_path, "db_path": db_relative_path}
+
+class SaveLinkData(BaseModel):
+    url: str
+    category: str
+    tags: str
 
 @app.post("/api/articles/{pmid}/pdf/save_link")
-def save_link_only(pmid: str, request_data: dict):
-    url = request_data.get("url", "")
-    category = request_data.get("category", "")
-    tags = request_data.get("tags", "")
+def save_link_only(pmid: str, request_data: SaveLinkData):
+    url = request_data.url
+    category = request_data.category
+    tags = request_data.tags
     
     if not url:
         raise HTTPException(status_code=400, detail="No URL provided")
         
+    df = get_df()
+    pmid_str = str(pmid)
+    df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
+    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
+    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
+    df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = True
+    save_df(df)
+
     with engine.connect() as con:
         result = con.execute(text("UPDATE literature SET url=:url, category=:cat, tags=:tags, is_manually_confirmed=1 WHERE pmid=:pmid"), 
                              {"url": url, "cat": category, "tags": tags, "pmid": pmid})
