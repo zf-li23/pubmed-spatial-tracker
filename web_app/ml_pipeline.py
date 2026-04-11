@@ -28,6 +28,13 @@ except Exception:
 
 ALL_KNOWN_TAGS = set(sum(TAG_GROUPS.values(), []))
 
+GENERIC_NAME_STOPWORDS = {
+    "a", "an", "the", "study", "analysis", "analyses", "method", "methods", "tool", "tools",
+    "model", "models", "framework", "pipeline", "approach", "database", "atlas", "resource",
+    "repository", "portal", "review", "benchmark", "single", "cell", "spatial", "multi", "omics",
+    "for", "of", "in", "on", "using", "with"
+}
+
 # Init embedding model globally to avoid reloading
 EMBEDDING_MODEL = None
 def get_embedding_model():
@@ -62,11 +69,65 @@ def extract_top_tags(probs, classes, allowed_set, min_n=1, max_n=3, prob_thresh=
         selected = [valid_tags[i][0] for i in range(min(min_n, len(valid_tags)))]
     return selected
 
+def _clean_candidate_name(name):
+    name = re.sub(r"\s+", " ", str(name or "").strip(" .,:;()[]{}\"'"))
+    return name
+
+
+def _is_good_novel_candidate(name):
+    if not name:
+        return False
+    n = _clean_candidate_name(name)
+    if len(n) < 3 or len(n) > 48:
+        return False
+
+    tokens = [t for t in re.split(r"[\s\-/]+", n) if t]
+    if not tokens:
+        return False
+
+    low_tokens = [t.lower() for t in tokens]
+    if all(t in GENERIC_NAME_STOPWORDS for t in low_tokens):
+        return False
+
+    if n.lower() in GENERIC_NAME_STOPWORDS:
+        return False
+
+    has_signal = bool(re.search(r"[A-Z]", n)) or bool(re.search(r"\d", n))
+    return has_signal
+
+
 def guess_novel_name(title):
-    # Heuristically try to extract a new technology, database or software name from title
-    # Usually capitalized word before a colon or the first acronym
-    match = re.search(r'^([A-Za-z0-9\-]+):', title)
-    if match: return match.group(1).strip()
+    # Prefer title entities that look like concrete method/database names.
+    t = str(title or "").strip()
+    if not t:
+        return ""
+
+    candidates = []
+
+    # 1) Prefix before colon is often a tool/database name.
+    m = re.search(r"^([^:]{2,80}):", t)
+    if m:
+        candidates.append(m.group(1))
+
+    # 2) Name directly before type keywords.
+    for pat in [
+        r"\b([A-Z][A-Za-z0-9\-]{2,})\s+(?:database|atlas|resource|repository|portal|browser|knowledgebase)\b",
+        r"\b([A-Z][A-Za-z0-9\-]{2,})\s+(?:method|framework|pipeline|algorithm|model|tool|approach)\b",
+    ]:
+        m = re.search(pat, t, flags=re.IGNORECASE)
+        if m:
+            candidates.append(m.group(1))
+
+    # 3) Upper/camel tokens in title head.
+    head = t.split(":", 1)[0]
+    for tok in re.findall(r"\b[A-Za-z][A-Za-z0-9\-]{2,}\b", head):
+        if re.search(r"[A-Z]", tok) or re.search(r"\d", tok):
+            candidates.append(tok)
+
+    for c in candidates:
+        c = _clean_candidate_name(c)
+        if _is_good_novel_candidate(c):
+            return c
     return ""
 
 class AutomatedActiveLearner:
@@ -201,15 +262,22 @@ class AutomatedActiveLearner:
                 elif cat == "Database":
                     # 直接新创建一个名字
                     novel_name = guess_novel_name(titles[i])
-                    if novel_name: tags.append(novel_name)
+                    if novel_name:
+                        tags.append(novel_name)
+                    else:
+                        # If extraction fails, avoid noisy generic tags for database category.
+                        tags = []
                 
                 elif cat == "Data Analysis":
-                    # 会在”分析“tag中选一个或多个，大概率新创建
+                    # Prioritize novel method name from title; then append analysis labels.
                     allowed = set(TAG_GROUPS["analysis"])
-                    tags = extract_top_tags(probs_t, self.mlb.classes_, allowed, min_n=1, max_n=3, prob_thresh=0.2)
+                    tags = extract_top_tags(probs_t, self.mlb.classes_, allowed, min_n=0, max_n=3, prob_thresh=0.2)
                     novel_name = guess_novel_name(titles[i])
-                    if novel_name and novel_name not in tags:
-                        tags.append(novel_name)
+                    if novel_name:
+                        tags = [novel_name] + [t for t in tags if t != novel_name][:2]
+                    elif len(tags) == 0:
+                        # Ensure this category still has at least one tag.
+                        tags = extract_top_tags(probs_t, self.mlb.classes_, allowed, min_n=1, max_n=1, prob_thresh=0.0)
                 
                 elif cat == "Research":
                     # 至少在“领域”中选1个，技术>=0 个

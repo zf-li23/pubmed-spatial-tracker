@@ -99,6 +99,11 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
         setUploading(false);
         if(res.db_path){
            console.log("PDF 归档成功", res.db_path);
+           fetch(`/api/articles/${row.pmid}/annotate`, {
+              method: "POST",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({ category: cat, tags: joinedTags })
+           }).catch(err => console.error("Annotate-after-upload fail:", err));
            // 上传成功后再发送真实的数据更新，使其产生自然的跳转与查看按钮显示
            onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl, pdf_path: res.db_path });
         } else {
@@ -136,6 +141,11 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
          setUploading(false);
          if(data.db_path) {
              console.log("爬取完成", data.db_path);
+             fetch(`/api/articles/${row.pmid}/annotate`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ category: cat, tags: joinedTags })
+             }).catch(err => console.error("Annotate-after-url fail:", err));
              onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl, pdf_path: data.db_path });
          }
          else {
@@ -169,6 +179,11 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
          setUploading(false);
          if(data.path) {
              console.log("仅保存外链成功", data.path);
+             fetch(`/api/articles/${row.pmid}/annotate`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ category: cat, tags: joinedTags })
+             }).catch(err => console.error("Annotate-after-save-link fail:", err));
              onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true, url: pdfUrl });
          } else {
              console.error(data.detail);

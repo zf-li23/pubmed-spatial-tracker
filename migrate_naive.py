@@ -17,6 +17,13 @@ def load_tags():
 
 TAG_GROUPS = load_tags()
 
+GENERIC_NAME_STOPWORDS = {
+    "a", "an", "the", "study", "analysis", "analyses", "method", "methods", "tool", "tools",
+    "model", "models", "framework", "pipeline", "approach", "database", "atlas", "resource",
+    "repository", "portal", "review", "benchmark", "single", "cell", "spatial", "multi", "omics",
+    "for", "of", "in", "on", "using", "with"
+}
+
 
 def _uniq_keep_order(items):
     seen = set()
@@ -28,11 +35,61 @@ def _uniq_keep_order(items):
     return out
 
 
+def _clean_candidate_name(name):
+    name = re.sub(r"\s+", " ", str(name or "").strip(" .,:;()[]{}\"'"))
+    return name
+
+
+def _is_good_novel_candidate(name):
+    if not name:
+        return False
+    n = _clean_candidate_name(name)
+    if len(n) < 3 or len(n) > 48:
+        return False
+
+    tokens = [t for t in re.split(r"[\s\-/]+", n) if t]
+    if not tokens:
+        return False
+
+    low_tokens = [t.lower() for t in tokens]
+    if all(t in GENERIC_NAME_STOPWORDS for t in low_tokens):
+        return False
+
+    if n.lower() in GENERIC_NAME_STOPWORDS:
+        return False
+
+    has_signal = bool(re.search(r"[A-Z]", n)) or bool(re.search(r"\d", n))
+    return has_signal
+
+
 def guess_novel_name(title):
     title = str(title) if title is not None else ""
-    match = re.search(r'^([A-Za-z0-9\-]+):', title)
+    if not title:
+        return ""
+
+    candidates = []
+
+    match = re.search(r"^([^:]{2,80}):", title)
     if match:
-        return match.group(1).strip()
+        candidates.append(match.group(1))
+
+    for pat in [
+        r"\b([A-Z][A-Za-z0-9\-]{2,})\s+(?:database|atlas|resource|repository|portal|browser|knowledgebase)\b",
+        r"\b([A-Z][A-Za-z0-9\-]{2,})\s+(?:method|framework|pipeline|algorithm|model|tool|approach)\b",
+    ]:
+        m = re.search(pat, title, flags=re.IGNORECASE)
+        if m:
+            candidates.append(m.group(1))
+
+    head = title.split(":", 1)[0]
+    for tok in re.findall(r"\b[A-Za-z][A-Za-z0-9\-]{2,}\b", head):
+        if re.search(r"[A-Z]", tok) or re.search(r"\d", tok):
+            candidates.append(tok)
+
+    for c in candidates:
+        c = _clean_candidate_name(c)
+        if _is_good_novel_candidate(c):
+            return c
     return ""
 
 
@@ -66,16 +123,16 @@ def enforce_category_tag_policy(category, tags, title=""):
         novel = guess_novel_name(title)
         if novel:
             return [novel]
-        # Database category allows custom names; keep a compact set if no novel name found.
-        return tags[:2]
+        # If no reliable name is found, avoid outputting noisy non-database generic tags.
+        return []
 
     if category == "Data Analysis":
         chosen = [t for t in tags if t in set(analysis_tags)]
         chosen = chosen[:3]
         novel = guess_novel_name(title)
-        if novel and novel not in chosen:
-            chosen.append(novel)
-        return chosen[:4]
+        if novel:
+            chosen = [novel] + [t for t in chosen if t != novel][:2]
+        return chosen[:3]
 
     # Research: at least one domain + optional technologies.
     dom = [t for t in tags if t in set(domain_tags)]

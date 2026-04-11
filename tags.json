@@ -29,7 +29,10 @@
     "DBiT-seq",
     "seqFISH",
     "ISS",
-    "FISH"
+    "FISH",
+    "FFPE",
+    "RNAscope",
+    "ISH"
   ],
   "analysis": [
     "Clustering",
@@ -50,7 +53,8 @@
     "Benchmark",
     "Foundation",
     "Pipeline",
-    "Visualization"
+    "Visualization",
+    "huSA"
   ],
   "uncategorized": [
     "Discarded"

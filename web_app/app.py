@@ -320,8 +320,13 @@ async def upload_pdf(pmid: str, category: str = Form(""), tags: str = Form(""), 
     final_pub_year = pub_year if (pd.notna(pub_year) and str(pub_year).strip() and pub_year != "Unknown") else str(row.get("pub_year", ""))
     if pd.isna(final_pub_year) or not final_pub_year: final_pub_year = "Unknown"
     
-    final_tags = tags if (pd.notna(tags) and str(tags).strip()) else str(row.get("tags", category))
-    if pd.isna(final_tags) or not final_tags: final_tags = category
+    final_category = category if (pd.notna(category) and str(category).strip()) else str(row.get("category", "Research"))
+    if pd.isna(final_category) or not final_category:
+        final_category = "Research"
+
+    final_tags = tags if (pd.notna(tags) and str(tags).strip()) else str(row.get("tags", final_category))
+    if pd.isna(final_tags) or not final_tags:
+        final_tags = final_category
     
     final_doi = doi if (pd.notna(doi) and str(doi).strip()) else str(row.get("doi", ""))
     if pd.isna(final_doi) or not final_doi: 
@@ -329,19 +334,19 @@ async def upload_pdf(pmid: str, category: str = Form(""), tags: str = Form(""), 
         
     filename = f"{safe_filename(final_pub_year)}_{safe_filename(final_tags)}_{safe_filename(final_doi)}.pdf"
     
-    cat_dir = os.path.join(PDF_DIR, safe_filename(category))
+    cat_dir = os.path.join(PDF_DIR, safe_filename(final_category))
     os.makedirs(cat_dir, exist_ok=True)
     
     filepath = os.path.join(cat_dir, filename)
     with open(filepath, "wb") as f:
         shutil.copyfileobj(file.file, f)
         
-    db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(category)}/{filename}"
+    db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(final_category)}/{filename}"
     pmid_str = str(pmid)
     df.loc[df["pmid"].astype(str) == pmid_str, "pdf_path"] = db_relative_path
     df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
-    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
-    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
+    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = final_category
+    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = final_tags
     df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = 1
     save_df(df)
     return {"message": "PDF uploaded", "path": filepath, "db_path": db_relative_path}
@@ -384,18 +389,37 @@ def download_pdf_from_url(pmid: str, request_data: URLDownloadData):
         
     df = get_df()
     with engine.connect() as con:
-        row = con.execute(text("SELECT title FROM literature WHERE pmid=:pmid"), {"pmid": pmid}).fetchone()
+        row = con.execute(
+            text("SELECT title, category, tags, doi, pub_year FROM literature WHERE pmid=:pmid"),
+            {"pmid": pmid}
+        ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Article not found")
         title = row[0]
+        db_category = row[1]
+        db_tags = row[2]
+        db_doi = row[3]
+        db_pub_year = row[4]
+
+    final_category = category if (pd.notna(category) and str(category).strip()) else str(db_category or "Research")
+    if pd.isna(final_category) or not final_category:
+        final_category = "Research"
+
+    final_tags = tags if (pd.notna(tags) and str(tags).strip()) else str(db_tags or final_category)
+    if pd.isna(final_tags) or not final_tags:
+        final_tags = final_category
+
+    final_doi = doi if (pd.notna(doi) and str(doi).strip()) else str(db_doi or pmid)
+    if pd.isna(final_doi) or not final_doi:
+        final_doi = pmid
+
+    final_pub_year = pub_year if (pd.notna(pub_year) and str(pub_year).strip() and pub_year != "Unknown") else str(db_pub_year or "Unknown")
+    if pd.isna(final_pub_year) or not final_pub_year:
+        final_pub_year = "Unknown"
     
-    cat_dir = os.path.join(PDF_DIR, safe_filename(category))
+    cat_dir = os.path.join(PDF_DIR, safe_filename(final_category))
     os.makedirs(cat_dir, exist_ok=True)
     
-    final_pub_year = pub_year if (pd.notna(pub_year) and str(pub_year).strip() and pub_year != "Unknown") else "Unknown"
-    final_tags = tags if (pd.notna(tags) and str(tags).strip()) else category
-    final_doi = doi if (pd.notna(doi) and str(doi).strip()) else pmid
-        
     filename = f"{safe_filename(final_pub_year)}_{safe_filename(final_tags)}_{safe_filename(final_doi)}.pdf"
     pdf_path = os.path.join(cat_dir, filename)
     
@@ -403,13 +427,13 @@ def download_pdf_from_url(pmid: str, request_data: URLDownloadData):
         for chunk in r.iter_content(chunk_size=8192):
             f_out.write(chunk)
             
-    db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(category)}/{filename}"
+    db_relative_path = f"PubMed_Spatial_Tracker/PDF_Archive/{safe_filename(final_category)}/{filename}"
     
     pmid_str = str(pmid)
     df.loc[df["pmid"].astype(str) == pmid_str, "pdf_path"] = db_relative_path
     df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
-    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
-    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
+    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = final_category
+    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = final_tags
     df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = 1
     save_df(df)
     
@@ -428,18 +452,36 @@ def save_link_only(pmid: str, request_data: SaveLinkData):
     
     if not url:
         raise HTTPException(status_code=400, detail="No URL provided")
+
+    with engine.connect() as con:
+        row = con.execute(
+            text("SELECT category, tags FROM literature WHERE pmid=:pmid"),
+            {"pmid": pmid}
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Article not found")
+        db_category = row[0]
+        db_tags = row[1]
+
+    final_category = category if (pd.notna(category) and str(category).strip()) else str(db_category or "Research")
+    if pd.isna(final_category) or not final_category:
+        final_category = "Research"
+
+    final_tags = tags if (pd.notna(tags) and str(tags).strip()) else str(db_tags or final_category)
+    if pd.isna(final_tags) or not final_tags:
+        final_tags = final_category
         
     df = get_df()
     pmid_str = str(pmid)
     df.loc[df["pmid"].astype(str) == pmid_str, "url"] = url
-    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = category
-    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = tags
+    df.loc[df["pmid"].astype(str) == pmid_str, "category"] = final_category
+    df.loc[df["pmid"].astype(str) == pmid_str, "tags"] = final_tags
     df.loc[df["pmid"].astype(str) == pmid_str, "is_manually_confirmed"] = 1
     save_df(df)
 
     with engine.connect() as con:
         result = con.execute(text("UPDATE literature SET url=:url, category=:cat, tags=:tags, is_manually_confirmed=1 WHERE pmid=:pmid"), 
-                             {"url": url, "cat": category, "tags": tags, "pmid": pmid})
+                     {"url": url, "cat": final_category, "tags": final_tags, "pmid": pmid})
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Article not found")
         con.commit()
