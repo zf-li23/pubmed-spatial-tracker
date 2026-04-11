@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import json
+import re
 
 def load_tags():
     tags_path = "tags.json"
@@ -15,6 +16,73 @@ def load_tags():
     }
 
 TAG_GROUPS = load_tags()
+
+
+def _uniq_keep_order(items):
+    seen = set()
+    out = []
+    for it in items:
+        if it and it not in seen:
+            seen.add(it)
+            out.append(it)
+    return out
+
+
+def guess_novel_name(title):
+    title = str(title) if title is not None else ""
+    match = re.search(r'^([A-Za-z0-9\-]+):', title)
+    if match:
+        return match.group(1).strip()
+    return ""
+
+
+def enforce_category_tag_policy(category, tags, title=""):
+    """Apply the same category-tag constraints used by ML prediction path."""
+    tags = _uniq_keep_order([str(t).strip() for t in tags if str(t).strip()])
+
+    meta_tags = TAG_GROUPS.get("metaCategory", ["General", "Technology", "Database", "Data Analysis"])
+    domain_tags = TAG_GROUPS.get("domain", [])
+    tech_tags = TAG_GROUPS.get("technology", [])
+    analysis_tags = TAG_GROUPS.get("analysis", [])
+
+    if category == "Review":
+        allowed = set(meta_tags + domain_tags)
+        chosen = [t for t in tags if t in allowed]
+        if not chosen:
+            chosen = ["General"]
+        return chosen[:1]
+
+    if category == "Technology":
+        chosen = [t for t in tags if t in set(tech_tags)]
+        if not chosen:
+            novel = guess_novel_name(title)
+            if novel:
+                chosen = [novel]
+        if not chosen and tech_tags:
+            chosen = [tech_tags[0]]
+        return chosen[:2]
+
+    if category == "Database":
+        novel = guess_novel_name(title)
+        if novel:
+            return [novel]
+        # Database category allows custom names; keep a compact set if no novel name found.
+        return tags[:2]
+
+    if category == "Data Analysis":
+        chosen = [t for t in tags if t in set(analysis_tags)]
+        chosen = chosen[:3]
+        novel = guess_novel_name(title)
+        if novel and novel not in chosen:
+            chosen.append(novel)
+        return chosen[:4]
+
+    # Research: at least one domain + optional technologies.
+    dom = [t for t in tags if t in set(domain_tags)]
+    tech = [t for t in tags if t in set(tech_tags)]
+    if not dom and domain_tags:
+        dom = [domain_tags[0]]
+    return (dom[:3] + tech[:2])
 
 def get_naive(title, abstract, journal):
     title_lower = str(title).lower() if pd.notna(title) else ""
@@ -37,8 +105,8 @@ def get_naive(title, abstract, journal):
                 tags.append(tag)
                 group_counts[group] += 1
                 
-    # 去重
-    tags = list(set(tags))
+    # 去重并保持顺序
+    tags = _uniq_keep_order(tags)
     
     if "Review".lower() in title_lower or "Review".lower() in journal_lower:
         category = "Review"
@@ -48,6 +116,8 @@ def get_naive(title, abstract, journal):
         category = "Technology"
     elif group_counts.get("analysis", 0) > 0:
         category = "Data Analysis"
+
+    tags = enforce_category_tag_policy(category, tags, title=title)
         
     return category, "; ".join(tags)
 

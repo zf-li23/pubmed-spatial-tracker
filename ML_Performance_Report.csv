@@ -1,4 +1,14 @@
-Trained_On_Batches,Tested_On_Batch,Test_Samples,Category_Accuracy,Tag_Micro_F1,Tag_Macro_F1
-Baseline(0),1,50,0.52,0.0,0.0
-[1],2,100,0.84,0.472,0.086
-"[1, 2]",3,200,0.775,0.408,0.076
+report_type,scope,category,sample_count,train_size,val_size,delta_accuracy,delta_macro_f1,recommended_stop,note,category_accuracy,category_macro_f1,tags_exact_match_accuracy,tags_mean_jaccard
+global_current_predictions,all_confirmed,ALL,402,0,402,,,,Current DB predictions on confirmed samples.,0.6293532338308457,0.32404015737349073,0.08955223880597014,0.22288557213930346
+per_category_current_predictions,all_confirmed,Data Analysis,87,0,87,,,,Current DB predictions split by true category.,0.7126436781609196,0.2080536912751678,0.0,0.10862068965517241
+per_category_current_predictions,all_confirmed,Database,11,0,11,,,,Current DB predictions split by true category.,0.0,0.0,0.0,0.0
+per_category_current_predictions,all_confirmed,Discard,2,0,2,,,,Current DB predictions split by true category.,0.0,0.0,0.0,0.25
+per_category_current_predictions,all_confirmed,Research,181,0,181,,,,Current DB predictions split by true category.,0.7403314917127072,0.2126984126984127,0.08839779005524862,0.28259668508287294
+per_category_current_predictions,all_confirmed,Review,96,0,96,,,,Current DB predictions split by true category.,0.5833333333333334,0.14736842105263157,0.20833333333333334,0.29340277777777773
+per_category_current_predictions,all_confirmed,Technology,25,0,25,,,,Current DB predictions split by true category.,0.04,0.015384615384615385,0.0,0.013333333333333332
+learning_curve_simulation,confirmed_split_80_20,ALL,402,30,81,,,,Learning curve via fixed-embedding SVC proxy on confirmed split (category only).,0.6419753086419753,0.3069387755102041,,
+learning_curve_simulation,confirmed_split_80_20,ALL,402,94,81,0.024691358024691357,0.18897690301417014,,Learning curve via fixed-embedding SVC proxy on confirmed split (category only).,0.6666666666666666,0.49591567852437424,,
+learning_curve_simulation,confirmed_split_80_20,ALL,402,158,81,0.024691358024691357,-0.0465423774068871,,Learning curve via fixed-embedding SVC proxy on confirmed split (category only).,0.691358024691358,0.44937330111748713,,
+learning_curve_simulation,confirmed_split_80_20,ALL,402,222,81,-0.024691358024691357,0.029040916244098658,,Learning curve via fixed-embedding SVC proxy on confirmed split (category only).,0.6666666666666666,0.4784142173615858,,
+learning_curve_simulation,confirmed_split_80_20,ALL,402,286,81,0.012345679012345734,0.017541628594260228,,Learning curve via fixed-embedding SVC proxy on confirmed split (category only).,0.6790123456790124,0.495955845955846,,
+learning_curve_simulation,confirmed_split_80_20,ALL,402,321,81,0.024691358024691357,0.027590151425767873,,Learning curve via fixed-embedding SVC proxy on confirmed split (category only).,0.7037037037037037,0.5235459973816139,,

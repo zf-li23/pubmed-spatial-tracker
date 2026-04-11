@@ -47,16 +47,26 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      setUploading(true);
      const finalTags = tags.filter(t => !["聚类","去卷积","缺失值插补","细胞通讯"].includes(t));
      const joinedTags = finalTags.join("; ");
-     
-     // 乐观后台处理，立刻更新并跳转前端
-     const optimisticRow = { ...row, category: cat, tags: joinedTags, is_manually_confirmed: true };
-     onUpdateContent(optimisticRow);
 
      fetch(`/api/articles/${row.pmid}/annotate`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ category: cat, tags: joinedTags })
-     }).catch(err => console.error("Annotate fail:", err));
+     })
+       .then(res => res.json())
+       .then(data => {
+          setUploading(false);
+          if (data.detail) {
+            alert("提交失败: " + JSON.stringify(data));
+            return;
+          }
+          onUpdateContent({ ...row, category: cat, tags: joinedTags, is_manually_confirmed: true });
+       })
+       .catch(err => {
+          setUploading(false);
+          console.error("Annotate fail:", err);
+          alert("提交失败");
+       });
   };
 
   const handleFileUpload = (file) => {

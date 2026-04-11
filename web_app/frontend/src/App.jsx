@@ -32,7 +32,7 @@ function App() {
   const [storedTags, setStoredTags] = useState(DEFAULT_TAG_DICT);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/tags')
+      fetch('/api/tags')
       .then(res => res.json())
       .then(data => setStoredTags(data))
       .catch(err => console.error("Failed to load tags", err));
@@ -40,7 +40,7 @@ function App() {
 
   const updateStoredTags = (newDict) => {
      setStoredTags(newDict);
-     fetch('http://localhost:8000/api/tags', {
+       fetch('/api/tags', {
        method: 'POST',
        headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify(newDict)
@@ -52,15 +52,6 @@ function App() {
     fetch("/api/articles")
       .then(res => res.json())
       .then(result => {
-         const catOrder = {"Review":1, "Technology":2, "Database":3, "Data Analysis":4, "Research":5};
-         result.sort((a,b) => {
-           if (a.is_manually_confirmed !== b.is_manually_confirmed) {
-              return a.is_manually_confirmed ? 1 : -1;
-           }
-           const oa = catOrder[a.category] || 99;
-           const ob = catOrder[b.category] || 99;
-           return oa - ob;
-         });
          setData(result);
          
          // Removed batch logic

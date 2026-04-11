@@ -19,6 +19,56 @@ DB_FILE = os.path.join(BASE_DIR, "spatial_literature.db")
 engine = create_engine(f"sqlite:///{DB_FILE}")
 PDF_DIR = os.path.join(BASE_DIR, "PDF_Archive")
 
+
+def retire_annotation_batch_column():
+    with engine.connect() as con:
+        table_exists = con.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='literature'"))
+        if not table_exists.fetchone():
+            return
+
+        cols = [row[1] for row in con.execute(text("PRAGMA table_info(literature)")).fetchall()]
+        if "annotation_batch" not in cols:
+            return
+
+        keep_cols = [c for c in cols if c != "annotation_batch"]
+        if not keep_cols:
+            return
+
+        select_cols = ", ".join([f'"{c}"' for c in keep_cols])
+        con.execute(text(f"CREATE TABLE literature_new AS SELECT {select_cols} FROM literature"))
+        con.execute(text("DROP TABLE literature"))
+        con.execute(text("ALTER TABLE literature_new RENAME TO literature"))
+        con.execute(text("CREATE INDEX IF NOT EXISTS idx_pmid ON literature(pmid)"))
+        con.commit()
+
+
+def ensure_manual_import_table():
+    with engine.connect() as con:
+        con.execute(text("""
+            CREATE TABLE IF NOT EXISTS manual_imported_pmids (
+                pmid TEXT PRIMARY KEY,
+                source TEXT DEFAULT 'manual_upload',
+                imported_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        con.execute(text("CREATE INDEX IF NOT EXISTS idx_manual_imported_at ON manual_imported_pmids(imported_at)"))
+        con.commit()
+
+
+def record_manual_imported_pmids(pmids, source="manual_upload"):
+    if not pmids:
+        return
+    with engine.connect() as con:
+        for pmid in pmids:
+            con.execute(
+                text("""
+                    INSERT OR IGNORE INTO manual_imported_pmids (pmid, source)
+                    VALUES (:pmid, :source)
+                """),
+                {"pmid": str(pmid), "source": source},
+            )
+        con.commit()
+
 # Initialize PDF subfolders
 CATEGORIES = ["Review", "Technology", "Database", "Data Analysis", "Research"]
 for cat in CATEGORIES:
@@ -29,6 +79,9 @@ app = FastAPI(title="PubMed Annotation Tool")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
+
+retire_annotation_batch_column()
+ensure_manual_import_table()
 
 def safe_filename(name):
     if pd.isna(name) or not str(name).strip() or str(name).strip().lower() == "nan":
@@ -92,14 +145,6 @@ async def upload_pmids(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"下载时出错 NCBI E-utilities Error: {str(e)}")
         
-    # "新加入的数据直接被标注成除了999批以外的最后一个batch，自动被naive方法分类"
-    max_b = 1
-    if not df.empty and "annotation_batch" in df.columns:
-        valid_batches = df[df["annotation_batch"] != 999]["annotation_batch"]
-        if not valid_batches.dropna().empty:
-            max_b = int(valid_batches.max())
-    target_batch = max_b
-    
     import sys
     if BASE_DIR not in sys.path:
         sys.path.append(BASE_DIR)
@@ -145,7 +190,6 @@ async def upload_pmids(file: UploadFile = File(...)):
             "naive_tags": naive_tags,
             "is_manually_confirmed": 0,
             "pdf_path": "",
-            "annotation_batch": target_batch,
             "auto_predicted_category": naive_cat,
             "auto_predicted_tags": naive_tags
         }
@@ -163,17 +207,11 @@ async def upload_pmids(file: UploadFile = File(...)):
         df = pd.concat([df, df_new], ignore_index=True)
         save_df(df)
         
-        # 记录手动导入的PMID，以便复现
-        manual_pmids_path = os.path.join(BASE_DIR, "manual_imported_pmids.txt")
+        # 记录手动导入的 PMID 到 SQLite，替代外部 txt 记录
         new_pmids_list = df_new["pmid"].tolist()
-        try:
-            with open(manual_pmids_path, "a", encoding="utf-8") as fpmids:
-                for np_id in new_pmids_list:
-                    fpmids.write(f"{np_id}\n")
-        except Exception as e:
-            print(f"Failed to write manual pmids to {manual_pmids_path}: {e}")
+        record_manual_imported_pmids(new_pmids_list)
         
-    return {"message": f"成功下载并导入了 {len(new_rows)} 篇由于您手动提供的 PubMed文献！为了方便您打标，它们已被临时分配在当前工作批次 (Batch {target_batch})。"}
+    return {"message": f"成功下载并导入了 {len(new_rows)} 篇您手动提供的 PubMed 文献，并已纳入当前统一推送队列。"}
 
 @app.get("/api/articles")
 def get_articles():
