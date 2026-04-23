@@ -100,6 +100,7 @@ python -m pip install sentence-transformers
 说明：
 - 未安装 `sentence-transformers` 时，系统自动回退到 TF-IDF 向量，不影响主动学习流程可用性。
 - 该默认配置适合无 NVIDIA 显卡的 CPU 环境。
+- 模型下载已默认走 `HF_ENDPOINT=https://hf-mirror.com`，适合常见国内网络环境。
 
 ## 4. 启动与运行
 
