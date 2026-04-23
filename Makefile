@@ -4,7 +4,7 @@ all: run
 
 install:
 	@echo "=> 安装依赖..."
-	pip install -r requirements.txt
+	python3 -m pip install -r requirements.txt
 	cd web_app/frontend && npm install
 
 build:
@@ -27,8 +27,8 @@ stop:
 
 run: stop build
 	@echo "=> 启动后端..."
-	cd web_app && python -m uvicorn app:app --host 0.0.0.0 --port 8000
+	cd web_app && python3 -m uvicorn app:app --host 0.0.0.0 --port 8000
 
 dev: stop
 	@echo "=> 后端开发模式 (前端请通过 npm run dev 启动以实现热重载)..."
-	cd web_app && python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+	cd web_app && python3 -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload

@@ -8,5 +8,7 @@ python-multipart
 requests
 sqlalchemy
 scikit-learn
-sentence-transformers
+# Optional: install sentence-transformers for transformer embeddings.
+# If absent, the pipeline falls back to TF-IDF embeddings.
+# sentence-transformers
 joblib

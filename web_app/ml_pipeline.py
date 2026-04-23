@@ -5,11 +5,15 @@ import os
 # 设置 HuggingFace 镜像，解决国内网络无法直连下载预训练模型的问题
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
-from sentence_transformers import SentenceTransformer
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multiclass import OneVsRestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
 import json
 import re
 
@@ -38,6 +42,8 @@ GENERIC_NAME_STOPWORDS = {
 # Init embedding model globally to avoid reloading
 EMBEDDING_MODEL = None
 def get_embedding_model():
+    if SentenceTransformer is None:
+        return None
     global EMBEDDING_MODEL
     if EMBEDDING_MODEL is None:
         # A tiny and robust PLM model for generating text embeddings locally
@@ -136,6 +142,28 @@ class AutomatedActiveLearner:
         self.clf_category = None
         self.clf_tags = None
         self.mlb = MultiLabelBinarizer()
+        self.vectorizer = None
+
+    def _embed_train_texts(self, texts):
+        model = get_embedding_model()
+        if model is not None:
+            print(f"[*] Embedding {len(texts)} training abstracts with sentence-transformers...")
+            return model.encode(texts, batch_size=32, show_progress_bar=False)
+
+        print(f"[*] sentence-transformers not installed, fallback to TF-IDF for {len(texts)} samples...")
+        self.vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2), min_df=1)
+        return self.vectorizer.fit_transform(texts).toarray()
+
+    def _embed_predict_texts(self, texts):
+        model = get_embedding_model()
+        if model is not None:
+            print(f"[*] Embedding {len(texts)} unannotated target documents with sentence-transformers...")
+            return model.encode(texts, batch_size=32, show_progress_bar=True)
+
+        if self.vectorizer is None:
+            raise RuntimeError("TF-IDF vectorizer has not been initialized. Please run fit() first.")
+        print(f"[*] sentence-transformers not installed, use TF-IDF transform for {len(texts)} samples...")
+        return self.vectorizer.transform(texts).toarray()
         
     def fit(self, train_df):
         X_train_text = [
@@ -148,8 +176,7 @@ class AutomatedActiveLearner:
             )
         ]
         
-        print(f"[*] Embedding {len(X_train_text)} training abstracts...")
-        X_train_emb = get_embedding_model().encode(X_train_text, batch_size=32, show_progress_bar=False)
+        X_train_emb = self._embed_train_texts(X_train_text)
         
         tags_list = train_df["tags"].tolist()
         categories = train_df["category"].tolist()
@@ -206,8 +233,7 @@ class AutomatedActiveLearner:
             )
         ]
         
-        print(f"[*] Embedding {len(X_target_text)} unannotated target documents...")
-        X_target_emb = get_embedding_model().encode(X_target_text, batch_size=32, show_progress_bar=True)
+        X_target_emb = self._embed_predict_texts(X_target_text)
         
         pred_cats = []
         pred_tags = []

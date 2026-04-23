@@ -12,7 +12,7 @@ PubMed Spatial Tracker 是一个面向空间转录组相关文献的检索、标
 
 - Backend: FastAPI + SQLite(SQLAlchemy)
 - Frontend: React + Vite + Tailwind CSS
-- ML: scikit-learn + sentence-transformers
+- ML: scikit-learn（默认）+ sentence-transformers（可选增强）
 - Data: pandas + biopython(Entrez)
 
 ## 2. 项目结构与文件职责
@@ -85,9 +85,21 @@ PubMed_Spatial_Tracker/
 安装依赖：
 
 ```bash
-pip install -r requirements.txt
+conda activate zf-li23
+python -m pip install -r requirements.txt
 cd web_app/frontend && npm install
 ```
+
+可选（仅在你需要 Transformer 向量增强时）：
+
+```bash
+conda activate zf-li23
+python -m pip install sentence-transformers
+```
+
+说明：
+- 未安装 `sentence-transformers` 时，系统自动回退到 TF-IDF 向量，不影响主动学习流程可用性。
+- 该默认配置适合无 NVIDIA 显卡的 CPU 环境。
 
 ## 4. 启动与运行
 
