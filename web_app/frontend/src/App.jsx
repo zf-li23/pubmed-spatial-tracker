@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AnnotationForm from './components/AnnotationForm';
 import TagManager from './components/TagManager';
+import ArticlePreview from './components/ArticlePreview';
 import { apiPath } from './api';
 
 const CATEGORIES = ["Review", "Technology", "Database", "Data Analysis", "Research"];
@@ -11,6 +12,8 @@ const DEFAULT_TAG_DICT = {
   technology: ["Visium", "MERFISH", "Slide-seq", "Stereo-seq", "Xenium", "CosMx"],
   analysis: ["Clustering", "Deconvolution", "Imputation", "Cell Communication", "Spatial Trajectory"]
 };
+
+const STATIC_ONLY = import.meta.env.VITE_STATIC_ONLY === 'true';
 
 function App() {
   const [data, setData] = useState([]);
@@ -33,6 +36,14 @@ function App() {
   const [storedTags, setStoredTags] = useState(DEFAULT_TAG_DICT);
 
   useEffect(() => {
+      if (STATIC_ONLY) {
+         fetch('./tags.snapshot.json')
+            .then(res => res.json())
+            .then(data => setStoredTags(data))
+            .catch(err => console.error('Failed to load static tags', err));
+         return;
+      }
+
      fetch(apiPath('/api/tags'))
       .then(res => res.json())
       .then(data => setStoredTags(data))
@@ -40,6 +51,11 @@ function App() {
   }, []);
 
   const updateStoredTags = (newDict) => {
+       if (STATIC_ONLY) {
+          setStoredTags(newDict);
+          return;
+       }
+
      setStoredTags(newDict);
           fetch(apiPath('/api/tags'), {
        method: 'POST',
@@ -50,6 +66,18 @@ function App() {
 
   const loadData = () => {
     setLoading(true);
+
+      if (STATIC_ONLY) {
+         fetch('./articles.snapshot.json')
+            .then(res => res.json())
+            .then(result => {
+               setData(Array.isArray(result) ? result : []);
+            })
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false));
+         return;
+      }
+
       fetch(apiPath('/api/articles'))
       .then(res => res.json())
       .then(result => {
@@ -104,6 +132,11 @@ function App() {
   };
 
   const handleDiscard = (pmid) => {
+       if (STATIC_ONLY) {
+          alert('静态模式下不可执行 Discard。');
+          return;
+       }
+
      if(!confirm("确认打上废弃(Discarded)标签并将其留用作负样本数据吗？")) return;
      
      // 乐观更新为废弃状态
@@ -130,6 +163,12 @@ function App() {
   };
 
   const handlePmidUpload = (e) => {
+       if (STATIC_ONLY) {
+          alert('静态模式下不可导入 PMID。');
+          e.target.value = null;
+          return;
+       }
+
      const file = e.target.files[0];
      if(!file) return;
      const fd = new FormData();
@@ -155,6 +194,11 @@ function App() {
   };
 
   const triggerActiveLearning = () => {
+         if (STATIC_ONLY) {
+            alert('静态模式下不可触发 AI 训练。');
+            return;
+         }
+
          fetch(apiPath('/api/ml/active_learning'), { method: "POST" })
         .then(res => res.json())
         .then(data => {
@@ -177,7 +221,7 @@ function App() {
     <div className="flex h-screen overflow-hidden bg-gray-100">
       <div className="w-2/3 flex flex-col border-r border-gray-300 bg-white">
          <div className="p-4 border-b flex justify-between items-center bg-gray-50 flex-wrap gap-2">
-            <h1 className="text-xl font-bold text-gray-800">PubMed 空间标注流 (v3.0)</h1>
+            <h1 className="text-xl font-bold text-gray-800">PubMed 空间标注流 (v3.0){STATIC_ONLY ? ' - 静态只读' : ''}</h1>
             <div className="flex space-x-2 items-center flex-wrap">
                <input 
                  type="text" 
@@ -196,20 +240,33 @@ function App() {
                  <option value="no">未标注</option>
                  <option value="yes">已标注确认</option>
                </select>
-               <input type="file" id="pmid-upload" accept=".txt" className="hidden" onChange={handlePmidUpload} />
-               <label htmlFor="pmid-upload" className="cursor-pointer bg-teal-500 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-teal-600 transition-colors shadow-sm">
-                 📤 导入 PMID 文件
-               </label>
+                      {!STATIC_ONLY && (
+                         <>
+                            <input type="file" id="pmid-upload" accept=".txt" className="hidden" onChange={handlePmidUpload} />
+                            <label htmlFor="pmid-upload" className="cursor-pointer bg-teal-500 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-teal-600 transition-colors shadow-sm">
+                               📤 导入 PMID 文件
+                            </label>
+                         </>
+                      )}
                <button onClick={loadData} className="bg-blue-500 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-blue-600 transition-colors">刷新列表</button>
-               <button onClick={()=>setIsTagManagerOpen(true)} className="bg-orange-500 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-1">
-                 🔖 管理 Tags
-               </button>
-               <button onClick={triggerActiveLearning} className="bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-purple-700 shadow-md transition-all flex items-center gap-1">
-                 🚀 提交并让 AI 重新学习
-               </button>
-               <span className="ml-3 font-semibold text-gray-700 bg-white px-3 py-1.5 rounded shadow-sm border border-gray-200">
-                  🔥 优先攻克顶部的疑难文献
-               </span>
+                      {!STATIC_ONLY && (
+                         <>
+                            <button onClick={()=>setIsTagManagerOpen(true)} className="bg-orange-500 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-1">
+                               🔖 管理 Tags
+                            </button>
+                            <button onClick={triggerActiveLearning} className="bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-semibold hover:bg-purple-700 shadow-md transition-all flex items-center gap-1">
+                               🚀 提交并让 AI 重新学习
+                            </button>
+                            <span className="ml-3 font-semibold text-gray-700 bg-white px-3 py-1.5 rounded shadow-sm border border-gray-200">
+                                 🔥 优先攻克顶部的疑难文献
+                            </span>
+                         </>
+                      )}
+                      {STATIC_ONLY && (
+                         <span className="ml-3 font-semibold text-gray-700 bg-white px-3 py-1.5 rounded shadow-sm border border-gray-200">
+                            📖 只读浏览模式（无后端）
+                         </span>
+                      )}
             </div>
          </div>
          
@@ -273,7 +330,7 @@ function App() {
                              {(row.url || (row.pdf_path && row.pdf_path.startsWith('http'))) ? <a href={row.url || row.pdf_path} target="_blank" rel="noreferrer" className="text-teal-600 underline font-bold px-2 whitespace-nowrap" onClick={e=>e.stopPropagation()}>🔗 外链</a> : <span className="text-gray-300">-</span>}
                           </td>
                           <td className="px-3 py-2.5 text-center">
-                             <button onClick={(e)=>{e.stopPropagation(); handleDiscard(row.pmid);}} className="text-red-500 hover:text-white hover:bg-red-500 rounded px-2 py-1 transition-colors font-bold text-xs" title="打上伪数据标签">Discard</button>
+                             {!STATIC_ONLY ? <button onClick={(e)=>{e.stopPropagation(); handleDiscard(row.pmid);}} className="text-red-500 hover:text-white hover:bg-red-500 rounded px-2 py-1 transition-colors font-bold text-xs" title="打上伪数据标签">Discard</button> : <span className="text-gray-300">-</span>}
                           </td>
                        </tr>
                     ))}
@@ -309,28 +366,32 @@ function App() {
       </div>
 
       <div className="w-1/3 flex flex-col bg-white overflow-y-auto relative shadow-[0_0_10px_rgba(0,0,0,0.1)] border-l z-10">
-         {selectedRow ? (
-           <AnnotationForm 
-             key={selectedRow.pmid}
-             row={selectedRow} 
-             onUpdateContent={handleUpdateContent}
-             storedTags={storedTags}
-             updateStoredTags={updateStoredTags}
-           /> 
-         ) : (
-           <div className="flex items-center justify-center h-full text-gray-400 border-dashed border-2 border-gray-200 m-4 rounded">
-              <span className="font-semibold text-lg italic tracking-wide">请在左侧表格单击行，开始阅读和标注</span>
-           </div>
-         )}
+             {STATIC_ONLY ? (
+                <ArticlePreview row={selectedRow} />
+             ) : selectedRow ? (
+                <AnnotationForm
+                   key={selectedRow.pmid}
+                   row={selectedRow}
+                   onUpdateContent={handleUpdateContent}
+                   storedTags={storedTags}
+                   updateStoredTags={updateStoredTags}
+                />
+             ) : (
+                <div className="flex items-center justify-center h-full text-gray-400 border-dashed border-2 border-gray-200 m-4 rounded">
+                     <span className="font-semibold text-lg italic tracking-wide">请在左侧表格单击行，开始阅读和标注</span>
+                </div>
+             )}
       </div>
 
-      <TagManager 
-         isOpen={isTagManagerOpen} 
-         onClose={()=>setIsTagManagerOpen(false)}
-         storedTags={storedTags}
-         updateStoredTags={updateStoredTags}
-         refreshData={loadData}
-      />
+         {!STATIC_ONLY && (
+            <TagManager
+                isOpen={isTagManagerOpen}
+                onClose={()=>setIsTagManagerOpen(false)}
+                storedTags={storedTags}
+                updateStoredTags={updateStoredTags}
+                refreshData={loadData}
+            />
+         )}
     </div>
   );
 }

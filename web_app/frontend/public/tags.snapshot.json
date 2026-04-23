@@ -1,0 +1,62 @@
+{
+  "metaCategory": [
+    "General",
+    "Technology",
+    "Database",
+    "Data Analysis"
+  ],
+  "domain": [
+    "Neuroscience",
+    "Development",
+    "Cancer",
+    "Reproduction",
+    "Pathology",
+    "Immunology",
+    "Zoology",
+    "Cardiology",
+    "Lung",
+    "Bone Tissues",
+    "Plant"
+  ],
+  "technology": [
+    "Visium",
+    "MERFISH",
+    "Slide-seq",
+    "Stereo-seq",
+    "Xenium",
+    "CosMx",
+    "GeoMx",
+    "DBiT-seq",
+    "seqFISH",
+    "ISS",
+    "FISH",
+    "FFPE",
+    "RNAscope",
+    "ISH"
+  ],
+  "analysis": [
+    "Clustering",
+    "Deconvolution",
+    "Imputation",
+    "Cell Communication",
+    "Spatial Trajectory",
+    "Multimodal integration",
+    "Domain Identification",
+    "Gene Expression Prediction",
+    "Segmentation",
+    "Differential Expression",
+    "Diffusion",
+    "Dimensionality Reduction",
+    "RNA Co-localization",
+    "Denoising",
+    "Application",
+    "Benchmark",
+    "Foundation",
+    "Pipeline",
+    "Visualization",
+    "huSA"
+  ],
+  "uncategorized": [
+    "Discarded"
+  ]
+}

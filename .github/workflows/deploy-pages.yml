@@ -36,8 +36,7 @@ jobs:
 
       - name: Build
         env:
-          # Set this to your deployed backend URL, e.g. https://your-api.example.com
-          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+          VITE_STATIC_ONLY: "true"
         run: npm run build
 
       - name: Setup Pages
