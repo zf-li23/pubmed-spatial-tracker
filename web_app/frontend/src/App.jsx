@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AnnotationForm from './components/AnnotationForm';
 import TagManager from './components/TagManager';
+import { apiPath } from './api';
 
 const CATEGORIES = ["Review", "Technology", "Database", "Data Analysis", "Research"];
 
@@ -32,7 +33,7 @@ function App() {
   const [storedTags, setStoredTags] = useState(DEFAULT_TAG_DICT);
 
   useEffect(() => {
-      fetch('/api/tags')
+     fetch(apiPath('/api/tags'))
       .then(res => res.json())
       .then(data => setStoredTags(data))
       .catch(err => console.error("Failed to load tags", err));
@@ -40,7 +41,7 @@ function App() {
 
   const updateStoredTags = (newDict) => {
      setStoredTags(newDict);
-       fetch('/api/tags', {
+          fetch(apiPath('/api/tags'), {
        method: 'POST',
        headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify(newDict)
@@ -49,7 +50,7 @@ function App() {
 
   const loadData = () => {
     setLoading(true);
-    fetch("/api/articles")
+      fetch(apiPath('/api/articles'))
       .then(res => res.json())
       .then(result => {
          setData(result);
@@ -116,7 +117,7 @@ function App() {
      
      handleNextRow(pmid);
      
-     fetch(`/api/articles/${pmid}/discard`, { method: "POST" }).catch(err => {
+    fetch(apiPath(`/api/articles/${pmid}/discard`), { method: "POST" }).catch(err => {
          console.error("Discard failed", err);
          // silent error for better UX
      });
@@ -134,7 +135,7 @@ function App() {
      const fd = new FormData();
      fd.append("file", file);
      setLoading(true);
-     fetch("/api/pmids/upload", { method: "POST", body: fd })
+       fetch(apiPath('/api/pmids/upload'), { method: "POST", body: fd })
        .then(res => res.json())
        .then(data => {
            alert(data.message || data.detail);
@@ -154,7 +155,7 @@ function App() {
   };
 
   const triggerActiveLearning = () => {
-      fetch("/api/ml/active_learning", { method: "POST" })
+         fetch(apiPath('/api/ml/active_learning'), { method: "POST" })
         .then(res => res.json())
         .then(data => {
             if(data.error) alert("Error: " + data.error);
@@ -266,7 +267,7 @@ function App() {
                              </div>
                           </td>
                           <td className="px-3 py-2.5 text-center">
-                             {row.pdf_path && !row.pdf_path.startsWith('http') ? <a href={`/pdf?path=${encodeURIComponent(row.pdf_path)}`} target="_blank" rel="noreferrer" className="text-blue-600 underline font-bold px-2 whitespace-nowrap" onClick={e=>e.stopPropagation()}>👁 查看</a> : <span className="text-gray-300">-</span>}
+                             {row.pdf_path && !row.pdf_path.startsWith('http') ? <a href={apiPath(`/pdf?path=${encodeURIComponent(row.pdf_path)}`)} target="_blank" rel="noreferrer" className="text-blue-600 underline font-bold px-2 whitespace-nowrap" onClick={e=>e.stopPropagation()}>👁 查看</a> : <span className="text-gray-300">-</span>}
                           </td>
                           <td className="px-3 py-2.5 text-center">
                              {(row.url || (row.pdf_path && row.pdf_path.startsWith('http'))) ? <a href={row.url || row.pdf_path} target="_blank" rel="noreferrer" className="text-teal-600 underline font-bold px-2 whitespace-nowrap" onClick={e=>e.stopPropagation()}>🔗 外链</a> : <span className="text-gray-300">-</span>}

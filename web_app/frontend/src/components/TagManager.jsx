@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiPath } from '../api';
 
 export default function TagManager({ storedTags, updateStoredTags, isOpen, onClose, refreshData }) {
    if (!isOpen) return null;
@@ -18,7 +19,7 @@ export default function TagManager({ storedTags, updateStoredTags, isOpen, onClo
           return;
       }
       setLoading(true);
-      fetch('/api/tags/rename', {
+      fetch(apiPath('/api/tags/rename'), {
          method: 'PUT',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({ old_tag: editingTag.old, new_tag: editValue })
@@ -40,7 +41,7 @@ export default function TagManager({ storedTags, updateStoredTags, isOpen, onClo
    const deleteTag = (t, group) => {
       if(!confirm(`⚠️ 警告: 您确定要彻底删除 "${t}" 吗？此操作将清洗所有被标记为该标签的行。`)) return;
       setLoading(true);
-      fetch('/api/tags/delete', {
+      fetch(apiPath('/api/tags/delete'), {
          method: 'DELETE',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({ tag: t })

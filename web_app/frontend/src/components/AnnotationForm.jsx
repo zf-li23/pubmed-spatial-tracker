@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiPath } from '../api';
 
 const CATEGORIES = ["Review", "Technology", "Database", "Data Analysis", "Research"];
 
@@ -48,7 +49,7 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      const finalTags = tags.filter(t => !["聚类","去卷积","缺失值插补","细胞通讯"].includes(t));
      const joinedTags = finalTags.join("; ");
 
-     fetch(`/api/articles/${row.pmid}/annotate`, {
+     fetch(apiPath(`/api/articles/${row.pmid}/annotate`), {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ category: cat, tags: joinedTags })
@@ -92,14 +93,14 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      // 更新部分状态，但不包含会引起跳转的完整乐观数据
      onUpdateContent({ ...row, pdf_path: "(上传中...)" });
 
-     fetch(`/api/articles/${row.pmid}/pdf/upload`, {
+     fetch(apiPath(`/api/articles/${row.pmid}/pdf/upload`), {
         method: "POST",
         body: fd
      }).then(res => res.json()).then(res => {
         setUploading(false);
         if(res.db_path){
            console.log("PDF 归档成功", res.db_path);
-           fetch(`/api/articles/${row.pmid}/annotate`, {
+           fetch(apiPath(`/api/articles/${row.pmid}/annotate`), {
               method: "POST",
               headers: {"Content-Type": "application/json"},
               body: JSON.stringify({ category: cat, tags: joinedTags })
@@ -127,7 +128,7 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      // 保留在当前页，提供加载态
      onUpdateContent({ ...row, pdf_path: "(后台爬取中...)" });
 
-     fetch(`/api/articles/${row.pmid}/pdf/url`, {
+    fetch(apiPath(`/api/articles/${row.pmid}/pdf/url`), {
          method: "POST",
          headers: {"Content-Type": "application/json"},
          body: JSON.stringify({
@@ -141,7 +142,7 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
          setUploading(false);
          if(data.db_path) {
              console.log("爬取完成", data.db_path);
-             fetch(`/api/articles/${row.pmid}/annotate`, {
+             fetch(apiPath(`/api/articles/${row.pmid}/annotate`), {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ category: cat, tags: joinedTags })
@@ -167,7 +168,7 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      const finalTags = tags.filter(t => !["聚类","去卷积","缺失值插补","细胞通讯"].includes(t));
      const joinedTags = finalTags.join("; ");
 
-     fetch(`/api/articles/${row.pmid}/pdf/save_link`, {
+    fetch(apiPath(`/api/articles/${row.pmid}/pdf/save_link`), {
          method: "POST",
          headers: {"Content-Type": "application/json"},
          body: JSON.stringify({
@@ -179,7 +180,7 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
          setUploading(false);
          if(data.path) {
              console.log("仅保存外链成功", data.path);
-             fetch(`/api/articles/${row.pmid}/annotate`, {
+             fetch(apiPath(`/api/articles/${row.pmid}/annotate`), {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ category: cat, tags: joinedTags })
