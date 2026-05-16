@@ -12,6 +12,7 @@ import urllib.error
 import time
 from tqdm import tqdm
 import json
+from dotenv import load_dotenv
 import migrate_naive
 
 # ---------------------------------------------------------
@@ -39,10 +40,8 @@ QUERY = " OR ".join(base_queries + tech_queries)
 # ---------------------------------------------------------
 # 请务必修改为您自己的邮箱地址，否则可能会被 NCBI 拒绝访问
 # 优先从 .env 读取，不存在则使用默认值
-import os as _os
-from dotenv import load_dotenv as _load_dotenv
-_load_dotenv(_os.path.join(_os.path.dirname(__file__), ".env"))
-EMAIL = _os.getenv("PUBMED_EMAIL", "zf-li23@mails.tsinghua.edu.cn")
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+EMAIL = os.getenv("PUBMED_EMAIL", "zf-li23@mails.tsinghua.edu.cn")
 MAX_RESULTS = 10000  # 为了测试，默认获取 100 篇。如需获取全部，可以自行增大该数值（例如 10000）
 
 # 输出文件名配置
@@ -50,27 +49,10 @@ DB_OUTPUT_FILE = "spatial_literature.db"
 import sqlite3
 from sqlalchemy import create_engine, text
 engine = create_engine(f"sqlite:///{DB_OUTPUT_FILE}")
-TEMPLATE_FILE = "template.xlsx"
-
 # ---------------------------------------------------------
 # 外部常数 (用于预印本判定等)
 # ---------------------------------------------------------
 PREPRINT_JOURNALS = ["biorxiv", "medrxiv", "arxiv"]
-
-def create_template(filename: str):
-    """
-    生成一个空的 Excel 模板文件（仅包含列头），供用户参考。
-    """
-    columns = [
-        "pmid", "doi", "title", "journal", "pub_year", "category", "tags",
-        "is_manually_confirmed", "pdf_path", "url", 
-        "abstract", "mesh_terms", "keywords", "is_preprint", "is_method_note", 
-        "citation_count", "notes", "auto_predicted_category", "auto_predicted_tags",
-        "naive_category", "naive_tags"
-    ]
-    df = pd.DataFrame(columns=columns)
-    df.to_excel(filename, index=False)
-    print(f"[*] 已生成空模板文件: {filename}")
 
 def fetch_pubmed(email: str, query: str, max_results: int = 100) -> list:
     """
@@ -233,70 +215,58 @@ def classify_article(parsed_data: dict) -> tuple:
         "notes": parsed_data.get("notes", "") # 备注放在最后一列
     }
 
-def save_to_file(data: list, excel_filename: str):
-    """
-    将处理好的一组字典列表转化为 DataFrame 并保存为 Excel。
-    在保存之前，如果已经存在同名文件，会进行增量合并：
-    - 保留所有 `is_manually_confirmed` 为 True 的现有行，防止人工标注数据被覆盖
-    - 更新未确认或新增的行
-    """
-    if not data:
-        print("[-] 没有数据可供保存。")
-        return
-        
+def save_to_file(data: list, db_filename: str):
+    """将处理好的文献列表逐行 upsert 到 SQLite 数据库。增量合并保留已确认行。"""
     new_df = pd.DataFrame(data)
-    
-    if os.path.exists(excel_filename):
-        try:
-            old_df = pd.read_excel(excel_filename)
-            print(f"[*] 发现已有数据表，包含 {len(old_df)} 条记录，正在执行智能合并...")
-            
-            # 把 pmid 强制转字符串进行严谨匹配
-            old_df["pmid"] = old_df["pmid"].astype(str)
-            new_df["pmid"] = new_df["pmid"].astype(str)
-            
-            # 提取其中已经是"手动确认"过的保留名单数据 (is_manually_confirmed == True/1)
-            confirmed_mask = old_df["is_manually_confirmed"] == True
-            confirmed_df = old_df[confirmed_mask]
-            
-            # 获取已经确定的 pmid 集合
-            confirmed_pmids = set(confirmed_df["pmid"].tolist())
-            print(f"[*] 侦测到 {len(confirmed_pmids)} 篇已被人工审核锁定的文献，这部分将完全免疫爬虫覆盖！")
-            
-            # 从本次新爬取的数据中，剔除掉那些在此前已经被人工确认的项 (不作更新)
-            new_unconfirmed_df = new_df[~new_df["pmid"].isin(confirmed_pmids)]
-            
-            # 在旧的数据表中，把那些还没被确认过的数据剔除掉，给新数据腾位置（覆盖未确认的项）
-            old_unconfirmed_df = old_df[~confirmed_mask]
-            # 那些既不在新爬取结果中，也没有确定的旧数据，看各位意愿，一般保留 (防止某次爬虫关键词窄没爬到)
-            # 所以未确认的数据：合并策略是新爬到的覆盖旧的。
-            old_unconfirmed_keep_df = old_unconfirmed_df[~old_unconfirmed_df["pmid"].isin(set(new_df["pmid"].tolist()))]
-            
-            final_df = pd.concat([confirmed_df, old_unconfirmed_keep_df, new_unconfirmed_df], ignore_index=True)
-            
-            if "auto_predicted_category" not in final_df.columns:
-                 final_df["auto_predicted_category"] = final_df["category"]
-            
-            # 让表格重新按照年份和手动状态等排序一下 (可选，主要保持一致)
-            final_df.to_excel(excel_filename, index=False)
-            print(f"[*] 成功保存增量合并结果至 Excel 文件: {excel_filename}，当前总记录: {len(final_df)}")
-        except Exception as e:
-            print(f"[-] 增量合并失败: {e}，将尝试直接覆盖备份...")
-            new_df.to_excel("backup_new_" + excel_filename, index=False)
-    else:
-        try:
-            new_df.to_excel(excel_filename, index=False)
-            print(f"[*] 成功首次保存结果至 Excel 文件: {excel_filename}")
-        except Exception as e:
-            print(f"[-] 保存 Excel 失败 (请检查是否安装了 openpyxl): {e}")
+    if new_df.empty or "pmid" not in new_df.columns:
+        print("[-] 数据列表为空或缺少 pmid 列，跳过存储。")
+        return
+
+    db_engine = create_engine(f"sqlite:///{db_filename}")
+    try:
+        old_df = pd.read_sql("SELECT * FROM literature", db_engine)
+    except Exception:
+        old_df = pd.DataFrame()
+
+    if old_df.empty:
+        with db_engine.begin() as con:
+            for _, row in new_df.iterrows():
+                rd = row.to_dict()
+                cols = list(rd.keys())
+                ph = ", ".join([f":{c}" for c in cols])
+                con.execute(
+                    text(f"INSERT OR REPLACE INTO literature ({', '.join(cols)}) VALUES ({ph})"),
+                    rd,
+                )
+        print(f"[*] 首次入库完成，共 {len(new_df)} 篇文献。")
+        return
+
+    confirmed_df = old_df[old_df["is_manually_confirmed"] == 1].copy()
+    confirmed_pmids = set(confirmed_df["pmid"].astype(str))
+    new_unconfirmed = new_df[~new_df["pmid"].astype(str).isin(confirmed_pmids)].copy()
+    old_unconfirmed = old_df[old_df["is_manually_confirmed"] != 1].copy()
+    old_unconfirmed_keep = old_unconfirmed[
+        ~old_unconfirmed["pmid"].astype(str).isin(set(new_df["pmid"].astype(str)))
+    ]
+    final_df = pd.concat([confirmed_df, old_unconfirmed_keep, new_unconfirmed], ignore_index=True)
+    for col in ["auto_predicted_category", "auto_predicted_tags", "is_discarded", "uncertainty_score"]:
+        if col not in final_df.columns:
+            final_df[col] = "" if col in ("auto_predicted_category", "auto_predicted_tags") else 0
+    with db_engine.begin() as con:
+        for _, row in final_df.iterrows():
+            rd = row.to_dict()
+            cols = list(rd.keys())
+            ph = ", ".join([f":{c}" for c in cols])
+            con.execute(
+                text(f"INSERT OR REPLACE INTO literature ({', '.join(cols)}) VALUES ({ph})"),
+                rd,
+            )
+    print(f"[*] 增量入库: 确认{len(confirmed_df)}+旧未确认{len(old_unconfirmed_keep)}+新{len(new_unconfirmed)}=总计{len(final_df)}篇")
 
 def main():
     print("="*60)
     print(" 🚀 PubMed 空间转录组文献检索预分类工具启动")
     print("="*60)
-    
-    # 0. 生成模板文件供参考
-    create_template(TEMPLATE_FILE)
     
     if EMAIL == "your.email@example.com":
         print("\n[警告] 您的 EMAIL 尚未配置，这可能会导致请求被 PubMed 屏蔽。建议在代码头部修改。")

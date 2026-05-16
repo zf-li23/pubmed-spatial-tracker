@@ -22,3 +22,7 @@ PDF_Archive/
 # Database backups
 spatial_literature_backup_*.db
 spatial_literature_pre_schema.db
+
+# Generated reports
+ML_Performance_Report.csv
+template.xlsx

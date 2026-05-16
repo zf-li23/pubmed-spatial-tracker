@@ -1,0 +1,111 @@
+%!TEX program = xelatex
+\documentclass[12pt,a4paper]{ctexart}
+
+\usepackage[left=2.3cm,right=2.3cm,top=2.0cm,bottom=1.8cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.08}
+\usepackage{booktabs}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\titlespacing{\section}{0pt}{4pt}{1pt}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+\titlespacing{\subsection}{0pt}{3pt}{0pt}
+
+\begin{document}
+
+\title{\vspace{-1.0cm}\textbf{面向空间转录组学文献的多策略\\[1pt]机器学习分类与主动学习研究}}
+\author{李哲夫\quad 2023011400\quad 生32\\[1pt]
+\texttt{\footnotesize\url{https://github.com/zf-li23/pubmed-spatial-tracker}}}
+\date{}
+\maketitle
+\vspace{-0.7cm}
+
+\section{一、选题背景与意义}
+
+空间转录组学是近年来生命科学增长最快的方向之一，2010年以来相关文献从每年不足20篇激增至2025年的2,638篇。该领域的自动文献分类面临三重挑战：(1)~文本稀疏，单篇标题加摘要通常不足300词，传统词袋模型无法捕捉生物医学术语间的语义关联；(2)~标签空间复杂，一篇文献同时涉及研究类别（Research/Review/Technology/Database/Data~Analysis）、生物学领域（Cancer、Neuroscience等）、技术平台（Visium、MERFISH等）和分析方法（Clustering、Deconvolution等），构成典型多标签问题；(3)~标注成本极高，准确分类需领域知识，单篇耗时1--3分钟。
+
+本课题基于已开发的开源文献管理系统 PubMed Spatial Tracker\footnote{代码仓库：\url{https://github.com/zf-li23/pubmed-spatial-tracker}，包含PubMed检索、规则引擎、Web标注界面、ML管线及主动学习流程。}，拟系统比较多种文本表示与分类器在三个子任务上的性能，并实现基于不确定性采样的主动学习策略，量化标注效率提升。本课题覆盖课程中贝叶斯学习、集成学习、深度学习、无监督学习与生成式模型等多个模块。本课题为独立原创工作，不属于其他课程或SRT项目，代码仓库可公开访问验证。
+
+我是生命学院生物信息学方向的学生，本项目最初受课程作业一启发，为服务于我日常科研中的文献阅读需求而建立，不属于任何课程或SRT项目。
+
+\section{二、拟采用的特征与算法}
+
+\subsection*{2.1 文本表示}
+
+\begin{itemize}
+  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+  \item \textbf{TF-IDF基线}：1--2~gram，max\_features=5,000，作为稀疏表示参考基线。
+  \item \textbf{BioBERT嵌入}：\verb|dmis-lab/biobert-base-cased-v1.1| 对标题+摘要+MeSH做mean~pooling，生成768维稠密向量。
+  \item \textbf{LDA主题建模}：全库文本做Latent~Dirichlet~Allocation（$K=15$），每篇表示为主题分布向量。
+  \item \textbf{元特征}：出版年份、期刊是否预印本、MeSH存在标志（均为binary），拼接至上述向量末端。
+\end{itemize}
+
+\subsection*{2.2 分类算法}
+
+三任务共享特征但独立训练：
+
+\vspace{1pt}
+{\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{子任务} & \textbf{类型} & \textbf{候选分类器} \\
+\midrule
+Category 分类 & 5类多分类 & NB, SVM(RBF), RF, XGBoost, BioBERT+MLP \\
+Tags 多标签   & 多标签二分类 & Binary~Relevance(SVM), Classifier~Chains(RF) \\
+Discarded 判别 & 二分类 & 同上，独立评估AUC \\
+\bottomrule
+\end{tabular}\par}
+\vspace{1pt}
+
+NB对应贝叶斯学习模块，与课程作业一（垃圾邮件分类）一脉相承；RF与XGBoost覆盖集成学习；BioBERT+MLP体现深度学习与预训练模型迁移应用；LDA对应无监督学习与生成式模型。
+
+\subsection*{2.3 主动学习}
+
+\begin{itemize}
+  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+  \item \textbf{查询策略}：不确定性采样，基于SVM决策边界margin $1-|P_{\max}-P_{\text{second}}|$，每轮选$K=20$篇最不确定样本提交标注。
+  \item \textbf{迭代流程}：初始50篇 $\to$ 标20篇 $\to$ 重训 $\to$ 循环5轮（总模拟标注150篇）。随机采样（等量投入）作为基线。
+  \item \textbf{真实标注}：文献标注是本项目中最繁重且不可由AI代劳的部分，但优化此过程的体验正是本项目建立的初衷，且我有大量阅读文献的需求，所以我将投入一定的时间完成1000-2000篇文献的标注，以丰富数据集规模。
+\end{itemize}
+
+\section{三、数据与实验方案}
+
+\subsection*{3.1 数据来源}
+
+通过PubMed~Entrez~API检索获取，检索式覆盖14种空间组学技术平台及4个通用检索词，总计入库\textbf{7,029篇}（2010--2026）。其中\textbf{481篇已人工标注}，含类别（5类）、多维度语义标签（domain/technology/analysis共45个标签）及丢弃标志（413篇Discarded），按类别分层80\%训练+20\%测试。
+
+\subsection*{3.2 实验设计}
+
+\vspace{1pt}
+{\small
+\begin{tabular}{@{}p{1.7cm}p{3.0cm}p{6.8cm}@{}}
+\toprule
+\textbf{实验} & \textbf{目的} & \textbf{方法} \\
+\midrule
+实验1：特征对比  & 最优文本表示   & 固定SVC，TF-IDF/BioBERT/LDA向量，5折CV比Macro~F1 \\
+实验2：分类器对比 & 最优分类算法   & 固定BioBERT，比NB/SVM/RF/XGBoost/MLP的Macro~F1与训练时间 \\
+实验3：约束消融  & 标签策略收益   & 无约束ML vs 施加领域约束（按类别限合法标签组）的Jaccard \\
+实验4：主动学习  & 标注效率       & 不确定性采样vs随机采样学习曲线，算F1=85\%标注节省比 \\
+实验5：学习曲线  & 最小标注量     & 训练集50$\to$385增长过程中各类别F1变化 \\
+\bottomrule
+\end{tabular}\par}
+\vspace{1pt}
+
+\section{四、评价方案与预期结果}
+
+\subsection*{4.1 评价指标}
+
+Category分类：Accuracy, Macro~F1；Tags多标签：Exact~Match~Ratio, Jaccard系数；Discarded判别：AUC-ROC；主动学习：达85\%~Macro~F1所需标注量及学习曲线下面积。
+
+\subsection*{4.2 预期结果}
+
+\textbf{(1)~BioBERT+XGBoost预期最优。} BioBERT嵌入捕捉生物医学术语上下文语义（如``single-cell resolution''与``subcellular''高度关联），预期Macro~F1较TF-IDF基线提升10--15\%。XGBoost梯度提升机制理论上提供比SVM更鲁棒的决策边界。
+
+\textbf{(2)~标签约束策略提升F1~8--12\%。} 无约束预测倾向跨组误报（如给Research类附Analysis标签），施加每类别合法标签空间约束后可纠正此类错误。
+
+\textbf{(3)~主动学习节省40--60\%标注量。} 预期不确定性采样约150篇时达85\%~F1，随机采样需约300篇，源于主动学习优先选择决策边界困难样本的信息增益。
+
+\textbf{(4)~类别间难度差异显著。} Database（34篇）和Technology（265篇）因样本量极少，预期F1低于Research（3,827篇），为后续类别平衡采样提供实验依据。
+
+\end{document}

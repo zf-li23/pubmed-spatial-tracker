@@ -119,6 +119,85 @@ CREATE TABLE article_tags (
 | Data Analysis | 最多 3 个 analysis 标签 + 可选新实体名 |
 | Research | 至少 1 个 domain + 可选 technology |
 
+### 标签系统规则详解
+
+#### 分组语义
+
+| 分组 | 语义 | 约束 | 示例 |
+|---|---|---|---|
+| `domain` | 生物学领域/组织/疾病 | 每篇最多 3 个 | Neuroscience, Cancer, Lung |
+| `technology` | 空间组学技术平台 | 每篇最多 2 个 | Visium, MERFISH, Stereo-seq |
+| `analysis` | 分析任务与方法类型 | 每篇最多 3 个 | Clustering, Deconvolution, Benchmark |
+| `method_note` | 新实体名称（动态提取） | 由 `guess_novel_name()` 填充 | SpatialScope, TISSUE |
+
+#### 数据流
+
+```
+标题+摘要
+    │
+    ├─→ migrate_naive.py (get_naive)     → naive_category / naive_tags
+    │       │
+    │       └─→ shared.enforce_category_tag_policy()
+    │
+    ├─→ ml_pipeline.py (SpatialLiteratureClassifier)
+    │       │
+    │       ├─→ category: SVC 多分类
+    │       ├─→ tags: OneVsRest SVC → shared.enforce_category_tag_policy()
+    │       └─→ discard: SVC 二分类
+    │
+    └─→ 人工标注 (AnnotationForm.jsx)
+            │
+            └─→ category / tags / is_discarded / is_manually_confirmed
+```
+
+#### 约束策略详解（shared.py `enforce_category_tag_policy`）
+
+**Review（综述）**
+- 输入候选标签刷选为仅 `domain` 组内标签
+- 最终保留最多 1 个标签
+- 若无匹配 → 兜底 `"General"`
+- 设计理由：综述文献覆盖领域广，限制标签数量防止标签膨胀
+
+**Technology（技术方法）**
+- 仅从 `technology` 组选取，最多保留 2 个
+- 若无匹配 → 调用 `guess_novel_name(title)` 尝试提取新技术名
+- 若新实体提取也失败 → 回退为 technology 组的第一个标签（兜底）
+- 设计理由：技术类文章的核心信息是用了什么平台
+
+**Database（数据库资源）**
+- 优先调用 `guess_novel_name(title)` 从标题提取数据库名
+- 提取成功 → 使用该名称作为唯一标签
+- 提取失败 → 返回空列表（不输出泛词）
+- 设计理由：数据库名的语义价值远高于通用标签；输出泛词反而有噪声
+
+**Data Analysis（数据分析）**
+- 从 `analysis` 组选取候选标签，最多 3 个（按 ML 概率排序）
+- 额外调用 `guess_novel_name(title)` 尝试提取新方法名
+- 若新实体名提取成功 → 置于标签列表首位，analysis 标签截断至共 3 个
+- 设计理由：优先暴露新方法名，同时保留分类任务标签作为上下文
+
+**Research（研究论文）**
+- 必须包含至少 1 个 `domain` 标签，最多 3 个
+- 可选附加 `technology` 标签，最多 2 个
+- 若无 domain 匹配 → 兜底第一个 domain 标签
+- 设计理由：研究论文的核心语义维度是"什么领域+用什么技术"
+
+#### Discarded 列
+
+独立于标签系统的二分类信号：
+- `is_discarded=1`：文献与空间转录组学无关，或质量不足以纳入分析
+- 存储在 `literature.is_discarded` 列（INTEGER），不混入 `tags` 字符串
+- ML 管线将其作为独立二分类目标训练
+- 前端通过 "Discard" 按钮设置
+
+#### article_tags 表
+
+提供结构化标签查询能力，与 `tags` 列保持同步：
+- `pmid` + `tag` 为联合主键
+- `tag_group` 记录标签所属分组
+- 在 `save_df()` 和 `save_article()` 时由 `_sync_article_tags()` 自动同步
+- 查询示例：`SELECT pmid FROM article_tags WHERE tag='Visium'`
+
 ### 运行方式
 
 ```bash
