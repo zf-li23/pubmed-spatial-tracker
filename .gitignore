@@ -14,3 +14,11 @@ web_app/frontend/dist/
 .DS_Store
 PDF_Archive/
 ~$*.xlsx
+
+# SQLite runtime artifacts
+*.db-shm
+*.db-wal
+
+# Database backups
+spatial_literature_backup_*.db
+spatial_literature_pre_schema.db

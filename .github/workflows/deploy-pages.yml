@@ -37,6 +37,7 @@ jobs:
       - name: Build
         env:
           VITE_STATIC_ONLY: "true"
+          VITE_BASE: "/pubmed-spatial-tracker/"
         run: npm run build
 
       - name: Setup Pages

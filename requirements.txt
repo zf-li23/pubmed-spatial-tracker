@@ -12,3 +12,5 @@ scikit-learn
 # If absent, the pipeline falls back to TF-IDF embeddings.
 # sentence-transformers
 joblib
+python-dotenv
+python-docx

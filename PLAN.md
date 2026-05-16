@@ -1,51 +1,232 @@
-作为一名在生物信息学和软件工程领域拥有丰富经验的从业者，我非常高兴能以**行业最高标准（生产级/顶级开源学术工具标准）**来审视 PubMed_Spatial_Tracker 这个项目。
+# PLAN.md — PubMed Spatial Tracker 重构计划
 
-首先，**这个项目的底层产品逻辑非常优秀**。将“文献检索 - 本领域朴素规则 - 主动学习（Active Learning） - 前后端人机交互打标”闭环结合，是一个非常务实且高效的科研提效思路。
-
-### 📌 一、 项目级别评估 (Project Level Assessment)
-
-综合来看，该项目目前处于 **“优秀的硕士毕业设计 / 博士生科研得力助手 (Research Utility)”** 级别。
-
-*   **为什么不是本科级别？** 它跳出了传统的“跑个脚本出个图”，实现了 Full-Stack（全栈）开发，并融入了 Active Learning 循环和领域本体（Ontology，即 tags.json）动态管理，具有明显的业务闭环思维和科研提效价值。
-*   **为什么还未达到顶级文章 (Tool/Method Paper) 或 企业级生产 (Enterprise Production) 级别？** 项目的底层工程架构存在明显的“科研脚本拼凑感”和严重的并发数据安全隐患，且 NLP 算法栈停留在上一代（传统机器学习），未能利用当下最前沿的生信 NLP 技术。
-
-如果想将其直接作为一款工具软件发表在如 *Bioinformatics*, *Nucleic Acids Research* 等顶刊上，或者供整个实验室/社区高并发使用，需要进行以下四个维度的深度重构：
+> 创建: 2026-05-16 | 状态: 执行中
 
 ---
 
-### 🛠️ 二、 专业级改进建议 (Professional Recommendations)
+## 目标
 
-#### 1. 数据库与并发架构（🔴 极危漏洞与架构硬伤）
-**现状**：项目使用 Excel (`spatial_literature.db`) 作为 FastAPI 并发 Web 服务的“数据库”，文件读写操作由 Pandas 的 `read_excel` 和 `to_excel` 完成。
-**痛点**：
-*   **高并发下的致命风险（Race Condition）**：FastAPI 是全异步的，如果多个用户（或者单用户双手频点）同时在前端保存标注，极易触发「读写死锁」或「数据相互覆盖」，导致您辛辛苦苦攒下的人工标注被瞬间覆写清空。
-*   **性能瓶颈**：随着文献量达到万级，每次读写整张 Excel 表会造成服务器严重的内存开销（I/O 阻塞）。
-**行业标准解决方案**：
-*   **弃用 Excel 作为运行态存储**。全面迁移到真正的关系型数据库平台（推荐 **PostgreSQL**，或轻量级方案选用 **SQLite**）。
-*   引入 **ORM（对象关系映射）** 库，如 `SQLAlchemy` + `Alembic`（或 FastAPI 御用的 `SQLModel`），通过行锁和事务（Transactions）保证打标数据的一致性和绝对安全。Excel 仅作为“导出/导入”的功能存在。
+将项目从"脚本拼凑的科研工具"提升为"以机器学习为核心的结构化文献管理系统"。
+核心原则：**让代码结构反映它声称要做的事，让标签系统同时服务于人类可读和机器可学习。**
 
-#### 2. 信息检索与模型选择（🟡 NLP 算法选型存在明显天花板）
-**现状**：特征工程使用把字段无脑拼接到一起的 `TfidfVectorizer`，模型使用 `LogisticRegression`。
-**痛点**：
-*   **缺乏上下文语义理解**：TF-IDF 只能做词频统计。例如，"Single-cell resolution" 和 "Single-nucleus" 在 TF-IDF 看来是完全无关的词，但在空间转录组中高度相关。
-*   **模型天花板低**：LR 无法捕捉复杂的文献逻辑关系。
-**行业标准解决方案**：
-*   **引入预训练深度学习模型 (SOTA)**：在生物医药领域，应该使用 **PubMedBERT** 或 **BioBERT** 将标题和摘要转化为稠密向量（Dense Embeddings）。基于这些 Embeddings 再接一个浅层的 MLP 或者只用 KNN 进行相似文献推荐，准确率会碾压 TF-IDF。
-*   **引入大语言模型（LLM）辅助**：对于新抓取的且高置信度的文章，完全可以低成本调用 OpenAI/DeepSeek 的 API，做 Zero-shot 的 Category 预测或实体提取（抽取使用的测序平台与组织类型），把 migrate_naive.py 这个传统的正则规则引擎升级为“大模型 Agent 智能体筛选”。
+---
 
-#### 3. 主动学习 (Active Learning) 的算法深度（🔵 系统设计优化）
-**现状**：目前的“Active Learning”实际上是“被动重训”——把标注过的数据当训练集，没标注的当测试集全量跑一遍。
-**行业标准解决方案**：
-*   真正的主动学习应当具备 **Query Strategy（查询策略）**。系统应该自动去茫茫未标注文献中，挑出模型**“最不确定（信息熵最大）”**或**“最在决策边界上”**的 10 篇文章推送到前端最醒目的位置让专家标注。这样您只需标注几十篇，就能达到以往盲图标注几百篇的模型提升效果，这才是符合高等级学术标准的主题。
+## 阶段 0：安全基线（5 分钟）
 
-#### 4. 工程习惯与代码规范（🟢 代码鲁棒性与现代工程化）
-**痛点与改进**：
-*   **硬编码与机密管理**：main.py 中直接写死了 `EMAIL = "zf-li23@..."`。在企业级规范中，这属于配置泄露风险。应该使用 `python-dotenv` 将关键配置抽离到 `.env` 文件。
-*   **缺乏任务队列 (Task Queue)**：目前 `python main.py` 或 run_pipeline.py 是阻塞式的独立脚本。在现代架构中，网络爬虫和重型模型训练应该剥离，交由 **Celery + Redis** 任务队列在后台异步执行（可定期设置为每晚凌晨自动去 PubMed 爬取新论文）。
-*   **服务启停极其野蛮**：run_server.sh 中的 `kill -9` 可能会导致正在处理中的磁盘 I/O 强行终端损坏文件。推荐改用 **Docker Compose** 将后端、前端、数据库一键容器化，实现跨平台无痛部署。
-*   **缺乏日志审计**：代码大量使用 `print()`。在生产环境应该使用 Python 的 `logging` 模块或 `Loguru` 来输出到标准日志文件（追踪哪天爬了多少篇、报错了什么）。
+| 步骤 | 操作 |
+|---|---|
+| 0.1 | 备份数据库 `cp spatial_literature.db spatial_literature_backup_YYYYMMDD.db` |
+| 0.2 | 每次修改数据库 Schema 前再单独备份 |
 
-### 💡 总结
-这套平台的基础立意（Human-in-the-loop 的生信文献管理）**非常有前景**，属于“稍加打磨就能发一篇不错工具文章”的潜力股。 
+---
 
-现阶段，您可以容忍其在算法上（TF-IDF）的稚嫩，但如果您是这个仓库的所有者或维护者，我**强烈建议您第一件要做的事情就是重构数据持久化层，把 Excel 换成 SQLite/PostgreSQL**，这样才能让您的实验数据万无一失。
+## 阶段 1：消除代码债务（低风险，改完即见效）
+
+| 步骤 | 内容 | 影响范围 |
+|---|---|---|
+| 1.1 | 抽取公共函数到 `web_app/shared.py`：`load_tags()`, `guess_novel_name()`, `_is_good_novel_candidate()`, `GENERIC_NAME_STOPWORDS`, `_clean_candidate_name()`, `_uniq_keep_order()`, `enforce_category_tag_policy()` | migrate_naive.py, ml_pipeline.py |
+| 1.2 | 删除临时脚本：`patch_app.py`, `patch_app_jsx.py`, `make_gen.py` | 无 |
+| 1.3 | 修复 `main.py` 的 `EXCEL_OUTPUT_FILE` 未定义变量 | main.py |
+| 1.4 | 硬编码邮箱/路径迁移到 `.env` + `python-dotenv` | main.py, ml_report.py, app.py |
+| 1.5 | `logging` 模块替换 `print()` | 全局 |
+
+---
+
+## 阶段 2：数据库 Schema 升级（核心，需谨慎）
+
+### 2.1 表结构变更
+
+```sql
+-- 原表
+CREATE TABLE literature (
+    pmid TEXT,                    -- 无主键
+    ...
+    uncertainty_score TEXT,        -- 应为 REAL
+    ...
+);
+
+-- 新表
+CREATE TABLE literature (
+    pmid TEXT PRIMARY KEY,         -- 主键
+    ...
+    uncertainty_score REAL,         -- 正确类型
+    is_discarded INTEGER DEFAULT 0, -- 独立二分类信号，从 tags 中剥离
+    ...
+);
+```
+
+### 2.2 新增 article_tags 表（标签可查询化）
+
+```sql
+CREATE TABLE article_tags (
+    pmid TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    tag_group TEXT NOT NULL,  -- domain / technology / analysis / metaCategory
+    PRIMARY KEY (pmid, tag),
+    FOREIGN KEY (pmid) REFERENCES literature(pmid)
+);
+```
+
+### 2.3 tags 列迁移策略
+
+| 字段 | 迁移前 | 迁移后 |
+|---|---|---|
+| `is_discarded` | 不存在 | 从 tags 中检测 "Discarded" → 写入 `is_discarded=1` |
+| `tags` | 含 "Discarded" | 移除 "Discarded"（已移至 is_discarded） |
+| `article_tags` | 不存在 | 将每篇文献的 tags 拆分写入 |
+
+### 2.4 WAL 模式
+
+```sql
+PRAGMA journal_mode=WAL;
+```
+
+---
+
+## 阶段 3：标签系统重构（影响最大，收益最大）
+
+### 3.1 tags.json 重新设计
+
+```json
+{
+  "domain": [
+    "Neuroscience", "Development", "Cancer", "Reproduction",
+    "Pathology", "Immunology", "Zoology", "Cardiology",
+    "Lung", "Bone Tissues", "Plant"
+  ],
+  "technology": [
+    "Visium", "MERFISH", "Slide-seq", "Stereo-seq", "Xenium",
+    "CosMx", "GeoMx", "DBiT-seq", "seqFISH", "ISS",
+    "FISH", "FFPE", "RNAscope", "ISH"
+  ],
+  "analysis": [
+    "Clustering", "Deconvolution", "Imputation",
+    "Cell Communication", "Spatial Trajectory",
+    "Multimodal integration", "Domain Identification",
+    "Gene Expression Prediction", "Segmentation",
+    "Differential Expression", "Diffusion",
+    "Dimensionality Reduction", "RNA Co-localization",
+    "Denoising", "Application", "Benchmark",
+    "Foundation", "Pipeline", "Visualization", "huSA"
+  ],
+  "method_note": []
+}
+```
+
+移除了 `metaCategory` 和 `uncategorized` 分组——它们不是语义标签，而是元信息，不应混在标签本体中。
+
+### 3.2 分类器约束策略（不变，但集中到 shared.py）
+
+| 类别 | 标签规则 |
+|---|---|
+| **Review** | 仅 1 个标签，来自 domain 组；无命中则 "General" |
+| **Technology** | 最多 2 个标签，来自 technology 组；无命中则尝试新实体提取 |
+| **Database** | 优先新实体提取（数据库名），失败则空标签（不输出泛词） |
+| **Data Analysis** | 最多 3 个标签，来自 analysis 组；可附一个新实体名 |
+| **Research** | 至少 1 个 domain + 可选 technology 标签 |
+
+### 3.3 前端标签过滤逻辑移除
+
+`AnnotationForm.jsx` 中硬编码的 `["聚类","去卷积","缺失值插补","细胞通讯"]` 过滤逻辑移除。这些是 analysis 组的正常标签，应由策略引擎决定是否使用，不由前端硬过滤。
+
+### 3.4 Tag 存储格式
+
+- `tags` 列保持分号分隔字符串（向后兼容）
+- `article_tags` 表提供结构化查询能力
+- ML 特征工程从 `article_tags` 表或解析后的 tags 列表读取
+
+---
+
+## 阶段 4：修复并发写入（安全修复）
+
+### 4.1 save_df() 重写
+
+**现状**：`df.to_sql('literature', engine, index=False, if_exists='replace')`
+
+**改为**：逐行 UPSERT，利用 `pmid` 主键：
+
+```python
+def save_article(engine, pmid: str, updates: dict):
+    """Upsert a single article row by pmid."""
+    with engine.begin() as con:
+        # INSERT OR REPLACE approach with primary key
+        ...
+```
+
+对于注释保存、标签修改等单行操作，使用直接 SQL UPDATE；对于全量导入（main.py 新文献入库），使用事务包裹的批量 INSERT OR REPLACE。
+
+### 4.2 移除 df_lock
+
+逐行操作 + 事务不再需要全局锁。
+
+---
+
+## 阶段 5：ML 管线升级（核心）
+
+### 5.1 Discarded 分离
+
+- `is_discarded` 作为独立二分类目标
+- `ml_pipeline.py` 增加独立的 `clf_discard`（二分类器）
+- Discarded 样本不再污染多标签预测的训练集
+
+### 5.2 分类器命名修正
+
+`AutomatedActiveLearner` → `SpatialLiteratureClassifier`
+
+名字诚实反映功能：这是一个空间转录组文献分类器，包含类别预测 + 多标签预测 + 丢弃判别。
+
+### 5.3 特征工程增强
+
+- 从 `article_tags` 表读取已有标签作为特征
+- 增加 MeSH 词表特征权重
+- 增加期刊特征（预印本 vs 正式期刊）
+
+### 5.4 评估管道
+
+- 在 `ml_report.py` 中增加 per-dimension 评估：
+  - Category accuracy (已存在)
+  - Per-tag precision/recall/F1
+  - Discarded classification AUC
+  - Confusion matrix by category
+
+---
+
+## 阶段 6：架构分层（长期）
+
+### 6.1 Service 层
+
+```
+web_app/
+├── app.py          # FastAPI 路由（仅参数校验 + 响应）
+├── services.py     # ArticleService, TagService, PDFService
+├── database.py     # get_engine(), get_article(), save_article()
+├── classifier.py   # 独立分类策略（引用 shared.py）
+├── shared.py       # 公共函数
+├── ml_pipeline.py  # ML 模型
+└── ml_report.py    # 评估报告
+```
+
+### 6.2 配置集中
+
+- 所有可变配置从 `.env` 读取
+- `config.py` 作为单一配置入口
+
+---
+
+## 执行优先级
+
+| 阶段 | 优先级 | 原因 |
+|---|---|---|
+| 0 (备份) | **立即** | 安全前提 |
+| 1 (消债) | **P0** | 零风险，消除后续工作的干扰 |
+| 2 (Schema) | **P0** | 后续所有改动的基础 |
+| 3 (标签) | **P1** | 核心价值，不影响已有标注 |
+| 4 (并发) | **P1** | 安全隐患 |
+| 5 (ML) | **P2** | 依赖阶段 2、3 完成 |
+
+---
+
+## 回滚方案
+
+任何阶段出问题：`cp spatial_literature_backup_YYYYMMDD.db spatial_literature.db`
+数据库是 SQLite 单文件，回滚即替换。

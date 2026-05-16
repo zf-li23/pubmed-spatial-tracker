@@ -38,7 +38,11 @@ QUERY = " OR ".join(base_queries + tech_queries)
 # 配置参数
 # ---------------------------------------------------------
 # 请务必修改为您自己的邮箱地址，否则可能会被 NCBI 拒绝访问
-EMAIL = "zf-li23@mails.tsinghua.edu.cn"  
+# 优先从 .env 读取，不存在则使用默认值
+import os as _os
+from dotenv import load_dotenv as _load_dotenv
+_load_dotenv(_os.path.join(_os.path.dirname(__file__), ".env"))
+EMAIL = _os.getenv("PUBMED_EMAIL", "zf-li23@mails.tsinghua.edu.cn")
 MAX_RESULTS = 10000  # 为了测试，默认获取 100 篇。如需获取全部，可以自行增大该数值（例如 10000）
 
 # 输出文件名配置
@@ -356,7 +360,7 @@ def main():
             print(f"[-] 解析文献 PMID:{pmid_attempt} 时出错: {e}")
             
     # 3. 存储结果文件
-    save_to_file(processed_data, EXCEL_OUTPUT_FILE)
+    save_to_file(processed_data, DB_OUTPUT_FILE)
     print("="*60)
     print(" 🎉 检索及分类任务完成！")
     print("="*60)

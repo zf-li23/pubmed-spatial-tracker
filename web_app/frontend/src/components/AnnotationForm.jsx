@@ -46,7 +46,7 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
 
   const saveBasicAnnotation = () => {
      setUploading(true);
-     const finalTags = tags.filter(t => !["聚类","去卷积","缺失值插补","细胞通讯"].includes(t));
+     const finalTags = tags;  // 标签过滤策略由后端 shared.py 的 enforce_category_tag_policy 统一处理
      const joinedTags = finalTags.join("; ");
 
      fetch(apiPath(`/api/articles/${row.pmid}/annotate`), {
@@ -122,7 +122,7 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      e.preventDefault();
      if(!pdfUrl) return;
      setUploading(true);
-     const finalTags = tags.filter(t => !["聚类","去卷积","缺失值插补","细胞通讯"].includes(t));
+     const finalTags = tags;  // 标签过滤策略由后端 shared.py 的 enforce_category_tag_policy 统一处理
      const joinedTags = finalTags.join("; ");
 
      // 保留在当前页，提供加载态
@@ -165,7 +165,7 @@ export default function AnnotationForm({ row, onUpdateContent, storedTags, updat
      e.preventDefault();
      if(!pdfUrl) return;
      setUploading(true);
-     const finalTags = tags.filter(t => !["聚类","去卷积","缺失值插补","细胞通讯"].includes(t));
+     const finalTags = tags;  // 标签过滤策略由后端 shared.py 的 enforce_category_tag_policy 统一处理
      const joinedTags = finalTags.join("; ");
 
     fetch(apiPath(`/api/articles/${row.pmid}/pdf/save_link`), {

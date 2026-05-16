@@ -1,10 +1,4 @@
 {
-  "metaCategory": [
-    "General",
-    "Technology",
-    "Database",
-    "Data Analysis"
-  ],
   "domain": [
     "Neuroscience",
     "Development",
@@ -56,7 +50,5 @@
     "Visualization",
     "huSA"
   ],
-  "uncategorized": [
-    "Discarded"
-  ]
+  "method_note": []
 }

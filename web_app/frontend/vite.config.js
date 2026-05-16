@@ -2,8 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(() => ({
   plugins: [react()],
-  // Use repository subpath only for production (GitHub Pages).
-  base: mode === 'production' ? '/pubmed-spatial-tracker/' : '/',
+  // 默认 base='/', GitHub Pages 部署时通过 VITE_BASE 环境变量覆盖
+  base: process.env.VITE_BASE || '/',
 }))
