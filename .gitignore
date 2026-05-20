@@ -41,6 +41,10 @@ spatial_literature_backup_*.db
 # Experiment artifacts
 src/results/
 src/logs/
+
+# Experiment outputs (keep structure, ignore results)
+experiments/*/results/
+!experiments/*/results/.gitkeep
 *.pkl
 *.h5
 *.joblib
