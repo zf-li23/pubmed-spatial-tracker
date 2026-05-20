@@ -25,8 +25,8 @@
 
 ```
 ("Spatial Transcriptomics"[MeSH Major Topic]
- OR ("spatial transcriptom*"[Title/Abstract]
-      OR "spatially resolved transcriptom*"[Title/Abstract]))
+ OR "spatial transcriptom*"[Title/Abstract]
+ OR "spatially resolved transcriptom*"[Title/Abstract])
 AND hasabstract[text] AND english[Language] AND 2016:2026[dp]
 ```
 

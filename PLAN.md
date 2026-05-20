@@ -221,8 +221,8 @@ src/
 - 检索式（经实验 001 验证）：
   ```
   ("Spatial Transcriptomics"[MeSH Major Topic]
-   OR ("spatial transcriptom*"[Title/Abstract]
-        OR "spatially resolved transcriptom*"[Title/Abstract]))
+   OR "spatial transcriptom*"[Title/Abstract]
+   OR "spatially resolved transcriptom*"[Title/Abstract])
   AND hasabstract[text] AND english[Language] AND 2016:2026[dp]
   ```
 - 估计规模：约 9,148 篇（含约 1,100 篇 Review）
