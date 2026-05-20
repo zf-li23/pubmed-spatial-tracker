@@ -46,8 +46,8 @@ class BiomedDataset(ABC):
         from sklearn.model_selection import train_test_split
         n = len(self.texts())
         idx = np.arange(n)
-        tr, te = train_test_split(idx, test_size=0.2, random_state=seed,
-                                  stratify=self._stratify() if hasattr(self, '_stratify') else None)
+        strat = self._stratify() if hasattr(self, '_stratify') else None
+        tr, te = train_test_split(idx, test_size=0.2, random_state=seed, stratify=strat)
         return tr, te
 
     def __len__(self):

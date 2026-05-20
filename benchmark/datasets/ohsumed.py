@@ -68,14 +68,14 @@ class OHSUMEDLoader(BiomedDataset):
                     self._years.append(year if year else 0)
 
     def _build_labels(self, min_df):
-        mlb = MultiLabelBinarizer()
+        from sklearn.preprocessing import MultiLabelBinarizer
+        mlb = MultiLabelBinarizer(sparse_output=True)
         y = mlb.fit_transform(self._mesh_list)
-        # filter rare labels
-        freq = y.sum(axis=0)
+        freq = np.array(y.sum(axis=0)).flatten()
         keep = np.where(freq >= min_df)[0]
         self._labels = y[:, keep]
-        self._mlb = MultiLabelBinarizer()
-        self._mlb.classes_ = np.array(mlb.classes_)[keep]
+        self._label_names = np.array(mlb.classes_)[keep]
+        self._n_labels = len(keep)
 
     def texts(self):
         return [f"{t} {a}" for t, a in zip(self._titles, self._abstracts)]
@@ -92,8 +92,11 @@ class OHSUMEDLoader(BiomedDataset):
 
     @property
     def n_labels(self):
-        return self._labels.shape[1]
+        return self._n_labels
 
     @property
     def task_type(self):
         return "multilabel"
+
+    def _stratify(self):
+        return self._labels.getnnz(axis=1).A.ravel()  # number of labels per doc
