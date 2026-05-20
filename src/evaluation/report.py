@@ -9,7 +9,7 @@ from datetime import datetime
 class ExpLogger:
     """Logs each experiment run to CSV."""
 
-    def __init__(self, path: str = "benchmark/results/log.csv"):
+    def __init__(self, path: str = "src/results/log.csv"):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._file = None

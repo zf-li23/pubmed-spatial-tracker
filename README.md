@@ -30,12 +30,13 @@
 ## 项目结构
 
 ```
-benchmark/
+src/
 ├── config.py              # 实验配置
 ├── datasets/              # 数据加载器
 ├── features/              # 文本表示（TF-IDF / BioBERT / LDA）
 ├── models/                # 算法实现
 ├── evaluation/            # 评估指标 & 日志
+├── search/                # PubMed 检索 & 数据构建
 └── pipeline.py            # 实验调度
 ```
 

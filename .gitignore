@@ -39,8 +39,8 @@ Thumbs.db
 spatial_literature_backup_*.db
 
 # Experiment artifacts
-benchmark/results/
-benchmark/logs/
+src/results/
+src/logs/
 *.pkl
 *.h5
 *.joblib

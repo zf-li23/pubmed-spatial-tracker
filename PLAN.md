@@ -159,7 +159,7 @@ class BiomedDataset:
 - **OHSUMEDLoader**：解析 TREC 格式的 `.I .U .S .M .T .P .W .A` 字段，从 `.M` 提取 MeSH 词
 - **PubMedMultiLabelLoader**：读取 CSV，处理两套标签体系（原始 15 类 / Processed 版本）
 - **PGBLoader**：读取 JSONL，构建可选的图结构（邻接表），提取 MeSH 层级树编号
-- **SpatialTrackerLoader**：通过 PubMed API 爬取，构建标题+摘要+MeSH 的标准化数据集
+- **SpatialTrackerLoader**：通过 PubMed 检索爬取（`src/search/pubmed_search.py`），构建标题+摘要+MeSH 的标准化数据集
 
 ### 0.2 标准化评估框架
 
@@ -182,7 +182,7 @@ class BiomedDataset:
 ### 0.4 目录结构
 
 ```
-benchmark/
+src/
 ├── __init__.py
 ├── datasets/
 │   ├── base.py              # BiomedDataset 基类
@@ -190,6 +190,8 @@ benchmark/
 │   ├── pubmed_multilabel.py # PubMedMultiLabelLoader
 │   ├── pgb.py               # PGBLoader（含图构建）
 │   └── spatial_tracker.py   # SpatialTrackerLoader
+├── search/
+│   └── pubmed_search.py     # PubMed 检索 & 爬取
 ├── features/
 │   ├── tfidf.py             # TF-IDF 向量化
 │   ├── biobert.py           # BioBERT 嵌入
@@ -437,8 +439,8 @@ PGB 中包含约 2.3% 的空间转录组学相关文献（基于 100K 样本估�
 | 弃用 | 替代 |
 |---|---|
 | `migrate_naive.py` | 新管线的规则引擎模块 |
-| `ml_pipeline.py` | 新 `benchmark/` 下的模块化管线 |
-| `ml_report.py` | 新 `evaluation/report.py` |
+| `ml_pipeline.py` | 新 `src/models/` 下的模块化管线 |
+| `ml_report.py` | 新 `src/evaluation/report.py` |
 | `main.py` 的爬取逻辑 | 保留但改造为数据采集模块 |
 
 ---
