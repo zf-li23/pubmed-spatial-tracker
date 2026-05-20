@@ -11,15 +11,13 @@ import pandas as pd
 Entrez.email = os.getenv("ENTREZ_EMAIL", "zf.li@siat.ac.cn")
 Entrez.api_key = os.getenv("ENTREZ_API_KEY", "")
 
-# Final search query (see PLAN.md for analysis):
-#   MeSH Major Topic + text words → 17,539 unique articles
-#   hasabstract filter           → 16,195 (62 are Letters/Editorials without abstract)
+# Final search query (see experiments/001_query_analysis for analysis)
+#   MeSH Major + text words + hasabstract + english + 2016-2026 → 9,148 articles
 QUERY = (
-    '"Spatial Transcriptomics"[MeSH Major Topic]'
-    " OR "
-    '("spatial transcriptom*"[Title/Abstract]'
-    ' OR "spatially resolved transcriptom*"[Title/Abstract])'
-    " AND hasabstract[text]"
+    '("Spatial Transcriptomics"[MeSH Major Topic]'
+    ' OR ("spatial transcriptom*"[Title/Abstract]'
+    ' OR "spatially resolved transcriptom*"[Title/Abstract]))'
+    ' AND hasabstract[text] AND english[Language] AND 2016:2026[dp]'
 )
 OUT_PATH = "data/spatial_tracker/articles.csv"
 

@@ -111,22 +111,42 @@ print(json.dumps(overlap, indent=2))
 with open(OUT / "overlap.json", "w") as f:
     json.dump(overlap, f, indent=2)
 
-# ── Part 4: Year distribution of final query ──
+# ── Part 4: Final recommended query ──
 print("\n" + "=" * 50)
-print("Part 4: Year distribution of final query (sampling top 5000)")
+print("Part 4: Final recommended query")
 print("=" * 50)
 
-final_q = (
-    '"Spatial Transcriptomics"[MeSH Major Topic]'
-    " OR "
-    '("spatial transcriptom*"[Title/Abstract]'
-    ' OR "spatially resolved transcriptom*"[Title/Abstract])'
-    " AND hasabstract[text]"
-)
+final_variants = [
+    ("C_hasabstract",     '("Spatial Transcriptomics"[MeSH Major Topic] OR ("spatial transcriptom*"[Title/Abstract] OR "spatially resolved transcriptom*"[Title/Abstract])) AND hasabstract[text]'),
+    ("E_since_2016",      '("Spatial Transcriptomics"[MeSH Major Topic] OR ("spatial transcriptom*"[Title/Abstract] OR "spatially resolved transcriptom*"[Title/Abstract])) AND hasabstract[text] AND 2016:2026[dp]'),
+    ("F_english",         '("Spatial Transcriptomics"[MeSH Major Topic] OR ("spatial transcriptom*"[Title/Abstract] OR "spatially resolved transcriptom*"[Title/Abstract])) AND hasabstract[text] AND english[Language]'),
+    ("RECOMMENDED",       '("Spatial Transcriptomics"[MeSH Major Topic] OR ("spatial transcriptom*"[Title/Abstract] OR "spatially resolved transcriptom*"[Title/Abstract])) AND hasabstract[text] AND english[Language] AND 2016:2026[dp]'),
+]
 
+final_rows = []
+for name, q in final_variants:
+    c = esearch_count(q)
+    final_rows.append({"variant": name, "count": c})
+    print(f"  {name:20s} {c:>6}")
+
+with open(OUT / "final_comparison.csv", "w", newline="") as f:
+    w = csv.DictWriter(f, fieldnames=["variant", "count"])
+    w.writeheader()
+    w.writerows(final_rows)
+
+# ── Part 5: Verify overlap in final recommended set ──
+print("\n" + "=" * 50)
+print("Part 5: Overlap within recommended set (sampling IDs)")
+print("=" * 50)
+
+final_q = final_variants[-1][1]  # RECOMMENDED
+h = Entrez.esearch(db="pubmed", term=final_q, retmax=0)
+r = Entrez.read(h); h.close()
+print(f"  Total: {r['Count']}")
+
+# Sample year distribution
 h = Entrez.esearch(db="pubmed", term=final_q, retmax=5000, retstart=0, sort="relevance")
-r = Entrez.read(h)
-h.close()
+r = Entrez.read(h); h.close()
 sample_ids = r["IdList"]
 
 import xml.etree.ElementTree as ET

@@ -218,9 +218,15 @@ src/
 ### 2.1 数据集构建
 
 **第一步：PubMed 检索与爬取**
-- 设计空间转录组学的检索式（涵盖 Visium、MERFISH、Slide-seq、Stereo-seq、Xenium 等主流技术平台 + 通用关键词）
+- 检索式（经实验 001 验证）：
+  ```
+  ("Spatial Transcriptomics"[MeSH Major Topic]
+   OR ("spatial transcriptom*"[Title/Abstract]
+        OR "spatially resolved transcriptom*"[Title/Abstract]))
+  AND hasabstract[text] AND english[Language] AND 2016:2026[dp]
+  ```
+- 估计规模：约 9,148 篇（含约 1,100 篇 Review）
 - 通过 Entrez API 获取标题、摘要、MeSH 词、出版年份、期刊等信息
-- 预估规模：约数千篇（参考之前项目 7,029 篇的检索经验）
 
 ### 2.2 核心思路
 

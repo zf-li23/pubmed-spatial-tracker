@@ -27,14 +27,25 @@
 ("Spatial Transcriptomics"[MeSH Major Topic]
  OR ("spatial transcriptom*"[Title/Abstract]
       OR "spatially resolved transcriptom*"[Title/Abstract]))
-AND hasabstract[text]
+AND hasabstract[text] AND english[Language] AND 2016:2026[dp]
 ```
 
 **选择理由：**
-- MeSH Major（9,933篇）与文本词（7,638篇）**重叠仅 0.2%**，两者几乎完全互补
-- 并集 17,539 篇中去掉无摘要的 1,344 篇后得 **16,195 篇**
-- 保留 Review（1,122篇），它们是有用的分类目标
-- Letter/Editorial 仅 62 篇，不值得额外过滤
+- MeSH Major（9,933篇）与文本词（7,638篇）**重叠仅 0.18%**，两者几乎完全互补
+- 并集 17,539 篇中去掉无摘要的 1,344 篇后得 16,195 篇
+- 空间转录组学技术约 2016 年后才发展成熟，限定 2016–2026 得 **9,229** 篇，去掉无摘要后 **9,148** 篇
+- 仅英文（损失约 561 篇非英文）方便训练
+- 保留 Review（约 1,122 篇），它们是有用的分类目标
+- Letter/Editorial 仅 62 篇，影响极小不值得额外过滤
+
+### 选定过程：四种最终变体对比
+
+| 变体 | 命中 | 说明 |
+|---|---|---|
+| C: hasabstract | 16,195 | 基础版 |
+| E: +2016-2026 | 9,229 | 技术成熟后文献 |
+| F: +english | 15,634 | 仅英文 |
+| **RECOMMENDED: E+F** | **9,148** | **精准 + 可用** |
 
 ## 如何复现
 
