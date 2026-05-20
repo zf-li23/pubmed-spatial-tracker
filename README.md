@@ -1,100 +1,35 @@
 # PubMed Spatial Tracker
 
-PubMed Spatial Tracker 是一个面向空间转录组相关文献的检索、标注、归档与机器学习分类系统。
+面向生物医学文献的多策略多标签分类研究——聚焦空间转录组学领域。
 
-系统目标：
-- 高质量维护空间组学文献库
-- 支持"规则初始化 + 人工修正 + 机器学习"闭环
-- 支持 PDF 本地归档与外链追踪
-- 支持可复现的手工补充 PMID 记录
+## 项目目标
 
-## 1. 技术栈
+通过**多数据集 × 多算法 × 多文本表示**的系统性比较，探索生物医学文献自动分类的最佳策略，并最终应用于空间转录组学领域。
 
-- Backend: FastAPI + SQLite (SQLAlchemy, WAL 模式)
-- Frontend: React + Vite + Tailwind CSS
-- ML: scikit-learn（默认）+ sentence-transformers（可选增强）
-- Data: pandas + biopython (Entrez)
-- Config: `.env` + python-dotenv
+## 数据集
 
-## 2. 项目结构与文件职责
+| 数据集 | 规模 | 标签类型 | 说明 |
+|---|---|---|---|
+| [OHSUMED](data/ohsumed/) | ~294K 篇 | 14,466 个 MeSH 词 | TREC-9 Filtering Track 基准（1987-1991） |
+| [PubMed-MultiLabel](data/PubMed-MultiLabel/) | 10K/50K 篇 | 15 个 MeSH 顶级类别 | Kaggle 现代多标签分类数据集 |
+| [PGB](data/pgb/) | ~30M 篇 | 含层级结构的 MeSH 词 | 异构图基准（5 节点 / 7 边类型） |
+| Spatial Tracker | 7,029 篇 | 5 类 + 45 标签 | 自建空间转录组学文献库 |
 
-```text
-PubMed_Spatial_Tracker/
-├── main.py                 # PubMed 检索 + 文献入库
-├── run_pipeline.py         # 离线重训管道
-├── migrate_naive.py        # 规则引擎
-├── migrate_schema.py       # Schema 迁移脚本（已执行）
-├── requirements.txt
-├── Makefile
-├── spatial_literature.db   # SQLite 主库（WAL 模式）
-├── tags.json               # 标签本体配置
-├── .env                    # 环境变量
-├── PDF_Archive/            # PDF 归档目录
-└── web_app/
-    ├── app.py              # FastAPI 后端
-    ├── shared.py           # 公共函数（单一真相源）
-    ├── ml_pipeline.py      # 空间转录组文献分类器
-    ├── ml_report.py        # 模型性能报告
-    └── frontend/
-        ├── package.json
-        ├── vite.config.js
-        └── src/
-            ├── App.jsx
-            └── components/
-                ├── AnnotationForm.jsx
-                └── TagManager.jsx
+## 实验设计
+
+详见 [PLAN.md](PLAN.md)。
+
+四个阶段：
+1. **Phase 0** — 数据基础设施（统一加载器 + 评估框架）
+2. **Phase 1** — LLM 批量标注（DeepSeek API 两阶段标注）
+3. **Phase 2** — 跨数据集算法 Benchmarking（10+ 算法）
+4. **Phase 3** — 空间转录组应用 + 迁移学习探索
+
+## 环境
+
+```bash
+conda activate zf-li23
 ```
-
-关键文件说明：
-
-- `main.py`
-  - 从 PubMed 拉取文献并增量写入 SQLite 数据库
-  - 使用 `migrate_naive.py` 给新文献打初始类别/标签
-  - 数据库操作使用逐行 `INSERT OR REPLACE`，保证并发安全
-
-- `run_pipeline.py`
-  - 触发离线/批处理重训流程
-  - 用人工确认样本更新模型并刷新自动推断
-  - 先备份数据库，成功后再清除备份
-
-- `migrate_naive.py`
-  - 规则系统（关键词 -> 类别/标签）
-  - 引用 `web_app/shared.py` 的标签约束策略
-
-- `web_app/app.py`
-  - FastAPI 后端入口
-  - 负责 API、数据库读写、PDF 路由、标签管理
-  - 写操作使用逐行 upsert + 事务
-
-- `web_app/shared.py`
-  - **核心模块**：标签加载、新实体提取、分类器约束策略引擎
-  - `migrate_naive.py` 和 `ml_pipeline.py` 的单一真相源
-
-- `web_app/ml_pipeline.py`
-  - `SpatialLiteratureClassifier`：三维预测（类别 + 标签 + Discarded）
-  - 支持 TF-IDF（默认）和 sentence-transformers（可选）向量化
-
-- `web_app/frontend/src/App.jsx`
-  - 主界面（列表、筛选、分页、导入、触发重训）
-
-- `web_app/frontend/src/components/AnnotationForm.jsx`
-  - 单篇文献标注面板
-  - 处理分类/标签提交、PDF 上传、URL 抓取、仅存链接
-
-- `tags.json`
-  - 标签字典配置，驱动前端标签组与规则系统分组：
-    `domain` / `technology` / `analysis` / `method_note`
-
-- `spatial_literature.db`
-  - 主数据库文件（WAL 模式，建议定期备份）
-
-## 3. 环境准备
-
-推荐版本：
-- Python 3.10+
-- Node.js 20+
-
-安装依赖：
 
 ```bash
 conda activate zf-li23
