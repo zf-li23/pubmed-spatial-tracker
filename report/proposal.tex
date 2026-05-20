@@ -1,136 +1,129 @@
 %!TEX program = xelatex
 \documentclass[12pt,a4paper]{ctexart}
 
-\usepackage[left=2.2cm,right=2.2cm,top=1.6cm,bottom=1.4cm]{geometry}
+\usepackage[left=1.8cm,right=1.8cm,top=1.4cm,bottom=1.2cm]{geometry}
 \usepackage{setspace}
-\setstretch{1.05}
+\setstretch{1.0}
 \usepackage{booktabs}
 \usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
 \usepackage{titlesec}
 \titleformat{\section}{\large\bfseries}{}{0em}{}
 \titlespacing{\section}{0pt}{2pt}{0pt}
 \titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
-\titlespacing{\subsection}{0pt}{2pt}{0pt}
+\titlespacing{\subsection}{0pt}{1pt}{0pt}
 
 \begin{document}
 
-\title{\vspace{-1.0cm}\textbf{面向生物医学文献的多策略多标签\\[1pt]分类与主动学习研究}}
+\title{\vspace{-1.2cm}\textbf{面向生物医学文献的多策略多标签\\[1pt]分类方法系统比较研究——以空间转录组学文献为例}}
 \author{李哲夫\quad 2023011400\quad 生32\\[1pt]
 \texttt{\footnotesize\url{https://github.com/zf-li23/pubmed-spatial-tracker}}}
 \date{}
 \maketitle
-\vspace{-0.9cm}
+\vspace{-1.0cm}
 
 \section{一、选题背景与意义}
 
-生物医学文献正以指数速度增长：以空间转录组学为例，PubMed年发文量从2010年不足20篇激增至2025年2,638篇。自动文献分类面临三重挑战：(1)~文本稀疏，词袋模型无法捕捉医学术语语义关联；(2)~标签空间复杂，一篇文献同时涉及研究类别、生物领域、技术平台和分析方法，构成多标签问题；(3)~标注成本极高，大规模标注不现实。
+生物医学文献正以指数速度增长——空间转录组学领域PubMed年发文量从2020年之前不足500篇激增至2025年4,150篇。自动文献分类面临三重挑战：(1)~文本稀疏，词袋模型无法捕捉医学术语语义关联；(2)~标签空间复杂，一篇文献同时涉及研究类别、生物领域、技术平台和分析方法，构成多标签问题；(3)~标注成本极高，大规模人工标注不现实。
 
-本课题在两个数据集上系统比较多策略机器学习方法：(1)~自建的 PubMed Spatial Tracker\footnote{代码仓库：\url{https://github.com/zf-li23/pubmed-spatial-tracker}，含PubMed检索、规则引擎、Web标注界面、ML管线及主动学习流程。} 空间转录组学文献库（7,029篇，含领域精细化标签体系）；(2)~OHSUMED\footnote{\url{https://trec.nist.gov/data/filtering/t9.filtering.tar.gz}}基准数据集（348,566篇，MeSH多标签标注）。两个数据集覆盖类别多分类、多标签预测与主动学习三个核心问题，支撑贝叶斯学习、集成学习、深度学习、无监督学习、生成式模型、基于实例的学习等全部课程模块的主流算法系统比较。
+本课题在\textbf{四个独立数据集}上系统比较多策略机器学习方法：(1)~OHSUMED\footnote{\url{https://trec.nist.gov/data/filtering/t9.filtering.tar.gz}}（$\sim$294K篇，14,466个MeSH词），(2)~PubMed-MultiLabel\footnote{\url{https://www.kaggle.com/datasets/owaiskhan9654/pubmed-multilabel-text-classification}}（10K篇，15个MeSH顶级类别），(3)~PGB\footnote{Lee \& Ho, arXiv:2305.02691, 2023}（$\sim$30M篇，含MeSH层级+引用图），(4)~自建空间转录组学文献库（约数千篇，待通过PubMed检索构建）。四个数据集从标签粒度（15$\to$14,466类）、信息维度（纯文本$\to$异构图）和标注完备性（全标注$\to$待标注）形成天然梯度，支撑贝叶斯学习、集成学习、深度学习、无监督学习、基于实例的学习、图表示学习等模块的算法系统比较。
 
-我是生命学院生物信息学方向的学生，本项目最初受课程作业一启发，为服务于我日常科研中的文献阅读需求而建立，不属于任何课程或SRT项目。
+本次为\textbf{修订重提交}。相比初版，我深入研究了生物医学文献分类领域，理解了MeSH主题词层级体系，重构了项目架构，新增两个高质量全标注基准数据集，并找到利用DeepSeek API（OpenAI兼容格式，\texttt{deepseek-v4}模型）进行批量标注\footnote{Touchent et al., arXiv:2506.20331, 2025}的方法来解决目标数据集标注问题。算法方面，受PGB启发新增了\textbf{图表示学习方法}（node2vec、GCN、GraphSAGE）。为严格遵守课程AI使用规定，我已删除仓库全部AI生成代码，将从头手写并全程使用Git记录。本项目不属于任何课程或SRT项目。
 
 \section{二、拟采用的特征与算法}
 
-\subsection*{2.1 文本表示（4种）}
+\subsection*{2.1 文本表示}
 
+采用4种互补的文本表示方法，从不同粒度捕捉文献语义：
 \begin{itemize}
-  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
-  \item \textbf{TF-IDF}：1--2~gram，max\_features=5,000，稀疏表示基线。
-  \item \textbf{BioBERT}：\verb|dmis-lab/biobert-base-cased-v1.1|对标题+摘要+MeSH拼接文本做mean~pooling（768维）。
-  \item \textbf{LDA}：全库文本做Latent~Dirichlet~Allocation（$K=15$），每篇文献表示为主题分布向量。
-  \item \textbf{元特征}：出版年份、期刊类型、MeSH存在标志，拼接至上述向量末端。
+  \setlength{\itemsep}{-2pt}\setlength{\parsep}{0pt}
+  \item \textbf{TF-IDF}（1--2~gram，max\_features=5,000）：词级稀疏特征，可解释性强，作为经典基线。
+  \item \textbf{BioBERT}（\texttt{dmis-lab/biobert-base-cased-v1.1}，mean~pooling至768维）：预训练语言模型，捕捉医学术语的上下文语义关系。
+  \item \textbf{LDA}（Latent~Dirichlet~Allocation，$K=15$）：文档级主题分布，捕捉隐式的主题结构。
+  \item \textbf{元特征}（出版年份、期刊类型、MeSH存在标志等）：非文本信号，辅助分类决策。
 \end{itemize}
+多种表示对比可揭示\textbf{语义深度}（TF-IDF$\to$BioBERT）、\textbf{结构粒度}（词级$\to$文档级）和\textbf{信息类型}（文本$\to$非文本）对分类性能的贡献。
 
 \subsection*{2.2 分类算法（12种）}
 
-所有算法在两个数据集上独立评估，覆盖课程全部主要模块：
-
-\vspace{1pt}
+\vspace{-2pt}
 {\footnotesize
 \begin{tabular}{@{}lll@{}}
 \toprule
 \textbf{课程模块} & \textbf{算法} & \textbf{适用子任务} \\
 \midrule
-贝叶斯学习           & Na{\"\i}ve Bayes & 类别分类、丢弃判别 \\
+贝叶斯学习           & Na{\"\i}ve Bayes & 类别分类 \\
 基于实例的学习       & $k$-NN、SVM(RBF) & 类别分类 \\
-回归学习             & Logistic Regression & 类别分类、丢弃判别 \\
-集成学习（Bagging）  & Random Forest & 类别、标签、丢弃判别 \\
-集成学习（Boosting） & AdaBoost, XGBoost, LightGBM & 类别、标签、丢弃判别 \\
+回归学习             & Logistic Regression & 类别分类 \\
+集成学习（Bagging）  & Random Forest & 类别、标签分类 \\
+集成学习（Boosting） & AdaBoost, XGBoost & 类别、标签分类 \\
 深度学习             & BioBERT+MLP微调 & 类别分类 \\
-无监督学习           & LDA主题+聚类可视化 & 文献子领域发现 \\
-生成式模型           & GPT-4o Zero-shot & 类别分类（直接推断+思维链） \\
+无监督学习           & LDA主题+聚类 & 文献子领域发现 \\
+图表示学习          & node2vec, GCN, GraphSAGE & PGB节点分类 \\
 \bottomrule
 \end{tabular}\par}
-\vspace{1pt}
+\vspace{2pt}
 
-总计 \textbf{12种独立算法}覆盖全部课程模块；多标签额外实现三种问题转换策略。
-
-\subsection*{2.3 主动学习（3种策略）}
-
-\begin{itemize}
-  \setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
-  \item \textbf{不确定性采样}：基于SVM margin $1-|P_{\max}-P_{\text{second}}|$，选最不确定样本。
-  \item \textbf{熵采样}：基于预测概率分布的香农熵 $-\sum_i P_i\log P_i$。
-  \item \textbf{委员会查询}：多分类器投票分歧度（RF、SVM、XGBoost预测不一致的样本优先）。
-\end{itemize}
-迭代流程：初始50篇 $\to$ 选20篇 $\to$ 重训 $\to$ 循环10轮。随机采样作为基线。
-
-此外，针对空间转录组学文献的每类别合法标签空间约束策略（如Review仅1个domain标签、Technology最多2个技术标签），通过消融实验量化领域知识收益；OHSUMED以MeSH层级约束作为类比。
+共\textbf{12种算法}，覆盖课程全部主要模块。图方法仅适用于PGB（天然图结构），其余方法在三个全标注数据集上独立评估。多标签任务额外对比Binary~Relevance（BR，每个标签独立二分类）、Classifier~Chains（CC，链式传递标签依赖）和Label~Powerset（LP，将标签组合转为多分类）三种问题转换策略。
 
 \section{三、数据与实验方案}
 
 \subsection*{3.1 数据集}
 
-\vspace{1pt}
+\vspace{-2pt}
 {\footnotesize
-\begin{tabular}{@{}p{3.2cm}p{4.1cm}p{4.1cm}@{}}
+\begin{tabular}{@{}p{2.1cm}p{2.8cm}p{2.5cm}p{2.5cm}p{2.8cm}@{}}
 \toprule
-\textbf{属性} & \textbf{Spatial Tracker} & \textbf{OHSUMED} \\
+\textbf{属性} & \textbf{OHSUMED} & \textbf{PubMed-ML} & \textbf{PGB} & \textbf{Spatial Tracker} \\
 \midrule
-来源 & PubMed检索（14种技术平台+通用词） & MEDLINE 1987--1991子集 \\
-规模 & 7,029篇（481篇已标注） & 348,566篇（全部含MeSH标注） \\
-标签类型 & 5类别 + 45个语义标签 & 多标签MeSH词表（数万标签） \\
-任务 & 类别分类+多标签+丢弃判别 & 多标签MeSH分类 \\
-特点 & 领域精细标注、主动学习闭环 & 大规模、基准化、可复现 \\
+来源 & MEDLINE 1987--91 & Kaggle & S2ORC+PubMed & PubMed检索(待构建) \\
+规模 & $\sim$294K篇 & 10K篇 & $\sim$30M篇 & $\sim$数千篇(待标注) \\
+标签空间 & 14,466 MeSH词 & 15粗分类 & 3类+MeSH层级 & 5类+若干标签(待设计) \\
+主要任务 & 多标签分类 & 多标签分类 & 节点分类 & 类别+多标签+丢弃 \\
+标注状态 & 全量标注 & 全量标注 & 全量标注 & LLM批量标注(待进行) \\
 \bottomrule
 \end{tabular}\par}
-\vspace{1pt}
+\vspace{2pt}
 
-两个数据集互补：Spatial Tracker验证领域精细化标注与主动学习的协同效应，OHSUMED提供大规模标准基准确保方法可复现性和统计显著性。
+\subsection*{3.2 渐进式实验设计}
 
-\subsection*{3.2 实验设计}
+实验按\textbf{三步渐进}组织，每一步以上一步结果为输入：
 
-\vspace{1pt}
-{\footnotesize
-\begin{tabular}{@{}p{1.5cm}p{2.8cm}p{7.2cm}@{}}
-\toprule
-\textbf{实验} & \textbf{目的} & \textbf{方法} \\
-\midrule
-1：特征对比  & 最优文本表示 & 固定SVM，TF-IDF/BioBERT/LDA/组合特征，双数据集5折CV \\
-2：算法全矩阵 & 12种算法排序 & 固定BioBERT，12算法比Macro~F1与训练时间（双数据集） \\
-3：多标签策略 & 最优转换策略 & BR/CC/LP~$\times$~基分类器，比Jaccard与训练时间 \\
-4：约束消融  & 领域知识收益 & 无约束 vs 标签空间约束/MeSH层级约束的F1差异 \\
-5：主动学习  & 查询策略对比 & 不确定性/熵/委员会~$\times$~10轮，学习曲线 \\
-6：学习曲线  & 标注饱和度   & 训练集50$\to$400各类别F1收敛，双数据集对比 \\
-7：跨数据迁移 & 泛化验证     & Tracker$\to$OHSUMED及反向迁移F1差异 \\
-\bottomrule
-\end{tabular}\par}
-\vspace{1pt}
+\textbf{Step~1（多数据集算法筛选）}——在三个全标注数据集上全面对比12种算法和4种文本表示：
+\begin{itemize}
+  \setlength{\itemsep}{-2pt}\setlength{\parsep}{0pt}
+  \item 固定SVM，对比TF-IDF/BioBERT/LDA/组合的5折CV Macro~F1，选出\textbf{最优文本表示}。
+  \item 固定BioBERT嵌入，对比12种算法的Macro~F1与训练时间，在OHSUMED（14K稀疏标签）和PubMed-ML（15稠密标签）上分别考察\textbf{标签密度}对算法排序的影响。
+  \item 在PGB上，额外引入\textbf{图嵌入+图神经网络}，对比纯文本vs文本+图结构vs文本+图+MeSH层级三档性能，量化结构信息的边际收益。
+\end{itemize}
+
+\textbf{Step~2（目标数据集构建与应用）}——构建空间转录组学文献数据集并验证最佳方法：
+\begin{itemize}
+  \setlength{\itemsep}{-2pt}\setlength{\parsep}{0pt}
+  \item 设计PubMed检索式，爬取空间转录组学相关文献，构建带标题+摘要+MeSH词的原始库。
+  \item 参考Biomed-Enriched两阶段方法：DeepSeek API标注$\to$蒸馏模型扩标全量$\to$以手动标注子集评估质量。
+  \item 将Step~1选出的top-3方法应用于该数据集，对比\textbf{BioBERT+MLP基线}与最优替代方法的性能差异。
+\end{itemize}
+
+\textbf{Step~3（迁移微调探索）}——探索\textbf{宽泛$\to$精细}的迁移学习范式：
+\begin{itemize}
+  \setlength{\itemsep}{-2pt}\setlength{\parsep}{0pt}
+  \item 对支持增量学习的算法（BioBERT+MLP、XGBoost warm~start、GCN/GraphSAGE），在OHSUMED或PGB上预训练，在空间转录组学数据上微调，对比微调前后的F1增量。
+\end{itemize}
 
 \section{四、评价方案与预期结果}
 
 \subsection*{4.1 评价指标}
 
-类别分类：Accuracy, Macro/Weighted~F1, Cohen's~$\kappa$；多标签：Jaccard, Hamming~Loss；主动学习：达85\%~F1标注量、学习曲线AUC；跨数据集：迁移F1差异。
+类别分类：Accuracy、Macro/Weighted~F1、Cohen's~$\kappa$；多标签：Jaccard、Hamming~Loss、Per-label~F1；图节点分类：Micro/Macro~F1；迁移学习：微调前后F1增量。
 
 \subsection*{4.2 预期结果}
 
-\textbf{(1)~算法排序}：BioBERT+MLP~$>$~XGBoost~$>$~LightGBM~$>$~RF~$>$~SVM~$>$~AdaBoost~$>$~LR~$>$~$k$-NN~$>$~NB。GPT-4o零样本在常见类别准确率高、罕见类别急剧下降，暴露LLM尾部知识盲区。
+\textbf{(1)~算法排序}：BioBERT+MLP$\ge$XGBoost$\ge$RF$\ge$SVM$\ge$AdaBoost$\ge$LR$\ge$$k$-NN$\ge$NB（OHSUMED上集成方法优势更显著，PubMed-ML上差距缩小）。
 
-\textbf{(2)~约束策略}在Spatial Tracker上提升标签F1~8--12\%（纠正跨组误报），OHSUMED上利用MeSH层级提升3--5\%。
+\textbf{(2)~图结构价值}：PGB上引入MeSH层级信息和图结构的GCN/GraphSAGE相比纯文本方法预期有一定提升，验证结构信息对文献分类的补充价值。
 
-\textbf{(3)~主动学习}委员会$>$熵$>$不确定性$>$随机基线，节省40--60\%标注量。OHSUMED大规模验证排除小样本偶然性。
+\textbf{(3)~LLM标注可行性}：DeepSeek标注与人工标注在常见类别上预期有较高一致率，蒸馏后下游F1可接近人工标注水平。
 
-\textbf{(4)~迁移学习}双数据集共享PubMed格式，预期迁移F1损失$<$15\%。
+\textbf{(4)~迁移微调增益}：在宽泛生物医学数据上预训练后，于空间转录组学数据上微调预期能进一步提升F1，验证"宽泛预训练+领域微调"范式的有效性。
 
 \end{document}

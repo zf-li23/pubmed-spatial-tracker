@@ -8,22 +8,24 @@
 
 ## 数据集
 
-| 数据集 | 规模 | 标签类型 | 说明 |
+| 数据集 | 规模 | 标签空间 | 说明 |
 |---|---|---|---|
-| [OHSUMED](data/ohsumed/) | ~294K 篇 | 14,466 个 MeSH 词 | TREC-9 Filtering Track 基准（1987-1991） |
-| [PubMed-MultiLabel](data/PubMed-MultiLabel/) | 10K/50K 篇 | 15 个 MeSH 顶级类别 | Kaggle 现代多标签分类数据集 |
-| [PGB](data/pgb/) | ~30M 篇 | 含层级结构的 MeSH 词 | 异构图基准（5 节点 / 7 边类型） |
-| Spatial Tracker | 7,029 篇 | 5 类 + 45 标签 | 自建空间转录组学文献库 |
+| [OHSUMED](data/ohsumed/) | ~294K 篇 | 14,466 个 MeSH 词 | TREC-9 Filtering Track 基准（1987-1991），全标注 |
+| [PubMed-MultiLabel](data/PubMed-MultiLabel/) | 10K/50K 篇 | 15 个 MeSH 顶级类别 | Kaggle 现代多标签数据集，全标注 |
+| [PGB](data/pgb/) | ~30M 篇 | MeSH 层级 + 图结构 | 异构图基准（5 节点 / 7 边类型），全标注 |
+| Spatial Tracker | ~数千篇（待构建） | 5 类 + 45 标签（待定义） | 自建空间转录组学文献库，LLM 批量标注 |
 
-## 实验设计
+## 实验设计（三步渐进）
 
 详见 [PLAN.md](PLAN.md)。
 
-四个阶段：
-1. **Phase 0** — 数据基础设施（统一加载器 + 评估框架）
-2. **Phase 1** — LLM 批量标注（DeepSeek API 两阶段标注）
-3. **Phase 2** — 跨数据集算法 Benchmarking（10+ 算法）
-4. **Phase 3** — 空间转录组应用 + 迁移学习探索
+1. **Step 1** — 在三个全标注数据集上对比 13 种算法 × 4 种文本表示，筛选最优方法
+2. **Step 2** — 构建空间转录组学数据集 + DeepSeek 批量标注，应用最优方法 vs BioBERT 基线
+3. **Step 3** — 探索"宽泛预训练 + 领域微调"的迁移学习范式
+
+## 算法
+
+13 种算法覆盖贝叶斯学习、基于实例的学习、回归、集成学习（Bagging/Boosting）、深度学习、无监督学习、图表示学习。
 
 ## 环境
 
