@@ -19,43 +19,31 @@
 
 详见 [PLAN.md](PLAN.md)。
 
-1. **Step 1** — 在三个全标注数据集上对比 13 种算法 × 4 种文本表示，筛选最优方法
+1. **Step 1** — 在三个全标注数据集上对比 12 种算法 × 4 种文本表示，筛选最优方法
 2. **Step 2** — 构建空间转录组学数据集 + DeepSeek 批量标注，应用最优方法 vs BioBERT 基线
 3. **Step 3** — 探索"宽泛预训练 + 领域微调"的迁移学习范式
 
 ## 算法
 
-13 种算法覆盖贝叶斯学习、基于实例的学习、回归、集成学习（Bagging/Boosting）、深度学习、无监督学习、图表示学习。
+12 种算法覆盖贝叶斯学习、基于实例的学习、回归、集成学习（Bagging/Boosting）、深度学习、无监督学习、图表示学习。
+
+## 项目结构
+
+```
+benchmark/
+├── config.py              # 实验配置
+├── datasets/              # 数据加载器
+├── features/              # 文本表示（TF-IDF / BioBERT / LDA）
+├── models/                # 算法实现
+├── evaluation/            # 评估指标 & 日志
+└── pipeline.py            # 实验调度
+```
 
 ## 环境
 
 ```bash
 conda activate zf-li23
-```
-
-```bash
-conda activate zf-li23
-python -m pip install -r requirements.txt
-cd web_app/frontend && npm install
-```
-
-可选（仅在你需要 Transformer 向量增强时）：
-
-```bash
-conda activate zf-li23
-python -m pip install sentence-transformers
-```
-
-说明：
-- 未安装 `sentence-transformers` 时，系统自动回退到 TF-IDF 向量，不影响分类器可用性。
-- 模型下载已默认走 `HF_ENDPOINT=https://hf-mirror.com`。
-
-## 4. 启动与运行
-
-标准启动（推荐）：
-
-```bash
-make run
+pip install -r requirements.txt
 ```
 
 `make run` 会执行：
