@@ -9,10 +9,11 @@ from tqdm import tqdm
 from _common import load_dataset, get_model, save_results, run_cv
 
 OUT = HERE / "results"
-DATASETS = {"ohsumed": {"min_df": 10, "max_samples": 20000},
-            "pml": {}, "pgb": {"max_samples": 20000, "build_graph": False}}
+DATASETS = {"ohsumed": {"min_df": 50, "max_samples": 3000},
+            "pml": {}, "pgb": {"max_samples": 5000, "build_graph": False}}
 FEATURES = ["tfidf", "biobert", "lda"]
-MODEL = "svm"
+MODEL = "lr"
+CV = 3
 
 if __name__ == "__main__":
     rows = []
@@ -23,7 +24,7 @@ if __name__ == "__main__":
             if feat == "lda" and ds_name == "pgb":
                 continue
             try:
-                r = run_cv(ds, feat, get_model(MODEL))
+                r = run_cv(ds, feat, get_model(MODEL), cv=CV)
                 rows.append(r)
                 print(f"    {feat:8s} f1={r['f1_macro']:.4f}  {r['train_time_s']}s")
             except Exception as e:

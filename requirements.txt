@@ -1,7 +1,27 @@
+# Core data
 numpy>=1.24
 pandas>=1.5
+scipy>=1.11
+
+# ML & stats
 scikit-learn>=1.3
+xgboost>=1.7
+lightgbm>=4.0
+
+# Deep learning
 torch>=2.0
 transformers>=4.30
-sentence-transformers>=3.0
-xgboost>=1.7
+
+# Graph (Step 1 PGB + Step 3 GNN)
+networkx>=3.0
+
+# HTTP & IO
+requests>=2.31
+tqdm>=4.60
+
+# Parallel
+joblib>=1.3
+
+# Plotting (results analysis)
+matplotlib>=3.7
+seaborn>=0.12
