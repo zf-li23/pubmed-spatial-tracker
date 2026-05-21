@@ -5,6 +5,8 @@ from datetime import datetime
 
 import numpy as np
 
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+
 # ── Path setup ──
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -73,6 +75,9 @@ def run_cv(ds, feat_name, model_fn, cv=5):
     feat_cls = get_feature(feat_name)
     X = feat_cls().fit_transform(ds.texts())
     y = ds.labels()
+    # cross_validate requires dense array-like for y
+    if hasattr(y, "toarray"):
+        y = y.toarray()
 
     # PGB: 3-class single-label
     if ds.name == "pgb":
