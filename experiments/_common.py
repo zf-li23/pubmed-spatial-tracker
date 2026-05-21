@@ -68,29 +68,55 @@ def save_results(rows, path):
 
 
 def run_cv(ds, feat_name, model_fn, cv=5):
-    """Run one CV experiment. Returns metrics dict."""
-    from sklearn.multiclass import OneVsRestClassifier
-    from sklearn.model_selection import cross_validate
-
     feat_cls = get_feature(feat_name)
     X = feat_cls().fit_transform(ds.texts())
     y = ds.labels()
-    # cross_validate requires dense array-like for y
     if hasattr(y, "toarray"):
         y = y.toarray()
 
-    # PGB: 3-class single-label
     if ds.name == "pgb":
         y = y.argmax(axis=1) if y.ndim > 1 and y.shape[1] > 1 else y
 
     is_ml = ds.task_type == "multilabel" and ds.name != "pgb"
-    clf = OneVsRestClassifier(model_fn()) if is_ml else model_fn()
+    base = model_fn()
 
-    scoring = ("f1_macro", "f1_weighted", "accuracy") if not is_ml else \
-              ("f1_macro", "f1_samples", "f1_micro")
+    from sklearn.model_selection import KFold, StratifiedKFold
+    from sklearn.multiclass import OneVsRestClassifier
+    from sklearn.metrics import f1_score
+    from tqdm import tqdm
+    import copy
+
+    if is_ml or ds.name == "pgb":
+        # multilabel or single-label with no clear stratify
+        fold_idx = KFold(n_splits=cv, shuffle=True, random_state=42)
+    else:
+        strat = y.argmax(axis=1) if y.ndim > 1 else y
+        fold_idx = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+
+    scoring_list = ("f1_macro", "f1_weighted", "accuracy") if not is_ml else \
+                   ("f1_macro", "f1_samples", "f1_micro")
+    fold_scores = {s: [] for s in scoring_list}
+
     t0 = time.time()
-    scores = cross_validate(clf, X, y, cv=cv, scoring=scoring, n_jobs=1 if feat_name == "biobert" else -1,
-                            return_train_score=False)
+    for tr_idx, te_idx in tqdm(fold_idx.split(X, y),
+                                desc=f"CV", unit="fold", leave=False,
+                                total=cv):
+        X_tr, X_te = X[tr_idx], X[te_idx]
+        y_tr, y_te = y[tr_idx], y[te_idx]
+        clf = OneVsRestClassifier(copy.deepcopy(base)) if is_ml else copy.deepcopy(base)
+        clf.fit(X_tr, y_tr)
+        y_pred = clf.predict(X_te)
+
+        for metric in fold_scores:
+            if metric == "accuracy":
+                from sklearn.metrics import accuracy_score
+                val = accuracy_score(y_te, y_pred)
+            elif metric == "f1_samples":
+                val = f1_score(y_te, y_pred, average="samples", zero_division=0)
+            else:
+                val = f1_score(y_te, y_pred, average=metric.split("_")[-1], zero_division=0)
+            fold_scores[metric].append(val)
+
     train_time = time.time() - t0
 
     res = {
@@ -98,6 +124,10 @@ def run_cv(ds, feat_name, model_fn, cv=5):
         "n_samples": len(ds), "n_labels": ds.n_labels,
         "train_time_s": round(train_time, 2),
     }
+    for metric, vals in fold_scores.items():
+        res[metric] = round(np.mean(vals), 4)
+        res[f"{metric}_std"] = round(np.std(vals), 4)
+    return res
     for metric in scoring:
         if isinstance(metric, str):
             res[metric] = round(scores[f"test_{metric}"].mean(), 4)

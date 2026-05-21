@@ -3,7 +3,8 @@ os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 import numpy as np
 import torch
-from transformers import AutoTokenizer, AutoModel
+from tqdm import tqdm
+from transformers import BertTokenizer, BertModel
 from ..config import BIOBERT_MODEL
 
 
@@ -11,8 +12,8 @@ class BioBERTExtractor:
     def __init__(self, model_name=BIOBERT_MODEL, device=None, batch_size=32):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.batch_size = batch_size
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name).to(self.device)
+        self.tokenizer = BertTokenizer.from_pretrained(model_name)
+        self.model = BertModel.from_pretrained(model_name).to(self.device)
         self.model.eval()
 
     def _embed(self, texts):
@@ -30,7 +31,8 @@ class BioBERTExtractor:
 
     def transform(self, texts):
         all_embs = []
-        for i in range(0, len(texts), self.batch_size):
+        for i in tqdm(range(0, len(texts), self.batch_size), desc="BioBERT", unit="batch",
+                      leave=False):
             batch = texts[i:i + self.batch_size]
             all_embs.append(self._embed(batch))
         return np.vstack(all_embs)
