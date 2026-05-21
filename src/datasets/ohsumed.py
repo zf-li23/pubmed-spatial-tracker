@@ -1,15 +1,4 @@
-"""OHSUMED dataset loader.
-
-TREC format lines:
-.I <id>
-.U <medline-ui>
-.S <source>
-.M <MeSH terms; separated>
-.T <title>
-.P <publication type>
-.W <abstract>
-.A <authors>
-"""
+"""OHSUMED loader: TREC format (.I .U .S .M .T .P .W .A)."""
 
 import numpy as np
 import re

@@ -1,10 +1,4 @@
-"""PGB dataset loader.
-
-JSONL format with fields: pmid, title, abstract, mesh (list of {term, is_major, tree_num}),
-authors, year, venue, publication_type, chemicals, citations.
-
-We load a subset and optionally build a graph for node classification tasks.
-"""
+"""PGB dataset loader (JSONL, diabetes subset)."""
 
 import json
 import numpy as np

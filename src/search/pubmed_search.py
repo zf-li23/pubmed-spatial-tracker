@@ -37,8 +37,8 @@ def search_pubmed_entrez(query: str, retmax: int = 20000) -> List[str]:
     return res.get("IdList", [])
 
 
-def fetch_details_entrez(pmids: List[str], batch: int = 100, save_every: int = 5,
-                         out: str = OUT_PATH, incremental: bool = True, timeout: int = 60) -> List[dict]:
+def fetch_details_entrez(pmids, batch=200, save_every=2,
+                         out=OUT_PATH, incremental=True):
     articles = []
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     total = len(pmids)
@@ -53,9 +53,8 @@ def fetch_details_entrez(pmids: List[str], batch: int = 100, save_every: int = 5
                 for rec in batch_results.get("PubmedArticle", []):
                     articles.append(_parse_entrez_record(rec))
                 break
-            except Exception as e:
+            except Exception:
                 time.sleep(2)
-        # small sleep to be polite to NCBI
         time.sleep(0.35)
         if incremental and (i // batch) % save_every == 0 and i > 0:
             _save_partial(articles, out)
@@ -170,7 +169,7 @@ def fetch_details_fallback(pmids: List[str], batch: int = 100, save_every: int =
     return records
 
 
-def main(argv: Optional[List[str]] = None):
+def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument('--retmax', type=int, default=20000)
     p.add_argument('--batch', type=int, default=100)

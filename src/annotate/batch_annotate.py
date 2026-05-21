@@ -1,104 +1,43 @@
-"""
-Spatial Transcriptomics Article Annotation with LLM (DeepSeek).
-
-Annotates PubMed articles with:
-  - category:       main article type
-  - tags:           data analysis methods used
-  - technology:     spatial profiling platforms involved
-  - biological_topic: application domain
-  - has_new_data:   whether new experimental data was produced
-  - has_code:       whether code/software is provided
-
-Inspired by the two-stage annotation framework from Biomed-Enriched (2506.20331v1).
-"""
+"""DeepSeek batch annotation for Spatial Tracker."""
 import argparse
 import json
 import os
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import pandas as pd
 import requests
 from tqdm import tqdm
 
-# ---------------------------------------------------------------------------
-# Label Schema — full vocabulary for each annotation dimension
-# ---------------------------------------------------------------------------
 
-CATEGORIES = {
-    "Research": "Original research with spatial transcriptomics data analysis and biological findings",
-    "Review": "Comprehensive review, survey, or perspective article",
-    "Technology": "New experimental technology, computational method, or software tool development",
-    "Data Resource": "Database, atlas, benchmark dataset, or open-access data resource",
-    "Benchmark": "Systematic comparison/benchmarking of existing methods or technologies",
-    "Protocol": "Experimental protocol, step-by-step guide, or best practices",
-}
+CATEGORIES = ["Research", "Review", "Technology", "Data Resource", "Benchmark", "Protocol"]
 
-TAGS_DATA_ANALYSIS = {
-    "Spatial Domain Identification": "Clustering spots/regions into spatial domains or tissue regions (e.g., BayesSpace, STAGATE, SpaGCN, GraphST, BANKSY)",
-    "Spatially Variable Genes": "Detection of genes with spatial expression patterns (e.g., SPARK, SpatialDE, Trendsceek, SOMDE, SMASH)",
-    "Cell-Type Deconvolution": "Estimating cell-type proportions from spatial spots (e.g., RCTD, SPOTlight, cell2location, CARD, DestVI, stereoscope)",
-    "Cell-Cell Communication": "Ligand-receptor analysis, cell-cell interaction, or signaling inference (e.g., CellChat, NicheNet, Giotto, SpaTalk, COMMOT)",
-    "Spatial Trajectory Inference": "Pseudotime, RNA velocity, or spatiotemporal trajectory reconstruction",
-    "Spatial Integration": "Alignment of multiple spatial slices/samples or batch correction (e.g., PASTE, STAligner, Harmony, scVI)",
-    "Multi-Omics Integration": "Integration of spatial transcriptomics with proteomics, metabolomics, epigenomics, or other modalities",
-    "Niche & Microenvironment": "Spatial niche analysis, microenvironment characterization, or neighborhood analysis",
-    "Gene Imputation": "Imputation of missing genes or enhancement of spatial resolution (e.g., SpaGE, gimVI, stPlus)",
-    "Spatial Co-Expression": "Spatially aware gene co-expression networks or gene regulatory networks",
-    "Image-Based Analysis": "H&E/histology image processing, segmentation, feature extraction, or image-spot registration",
-    "3D Reconstruction": "Three-dimensional reconstruction of spatial transcriptomics from 2D slices",
-    "Benchmarking & Evaluation": "Benchmarking, evaluating, or comparing spatial methods or technologies",
-    "Spatial Preprocessing": "Quality control, normalization, batch correction specific to spatial data",
-    "Spatial Data Simulation": "In silico simulation of spatial transcriptomics data",
-}
+TAGS_DATA_ANALYSIS = [
+    "Spatial Domain Identification", "Spatially Variable Genes",
+    "Cell-Type Deconvolution", "Cell-Cell Communication",
+    "Spatial Trajectory Inference", "Spatial Integration",
+    "Multi-Omics Integration", "Niche & Microenvironment",
+    "Gene Imputation", "Spatial Co-Expression", "Image-Based Analysis",
+    "3D Reconstruction", "Benchmarking & Evaluation",
+    "Spatial Preprocessing", "Spatial Data Simulation",
+]
 
-TECHNOLOGY_PLATFORMS = {
-    "Visium": "Visium / Visium HD (10x Genomics) — spot-based, whole transcriptome",
-    "MERFISH": "MERFISH / MERSCOPE (Vizgen) — single-cell resolution, multiplexed FISH",
-    "Slide-seq": "Slide-seq / Slide-tags / Slide-seqV2 — bead-based spatial barcoding",
-    "Stereo-seq": "Stereo-seq (BnBio/CST) — large field-of-view, nanometer resolution",
-    "seqFISH": "seqFISH / seqFISH+ / seqFISH (various) — sequential FISH methods",
-    "Xenium": "Xenium Analyzer (10x Genomics) — in situ, subcellular resolution",
-    "CosMx": "CosMx Spatial Molecular Imager (NanoString/Bruker) — single-cell, protein+RNA",
-    "STARmap": "STARmap / STARmap PLUS — in situ sequencing-based",
-    "GeoMx": "GeoMx Digital Spatial Profiler (NanoString/Bruker) — region-based, protein+RNA",
-    "DBiT-seq": "Deterministic Barcoding in Tissue for spatial omics",
-    "Pixel-seq": "Pixel-seq / pixel-level spatial transcriptomics methods",
-    "Curio Seeker": "Curio Seeker (commercial Slide-seq platform)",
-    "NAVVIX": "NAVVIX (Vizgen) — next-gen spatial transcriptomics",
-    "Molecular Cartography": "Molecular Cartography (Resolve Biosciences) — subcellular resolution",
-    "Spatial ATAC-seq": "Spatially resolved ATAC-seq or multi-omic spatial methods",
-    "HDST": "High-Definition Spatial Transcriptomics",
-    "snmC-seq": "Spatial single-nucleus methylome or epigenomic methods",
-    "Spatial CUT&Tag": "Spatial CUT&Tag / spatial epigenomic profiling",
-    "LCM / Microdissection": "Laser Capture Microdissection coupled with transcriptomics",
-}
+TECHNOLOGY_PLATFORMS = [
+    "Visium", "MERFISH", "Slide-seq", "Stereo-seq", "seqFISH",
+    "Xenium", "CosMx", "STARmap", "GeoMx", "DBiT-seq",
+    "Pixel-seq", "Curio Seeker", "NAVVIX", "Molecular Cartography",
+    "Spatial ATAC-seq", "HDST", "snmC-seq", "Spatial CUT&Tag",
+    "LCM / Microdissection",
+]
 
-BIOLOGICAL_TOPICS = {
-    "Cancer": "Cancer biology, tumor microenvironment, oncology, metastasis",
-    "Neuroscience": "Brain atlas, neural development, neurodegeneration, neurobiology",
-    "Developmental Biology": "Embryogenesis, organogenesis, development across time",
-    "Immunology": "Immune cell biology, inflammation, immunotherapy response",
-    "Cardiovascular": "Heart development, cardiovascular disease",
-    "Liver & Hepatology": "Liver biology, hepatology, liver disease",
-    "Kidney & Nephrology": "Kidney biology, nephrology, kidney disease",
-    "Lung & Respiratory": "Lung biology, respiratory system",
-    "Gastrointestinal": "Gut biology, intestine, gastrointestinal tract",
-    "Dermatology": "Skin biology, wound healing",
-    "Musculoskeletal": "Muscle, bone, skeletal system",
-    "Plant Biology": "Plant spatial transcriptomics, root/shoot development",
-    "Aging": "Aging, senescence, longevity biology",
-    "Infectious Disease": "Pathogen-host interaction, infection, host response",
-    "Metabolism": "Metabolic diseases, obesity, diabetes",
-    "Regeneration": "Tissue regeneration, stem cell biology",
-    "Ophthalmology": "Eye biology, vision research",
-}
-
-# ---------------------------------------------------------------------------
-# Prompt Templates
-# ---------------------------------------------------------------------------
+BIOLOGICAL_TOPICS = [
+    "Cancer", "Neuroscience", "Developmental Biology", "Immunology",
+    "Cardiovascular", "Liver & Hepatology", "Kidney & Nephrology",
+    "Lung & Respiratory", "Gastrointestinal", "Dermatology",
+    "Musculoskeletal", "Plant Biology", "Aging", "Infectious Disease",
+    "Metabolism", "Regeneration", "Ophthalmology",
+]
 
 SYSTEM_PROMPT = """You are an expert biomedical annotator specializing in spatial transcriptomics literature. Your task is to analyze a PubMed article (title + abstract + MeSH terms + keywords) and classify it into structured labels.
 
@@ -165,24 +104,20 @@ Return a JSON object with the 8 fields as specified in the system prompt."""
 # ---------------------------------------------------------------------------
 
 def call_deepseek(
-    title: str,
-    abstract: str,
-    mesh_terms: str,
-    keywords: str,
-    api_key: str = "sk-27482f0eceb3438dbc475ffafda3ddf7",
-    model: str = "deepseek-v4-flash",
-    base_url: str = "https://api.deepseek.com",
-    timeout: int = 120,
-    max_retries: int = 5,
-) -> Optional[Dict]:
-    """Send one article to DeepSeek and parse the JSON response."""
+    title, abstract, mesh_terms, keywords,
+    api_key="sk-27482f0eceb3438dbc475ffafda3ddf7",
+    model="deepseek-v4-flash",
+    base_url="https://api.deepseek.com",
+    timeout=120,
+    max_retries=5,
+):
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     user_content = USER_PROMPT_TEMPLATE.format(
         title=title,
-        abstract=abstract[:3000],  # limit abstract length
+        abstract=abstract[:3000],
         mesh_terms=mesh_terms,
         keywords=keywords,
     )
@@ -192,7 +127,7 @@ def call_deepseek(
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
         ],
-        "temperature": 0.05,  # low temperature for consistent classification
+        "temperature": 0.05,
         "max_tokens": 1024,
         "response_format": {"type": "json_object"},
     }
@@ -209,17 +144,12 @@ def call_deepseek(
             data = resp.json()
             content = data["choices"][0]["message"]["content"]
 
-            # Parse JSON
             parsed = json.loads(content)
-
-            # Validate required fields
             required = ["category", "tags", "technology", "biological_topic",
                         "has_new_data", "has_code", "is_preprint", "confidence"]
             for field in required:
                 if field not in parsed:
                     raise ValueError(f"Missing field: {field}")
-
-            # Normalize bool fields
             for bf in ["has_new_data", "has_code", "is_preprint"]:
                 if isinstance(parsed.get(bf), str):
                     parsed[bf] = parsed[bf].lower() in ("true", "yes", "y")
@@ -241,29 +171,19 @@ def call_deepseek(
     return None
 
 
-# ---------------------------------------------------------------------------
-# Batch annotation
-# ---------------------------------------------------------------------------
-
 def annotate_batch(
-    articles: pd.DataFrame,
-    api_key: str = "sk-27482f0eceb3438dbc475ffafda3ddf7",
-    model: str = "deepseek-v4-flash",
-    base_url: str = "https://api.deepseek.com",
-    batch_size: int = 10,
-    sleep_per_article: float = 0.2,
-    out: str = "data/spatial_tracker/annotated_articles.csv",
-    start_from: int = 0,
+    articles,
+    api_key="sk-27482f0eceb3438dbc475ffafda3ddf7",
+    model="deepseek-v4-flash",
+    base_url="https://api.deepseek.com",
+    batch_size=10,
+    sleep_per_article=0.2,
+    out="data/spatial_tracker/annotated_articles.csv",
+    start_from=0,
 ):
-    """Annotate a batch of articles using DeepSeek.
-
-    For each article, calls the API, then appends the result to the output CSV
-    incrementally so partial progress is never lost.
-    """
     total = len(articles)
     Path(out).parent.mkdir(parents=True, exist_ok=True)
 
-    # Auto-resume: load existing annotations if output file exists
     results = []
     existing_pmids = set()
     if os.path.isfile(out):
@@ -272,7 +192,6 @@ def annotate_batch(
             results = existing.to_dict("records")
             existing_pmids = {str(r["pmid"]) for r in results if pd.notna(r.get("pmid"))}
             print(f"   ↻ Found existing output: {len(results)} annotations loaded — will skip duplicates")
-            # Auto-adjust start_from if not explicitly set
             if start_from == 0:
                 start_from = 0  # still iterate from beginning to skip via PMID
         except (pd.errors.EmptyDataError, KeyError):
@@ -323,14 +242,12 @@ def annotate_batch(
 
         results.append(record)
 
-        # Incremental save every N articles
         if (idx + 1) % batch_size == 0:
             pd.DataFrame(results).to_csv(out, index=False)
             tqdm.write(f"  💾 Saved {len(results)} annotations to {out}")
 
         time.sleep(sleep_per_article)
 
-    # Final save
     if results:
         pd.DataFrame(results).to_csv(out, index=False)
         print(f"\n✅ Saved {len(results)} annotations to {out}")
@@ -340,12 +257,8 @@ def annotate_batch(
     return results
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-def main(argv: Optional[List[str]] = None):
-    p = argparse.ArgumentParser(description="Annotate PubMed articles with DeepSeek")
+def main(argv=None):
+    p = argparse.ArgumentParser()
     p.add_argument("--input", default="data/spatial_tracker/articles.csv",
                    help="Input CSV with articles (default: %(default)s)")
     p.add_argument("--output", default="data/spatial_tracker/annotated_articles.csv",
@@ -398,7 +311,6 @@ def main(argv: Optional[List[str]] = None):
         start_from=args.start_from,
     )
 
-    # Print summary statistics
     if results:
         rdf = pd.DataFrame(results)
         print("\n📊 Annotation Summary:")
@@ -407,7 +319,6 @@ def main(argv: Optional[List[str]] = None):
         for cat, cnt in cat_counts.items():
             print(f"   → {cat}: {cnt} ({100*cnt/len(rdf):.1f}%)")
 
-        # Count unique tags
         all_tags = []
         for tags_str in rdf["tags"].dropna():
             all_tags.extend([t.strip() for t in tags_str.split(";") if t.strip()])
@@ -418,7 +329,6 @@ def main(argv: Optional[List[str]] = None):
             for tag, cnt in common_tags:
                 print(f"   → {tag}: {cnt}")
 
-        # Save annotation report
         report_path = args.output.replace(".csv", "_report.json")
         with open(report_path, "w") as f:
             json.dump({

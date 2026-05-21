@@ -1,9 +1,4 @@
-"""PubMed-MultiLabel (Kaggle) loader.
-
-CSV columns:
-Title, abstractText, meshMajor, pmid, meshid, meshroot, A, B, C, ..., Z
-Last 15 columns are binary MeSH top-level labels.
-"""
+"""PubMed-MultiLabel (Kaggle) loader."""
 
 import numpy as np
 import pandas as pd

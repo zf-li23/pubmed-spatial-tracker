@@ -1,4 +1,4 @@
-"""Experiment pipeline: run a single (dataset, feature, model) combination."""
+"""Experiment runner."""
 
 import time
 import numpy as np
@@ -22,8 +22,7 @@ FEATURE_REGISTRY = {
 logger = ExpLogger()
 
 
-def _get_features(ds: BiomedDataset, feat_name: str):
-    """Extract features. Meta features are appended if available."""
+def _get_features(ds, feat_name):
     texts = ds.texts()
     if feat_name not in FEATURE_REGISTRY:
         raise ValueError(f"Unknown feature: {feat_name}")
@@ -40,9 +39,8 @@ def _get_features(ds: BiomedDataset, feat_name: str):
     return X
 
 
-def run_experiment(ds: BiomedDataset, feat: str, model_fn, model_name: str,
-                   cv: int = 5, seed: int = 42):
-    """Run one (dataset, feature, model) combo with CV."""
+def run_experiment(ds, feat, model_fn, model_name,
+                   cv=5, seed=42):
     print(f"  [{ds.name}] feat={feat} model={model_name}")
     X = _get_features(ds, feat)
     y = ds.labels()

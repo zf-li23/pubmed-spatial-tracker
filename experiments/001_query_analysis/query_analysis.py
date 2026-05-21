@@ -1,8 +1,4 @@
-"""001: PubMed 检索式分析。
-
-对比不同检索字段的命中数量、重叠比例，为项目选定最终检索式。
-输出保存到 results/ 目录下。
-"""
+"""001: PubMed query comparison."""
 import csv, json, sys, time, os
 from pathlib import Path
 

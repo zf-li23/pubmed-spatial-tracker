@@ -1,8 +1,3 @@
-"""BioBERT sentence embedding extractor.
-
-Uses mean pooling over last hidden layer.
-"""
-
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModel
@@ -23,7 +18,6 @@ class BioBERTExtractor:
         enc = {k: v.to(self.device) for k, v in enc.items()}
         with torch.no_grad():
             out = self.model(**enc)
-        # mean pooling
         mask = enc["attention_mask"].unsqueeze(-1).float()
         emb = (out.last_hidden_state * mask).sum(dim=1) / mask.sum(dim=1)
         return emb.cpu().numpy()

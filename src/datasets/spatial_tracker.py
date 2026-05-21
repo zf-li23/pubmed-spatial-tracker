@@ -1,4 +1,4 @@
-"""Spatial Tracker dataset (to be built after PubMed crawling + LLM annotation)."""
+"""Spatial Tracker dataset loader."""
 
 import numpy as np
 from .base import BiomedDataset

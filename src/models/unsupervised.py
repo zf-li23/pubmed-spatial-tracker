@@ -1,11 +1,8 @@
-"""Unsupservised: LDA topic clustering."""
-
 from sklearn.cluster import KMeans
 from sklearn.metrics import normalized_mutual_info_score, adjusted_rand_score
 
 
 def cluster_lda(lda_features, n_clusters, true_labels=None):
-    """Cluster LDA topic vectors and optionally evaluate."""
     km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     pred = km.fit_predict(lda_features)
     res = {}

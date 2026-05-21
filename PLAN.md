@@ -1,13 +1,27 @@
 # PLAN.md — PubMed Spatial Tracker 彻底重构计划
 
-> 创建: 2026-05-20 | 状态: 初稿
+> 创建: 2026-05-20 | 最后更新: 2026-05-21
 >
-> 本文档基于对以下材料的综合分析：
+> 基于以下材料的综合分析：
 > - OHSUMED（TREC-9 Filtering Track 基准，~294K 篇，14,466 个 MeSH 标签）
 > - PubMed-MultiLabel（Kaggle 数据集，10K/50K 篇，15 个 MeSH 顶级类别标签）
 > - PGB（PubMed Graph Benchmark，~30M 篇，5 节点类型 + MeSH 层级结构）
-> - Biomed-Enriched（两阶段大语言模型标注管线论文）
+> - Biomed-Enriched（两阶段大语言模型标注管线论文，2506.20331v1）
 > - 课程 proposal（机器学习概论大作业框架）
+
+---
+
+## 项目进度总览
+
+| 阶段 | 状态 | 完成内容 |
+|---|---|---|
+| 0️⃣ **Phase 0: 数据基础设施** | ✅ **已完成** | 全部 4 数据集加载器、4 种文本表示、7 种经典模型、评估框架、实验流水线 |
+| 🔬 **Exp 001: PubMed 查询分析** | ✅ **已完成** | 比较 7 种查询变体（MeSH vs 文本词），选定最终检索式（9,148 篇） |
+| 📡 **PubMed 数据抓取** | ✅ **已完成** | `src/search/pubmed_search.py`（Entrez + Biopython，批量/增量/重试），`data/spatial_tracker/articles.csv` |
+| 🏷️ **Step 2a: LLM 标签体系设计** | ✅ **已完成** | 6 类别 × 15 分析标签 × 19 技术 × 17 生物领域 |
+| 🏷️ **Step 2b: LLM 批量标注** | 🔄 **进行中** | 已标注 3,990/9,148 篇（43.6%），支持断点续跑 |
+| 🧪 **Step 1: 跨数据集算法筛选** | ⬜ **未开始** | 约 100 组实验 |
+| 🔀 **Step 3: 迁移微调探索** | ⬜ **未开始** | 3 种算法的微调实验 |
 
 ---
 
@@ -26,20 +40,20 @@
 | **OHSUMED** | ~294K 篇 | MeSH 词多标签 | 14,466 | 经典基准（1987-1991），大规模，含 MeSH 词 | 传统方法的可复现验证平台 |
 | **PubMed-MultiLabel** | 10K（原始）/ 50K（处理后） | MeSH 顶级类别多标签 | 15 个 | 现代数据集，标签稀疏但精确（A-Z 大类） | 粗粒度类别分类的快速实验平台 |
 | **PGB** | ~3M/分片 × 10 | MeSH 标签 + 节点类别 | 3 类（节点分类）/ 21 SR 任务 | **异构图结构**（5 节点 / 7 边类型）+ **MeSH 层级树** | 图表示学习方法验证 + MeSH 层级利用 |
-| **Spatial Tracker** | ~数千篇（待构建） | 5 类别 + 45 语义标签 + 丢弃判别（待定义） | 5+45+1 | **目标领域**，需从零构建 | 最终应用场景 + LLM 批量标注验证 |
+| **Spatial Tracker** | 9,148 篇（已爬取） | 6 类别 + 15 分析标签 + 19 技术（LLM 标注中） | 6+15+19 | **目标领域**，已从 PubMed 全量爬取 | 最终应用场景 + LLM 批量标注验证 |
 
 ### 数据集信息维度对比
 
 ```
                    OHSUMED    PubMed-MultiLabel    PGB         Spatial Tracker
-标题+摘要           ✓          ✓                    ✓            ✓（待爬取）
-MeSH 词             ✓          ✓                    ✓（含层级）  ✓（可从 PubMed API 拉取）
+标题+摘要           ✓          ✓                    ✓            ✓
+MeSH 词             ✓          ✓                    ✓（含层级）  ✓
 引用网络            ✗          ✗                    ✓            ✗
 作者信息            ✗          ✗                    ✓            ✗
 期刊/发表类型       ✓          ✗                    ✓            ✓
 图表征              ✗          ✗                    ✓            ✗
-空间转录组专用标签  ✗          ✗                    ✗            ✓（待定义）
-标注状态            全量标注    全量标注              全量标注      待 LLM 批量标注
+空间转录组专用标签  ✗          ✗                    ✗            ✓（LLM 标注中）
+标注状态            全量标注    全量标注              全量标注      LLM 批量标注（43% 完成）
 ```
 
 ### 关键洞察
@@ -64,14 +78,13 @@ MeSH 词             ✓          ✓                    ✓（含层级）  ✓
 | 集成学习（Bagging） | Random Forest | 类别、标签分类 | 全部 |
 | 集成学习（Boosting） | AdaBoost | 类别、标签分类 | 全部 |
 | 集成学习（Boosting） | XGBoost | 类别、标签分类 | 全部 |
-| 集成学习（Boosting） | LightGBM（可选） | 类别、标签分类 | 全部 |
 | 深度学习 | BioBERT + MLP 微调 | 类别分类 | 全部 |
 | 无监督学习 | LDA + 聚类可视化 | 文献子领域发现 | 全部 |
 | **图嵌入（新增）** | **node2vec** | **节点分类** | **PGB** |
 | **图神经网络（新增）** | **GCN** | **节点分类** | **PGB** |
 | **图神经网络（新增）** | **GraphSAGE** | **节点分类** | **PGB** |
 
-> **图方法的引入理由**：PGB 论文明确指出 PubMed 文献可以建模为异构图（Paper, Author, MeSH Term, Venue, Publication Type），而传统的 GNN 和异质 GNN 在该数据集上表现不佳——这正是一个值得探索的开放问题。我们从简单的同构图方法（node2vec, GCN, GraphSAGE）入手，后续可探索 HAN、HGT 等异质图方法。DeepSeek 等生成式模型不用于分类测试，而是作为批量标注工具使用（见 Phase 1）。
+> **图方法的引入理由**：PGB 论文明确指出 PubMed 文献可以建模为异构图（Paper, Author, MeSH Term, Venue, Publication Type），而传统的 GNN 和异质 GNN 在该数据集上表现不佳——这正是一个值得探索的开放问题。我们从简单的同构图方法（node2vec, GCN, GraphSAGE）入手。DeepSeek 等生成式模型不用于分类测试，而是作为批量标注工具使用。
 
 ---
 
@@ -81,12 +94,10 @@ MeSH 词             ✓          ✓                    ✓（含层级）  ✓
 
 | 表示方法 | 维度 | 适用算法 | 设计理由 |
 |---|---|---|---|
-| TF-IDF (1-2 gram, max=5,000) | 5,000 | NB, k-NN, SVM, LR, RF, Ada, XGB, LGB | **词级稀疏基线**：可解释强，衡量传统词袋方法的上限 |
-| BioBERT embedding (mean pooling) | 768 | SVM, RF, XGB, LGB, GCN* | **上下文语义**：预训练生物医学语言模型，捕捉医学术语关系 |
+| TF-IDF (1-2 gram, max=5,000) | 5,000 | NB, k-NN, SVM, LR, RF, Ada, XGB | **词级稀疏基线**：可解释强，衡量传统词袋方法的上限 |
+| BioBERT embedding (mean pooling) | 768 | SVM, RF, XGB, GCN* | **上下文语义**：预训练生物医学语言模型，捕捉医学术语关系 |
 | LDA 主题分布 (K=15) | 15 | NB, k-NN, SVM | **文档级主题**：无监督发现隐式主题结构 |
 | 元特征（年份、期刊类型等） | ~10 | 拼接至以上向量 | **非文本信号**：补充分类决策的辅助信息 |
-| **图嵌入（node2vec）** | 128-256 | PGB 节点分类 | **结构信息**：将文献的图邻域编码为向量 |
-| **MeSH 层级特征** | 可变 | PGB 节点分类 | **层级语义**：利用 MeSH tree number 的祖先-后代关系 |
 
 > 多种表示对比可揭示：**语义深度**（TF-IDF→BioBERT）、**结构粒度**（词级→文档级→图级）和**信息类型**（文本→非文本→结构）对分类性能的贡献。
 
@@ -116,7 +127,7 @@ MeSH 词             ✓          ✓                    ✓（含层级）  ✓
 │ Step 2: 目标数据集构建与应用                                          │
 │                                                                      │
 │  PubMed检索 ──→ 空间转录组学文献库 ──→ DeepSeek API 批量标注          │
-│  (设计检索式)     (~数千篇)              (两阶段: LLM→蒸馏)            │
+│  (查询实验 001)   (9,148篇已爬取)        (6维标签体系)               │
 │                                              │                       │
 │                                              ▼                       │
 │  Step 1 最优方法 ──→ 在 ST 上训练/测试 ──→ vs BioBERT+MLP 基线       │
@@ -139,65 +150,221 @@ MeSH 词             ✓          ✓                    ✓（含层级）  ✓
 
 ---
 
-## 阶段 0：数据基础设施（预计 1 周）
+## 已完成工作详情
 
-### 0.1 统一数据加载器
+### Phase 0: 数据基础设施（2026-05-20 完成）
 
-为四个数据集分别实现标准化的 `Dataset` 类：
+统一的 `BiomedDataset` 接口和完整的 `src/` 模块化结构。
 
-```python
-class BiomedDataset:
-    """统一接口"""
-    def __init__(self, name: str, split: str): ...
-    def texts(self) -> List[str]:          # 标题+摘要
-    def labels(self) -> np.ndarray:         # 多标签矩阵
-    def pmids(self) -> List[str]:           # 唯一标识
-    def metadata(self) -> pd.DataFrame:     # 额外元特征
+**数据集加载器**：全部实现统一接口 `BiomedDataset`（`texts()`, `labels()`, `pmids()`, `metadata()`）
+
+| 加载器 | 文件 | 支持 |
+|---|---|---|
+| `OHSUMEDLoader` | `src/datasets/ohsumed.py` | TREC 格式解析，稀疏 MeSH 多标签（过滤低频词） |
+| `PubMedMultiLabelLoader` | `src/datasets/pubmed_multilabel.py` | CSV 读取，原始 15 类 / Processed 版本 |
+| `PGBLoader` | `src/datasets/pgb.py` | JSONL 读取，可选图构建（邻接表） |
+| `SpatialTrackerLoader` | `src/datasets/spatial_tracker.py` | 读取 `articles.csv` / `annotated_articles.csv` |
+
+**文本表示**：4 种互补的文本表示方法
+
+| 表示 | 维度 | 文件 |
+|---|---|---|
+| TF-IDF (1-2 gram) | 5,000 | `src/features/tfidf.py` |
+| BioBERT embedding (mean pooling) | 768 | `src/features/biobert.py`（`dmis-lab/biobert-v1.1`） |
+| LDA 主题分布 | 15 | `src/features/lda_features.py` |
+| 元特征 | ~10 | `src/features/metadata.py` |
+
+**模型实现**：共 12 种算法
+
+| 模块 | 文件 | 算法 |
+|---|---|---|
+| 经典机器学习 | `src/models/classical.py` | Naive Bayes, k-NN, SVM (RBF), Logistic Regression |
+| 集成学习 | `src/models/ensemble.py` | Random Forest, AdaBoost, XGBoost |
+| 深度学习 | `src/models/deep.py` | BioBERT + MLP 微调 |
+| 无监督学习 | `src/models/unsupervised.py` | LDA + 聚类 |
+
+**评估框架**：`src/evaluation/metrics.py` + `src/evaluation/report.py`
+- 多分类（Accuracy, Macro/Weighted F1, Cohen's κ）
+- 多标签（Jaccard 相似度, Hamming Loss, Per-label F1）
+- 二分类（AUC-ROC, PR-AUC, F1）
+- CSV 实验日志
+
+**实验流水线**：`src/pipeline.py`——`run_experiment()`，带交叉验证和日志记录
+
+### 实验 001: PubMed 查询分析（2026-05-21 完成）
+
+`experiments/001_query_analysis/` 比较了 7 种查询变体：
+
+```
+MeSH Major Topic → 9,933 篇    |   MeSH All        → 98,948 篇
+text spatial     → 7,412 篇    |   text resolved   → 545 篇
+text both        → 7,638 篇    |   Overlap: MeSH & text = 32 篇 (0.18%)
 ```
 
-具体要求：
-- **OHSUMEDLoader**：解析 TREC 格式的 `.I .U .S .M .T .P .W .A` 字段，从 `.M` 提取 MeSH 词
-- **PubMedMultiLabelLoader**：读取 CSV，处理两套标签体系（原始 15 类 / Processed 版本）
-- **PGBLoader**：读取 JSONL，构建可选的图结构（邻接表），提取 MeSH 层级树编号
-- **SpatialTrackerLoader**：通过 PubMed 检索爬取（`src/search/pubmed_search.py`），构建标题+摘要+MeSH 的标准化数据集
+最终选定检索式：
+```
+("Spatial Transcriptomics"[MeSH Major Topic]
+ OR "spatial transcriptom*"[Title/Abstract]
+ OR "spatially resolved transcriptom*"[Title/Abstract])
+AND hasabstract[text] AND english[Language] AND 2016:2026[dp]
+```
+→ **9,148 篇**
 
-### 0.2 标准化评估框架
+### PubMed 数据抓取（2026-05-21 完成）
 
-统一实现以下指标（scikit-learn 封装）：
+`src/search/pubmed_search.py` 实现了稳健的 PubMed 抓取：
+- **Biopython Entrez 优先**，自动回退到 urllib
+- **CLI 参数**：`--retmax`, `--batch`, `--out`, `--incremental`
+- **增量保存**：每隔 N 批次写入 CSV
+- **重试与速率限制**：对 NCBI 礼貌
+- 输出：`data/spatial_tracker/articles.csv`（9,148 行，~17 MB）
 
-| 任务类型 | 指标 |
-|---|---|
-| 类别多分类（Spatial Tracker 的 5 类 / PGB 的 3 类） | Accuracy, Macro/Weighted F1, Cohen's κ |
-| 多标签（OHSUMED 的 MeSH / PubMed-ML 的 15 类 / ST 的 45 标签） | Jaccard 相似度, Hamming Loss, Per-label F1 |
-| 二分类（丢弃判别） | AUC-ROC, Precision-Recall AUC, F1 |
-| 图节点分类（PGB） | Micro/Macro F1, NMI, ARI |
+### 标签体系设计（2026-05-21 完成）
 
-### 0.3 实验追踪
+参考 Biomed-Enriched（2506.20331v1）的标注方法，设计了 6 维标签体系：
 
-- 使用 MLflow 或简单的 CSV 日志记录每次实验的：
-  - 数据集 + 文本表示 + 算法 + 超参数
-  - 所有评估指标
-  - 训练时间 / 推理时间
+| 维度 | 取值 | 说明 |
+|---|---|---|
+| `category` | 6 类 | Research, Review, Technology, Data Resource, Benchmark, Protocol |
+| `tags` | 15 种 | Spatial Domain Identification, Cell-Type Deconvolution, Cell-Cell Communication, Spatial Integration, 等——**专指数据分析方法** |
+| `technology` | 19 种 | Visium, MERFISH, Slide-seq, Xenium, Stereo-seq, CosMx, 等 |
+| `biological_topic` | 17 个 | Cancer, Neuroscience, Immunology, Developmental Biology, 等 |
+| `has_new_data` / `has_code` / `is_preprint` | bool | — |
+| `confidence` | 3 级 | high / medium / low |
 
-### 0.4 目录结构
+### LLM 批量标注（进行中）
+
+`src/annotate/batch_annotate.py`：
+- 调用 DeepSeek API（`deepseek-v4-flash`，`https://api.deepseek.com`）
+- 精细 System Prompt + User Prompt（参考 Biomed-Enriched 方法）
+- JSON 输出解析与验证
+- **自动断点续跑**：检测已有输出文件，跳过已标注 PMID
+- 增量保存（每 10 篇），支持暂停/恢复
+- 当前进度：**3,990 / 9,148 篇**（43.6%）
+
+标注分布：
+```
+Research: 2,553  |  Technology: 665  |  Review: 624
+Protocol: 76     |  Data Resource: 43 |  Benchmark: 28
+Top tags: Niche & Microenvironment (1,682), Cell-Cell Communication (1,226),
+           Spatial Domain Identification (872), Multi-Omics Integration (782)
+has_new_data: 2,210 | has_code: 481 | is_preprint: 1
+```
+
+---
+
+## 待完成工作
+
+### Step 1: 跨数据集算法筛选（核心实验，预计 2-3 周）
+
+**实验矩阵**（约 100 组）：
+
+```
+OHSUMED (1) × TF-IDF/BioBERT/LDA/Meta (4) × 8种算法 = 32
+PubMed-ML (1) × TF-IDF/BioBERT/LDA/Meta (4) × 8种算法 = 32
+PGB (1) × TF-IDF/BioBERT/node2vec/GCN/GraphSAGE (5) × 10种方法 = ~40
+                                              ─────
+                                    约 100 组实验
+```
+
+每组实验用 5 折交叉验证，报告均值和标准差。
+
+**子实验设计**：
+
+| 编号 | 名称 | 目的 |
+|---|---|---|
+| E1.1 | **特征对比** | 最优文本表示（固定 SVM，4 种表示对比） |
+| E1.2 | **算法全矩阵** | 固定 BioBERT 嵌入，10 种算法排序 |
+| E1.3 | **多标签策略** | BR/CC/LP 转换策略对比 |
+| E1.4 | **图方法**（PGB 特有） | node2vec/GCN/GraphSAGE vs 纯文本方法 |
+| E1.5 | **MeSH 层级消融**（PGB 特有） | 有/无 MeSH tree number 的 GCN 差异 |
+| E1.6 | **跨数据迁移** | 一个数据集训练 → 另一个测试 |
+
+**预期产出**：
+1. 算法 × 数据集热力图
+2. 特征有效性排序（BioBERT vs TF-IDF vs LDA vs 图嵌入）
+3. 数据特性影响分析（标签空间大小、图结构、MeSH 层级）
+4. 每数据集推荐算法
+
+### Step 2 续：标注完成后的分析
+
+- 全部 9,148 篇标注完成后 → 统计分析
+- 人工抽检 200 篇评估标注质量 + 计算 Cohen's κ
+- 应用 Step 1 最优方法 vs BioBERT 基线
+
+### Step 3: 迁移微调探索（预计 1-2 周）
+
+| 实验 | 训练集 | 测试集 |
+|---|---|---|
+| A: 宽泛预训练 → ST 测试 | OHSUMED 或 PubMed-ML | Spatial Tracker |
+| B: ST 微调 → ST 测试 | Spatial Tracker（训练部分） | Spatial Tracker（测试部分） |
+| C: 预训练 → 微调 → 测试 | OHSUMED → ST 微调 | Spatial Tracker |
+
+重点算法：BioBERT + MLP, XGBoost (warm start), GCN/GraphSAGE（图迁移）
+
+---
+
+## 项目结构
 
 ```
 src/
-├── __init__.py
-├── datasets/
-│   ├── base.py              # BiomedDataset 基类
-│   ├── ohsumed.py           # OHSUMEDLoader
-│   ├── pubmed_multilabel.py # PubMedMultiLabelLoader
-│   ├── pgb.py               # PGBLoader（含图构建）
-│   └── spatial_tracker.py   # SpatialTrackerLoader
-├── search/
-│   └── pubmed_search.py     # PubMed 检索 & 爬取
-├── features/
-│   ├── tfidf.py             # TF-IDF 向量化
-│   ├── biobert.py           # BioBERT 嵌入
-│   ├── lda_features.py      # LDA 主题特征
-│   ├── metadata.py          # 元特征
-│   └── graph_features.py    # 图嵌入（node2vec 等）
+├── config.py              # 实验配置
+├── pipeline.py            # 实验调度
+├── annotate/              # LLM 批量标注
+│   └── batch_annotate.py  # DeepSeek API 标注管线
+├── datasets/              # 数据加载器
+│   ├── base.py, ohsumed.py, pubmed_multilabel.py
+│   ├── pgb.py, spatial_tracker.py
+├── features/              # 文本表示
+│   ├── tfidf.py, biobert.py, lda_features.py, metadata.py
+├── models/                # 算法实现
+│   ├── classical.py, ensemble.py, deep.py, unsupervised.py
+├── evaluation/            # 评估
+│   ├── metrics.py, report.py
+├── search/                # PubMed 检索
+│   └── pubmed_search.py
+data/
+├── spatial_tracker/
+│   ├── articles.csv             # 9,148 篇（已抓取）
+│   └── annotated_articles.csv   # 3,990 篇（标注中）
+├── ohsumed/, pgb/, PubMed-MultiLabel/  # 原始数据
+experiments/
+└── 001_query_analysis/      # 查询变体比较
+publications/               # 参考论文
+```
+
+---
+
+## 课程大作业对接说明
+
+### 涵盖的课程模块
+
+| 课程模块 | 对应内容 |
+|---|---|
+| 贝叶斯学习 | Naive Bayes |
+| 基于实例的学习 | k-NN, SVM |
+| 回归学习 | Logistic Regression |
+| 集成学习 | Random Forest, AdaBoost, XGBoost |
+| 深度学习 | BioBERT + MLP 微调 |
+| 无监督学习 | LDA + 聚类 |
+| 图表示学习 | node2vec, GCN, GraphSAGE |
+
+> **AI 辅助编程使用说明**：本项目中的 AI 辅助编程工具（GitHub Copilot）仅用于：
+> 1. 项目架构设计与代码框架搭建
+> 2. 代码审查与调试
+> 3. 文档编写与维护
+> 4. **LLM 仅作为数据标注工具**（DeepSeek API 标注空间转录组学文章标签）
+>
+> **核心约束**：所有核心算法（分类器、特征提取、评估指标）的实现、实验设计与分析均由人工完成。LLM 标注的数据将作为下游分类算法的训练/测试标签使用，而非替代算法实现。任何 AI 辅助生成的代码片段在最终提交前均需经人工审查和必要重写。
+
+---
+
+## 附录：数据格式
+
+- **OHSUMED**：TREC 格式（`.I .U .S .M .T .P .W .A` 字段），14,466 个 MeSH 标签
+- **PubMed-MultiLabel**：CSV，15 个 MeSH 顶级类别二元标签
+- **PGB**：JSONL，5 节点类型 + 7 边类型的异构图
+- **Spatial Tracker**：CSV（`articles.csv`），含 pmid/title/abstract/pub_year/journal/mesh_terms/keywords
 ├── models/
 │   ├── classical.py         # NB, k-NN, SVM, LR
 │   ├── ensemble.py          # RF, AdaBoost, XGBoost

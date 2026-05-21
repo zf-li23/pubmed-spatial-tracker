@@ -1,4 +1,4 @@
-"""Experiment config."""
+"""Config."""
 
 from pathlib import Path
 

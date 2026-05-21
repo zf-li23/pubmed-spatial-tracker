@@ -1,11 +1,3 @@
-"""Meta-feature extractor.
-
-Wraps dataset.metadata() into a sklearn-compatible interface.
-"""
-
-import numpy as np
-
-
 class MetaExtractor:
     def fit(self, texts=None):
         return self
