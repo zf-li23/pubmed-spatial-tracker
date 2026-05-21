@@ -8,9 +8,10 @@ from .base import BiomedDataset
 
 
 class OHSUMEDLoader(BiomedDataset):
-    def __init__(self, path: str, min_df: int = 5):
+    def __init__(self, path: str, min_df: int = 5, max_samples: int = None):
         super().__init__("ohsumed")
         self.path = Path(path)
+        self.max_samples = max_samples
         self._parse()
         self._build_labels(min_df)
 
@@ -26,7 +27,7 @@ class OHSUMEDLoader(BiomedDataset):
 
         i = 0
         n = len(lines)
-        while i < n:
+        while i < n and (self.max_samples is None or len(self._pmids) < self.max_samples):
             if lines[i].startswith(".I "):
                 pmid = lines[i][3:].strip()
                 i += 1
