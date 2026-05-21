@@ -79,54 +79,57 @@ def run_cv(ds, feat_name, model_fn, cv=5):
 
     is_ml = ds.task_type == "multilabel" and ds.name != "pgb"
     base = model_fn()
+    n_jobs = 1 if feat_name == "biobert" else -1
 
     from sklearn.model_selection import KFold, StratifiedKFold
     from sklearn.multiclass import OneVsRestClassifier
     from sklearn.metrics import f1_score
+    from sklearn.metrics import accuracy_score
+    from joblib import Parallel, delayed
     from tqdm import tqdm
     import copy
 
     if is_ml or ds.name == "pgb":
-        # multilabel or single-label with no clear stratify
         fold_idx = KFold(n_splits=cv, shuffle=True, random_state=42)
     else:
         strat = y.argmax(axis=1) if y.ndim > 1 else y
         fold_idx = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
 
-    scoring_list = ("f1_macro", "f1_weighted", "accuracy") if not is_ml else \
-                   ("f1_macro", "f1_samples", "f1_micro")
-    fold_scores = {s: [] for s in scoring_list}
+    splits = list(fold_idx.split(X, y))
 
-    t0 = time.time()
-    for tr_idx, te_idx in tqdm(fold_idx.split(X, y),
-                                desc=f"CV", unit="fold", leave=False,
-                                total=cv):
+    def _eval_fold(tr_idx, te_idx):
         X_tr, X_te = X[tr_idx], X[te_idx]
         y_tr, y_te = y[tr_idx], y[te_idx]
         clf = OneVsRestClassifier(copy.deepcopy(base)) if is_ml else copy.deepcopy(base)
         clf.fit(X_tr, y_tr)
         y_pred = clf.predict(X_te)
+        return {
+            "f1_macro": f1_score(y_te, y_pred, average="macro", zero_division=0),
+            "f1_weighted": f1_score(y_te, y_pred, average="weighted", zero_division=0),
+            "accuracy": accuracy_score(y_te, y_pred),
+            "f1_samples": f1_score(y_te, y_pred, average="samples", zero_division=0)
+            if is_ml else None,
+        }
 
-        for metric in fold_scores:
-            if metric == "accuracy":
-                from sklearn.metrics import accuracy_score
-                val = accuracy_score(y_te, y_pred)
-            elif metric == "f1_samples":
-                val = f1_score(y_te, y_pred, average="samples", zero_division=0)
-            else:
-                val = f1_score(y_te, y_pred, average=metric.split("_")[-1], zero_division=0)
-            fold_scores[metric].append(val)
-
+    t0 = time.time()
+    fold_results = Parallel(n_jobs=n_jobs)(
+        delayed(_eval_fold)(tr, te)
+        for tr, te in tqdm(splits, desc="CV", unit="fold", leave=False)
+    )
     train_time = time.time() - t0
 
+    scoring_list = ("f1_macro", "f1_weighted", "accuracy") if not is_ml else \
+                   ("f1_macro", "f1_samples", "f1_micro")
     res = {
         "dataset": ds.name, "feature": feat_name,
         "n_samples": len(ds), "n_labels": ds.n_labels,
         "train_time_s": round(train_time, 2),
     }
-    for metric, vals in fold_scores.items():
-        res[metric] = round(np.mean(vals), 4)
-        res[f"{metric}_std"] = round(np.std(vals), 4)
+    for metric in scoring_list:
+        vals = [fr[metric] for fr in fold_results if fr.get(metric) is not None]
+        if vals:
+            res[metric] = round(np.mean(vals), 4)
+            res[f"{metric}_std"] = round(np.std(vals), 4)
     return res
     for metric in scoring:
         if isinstance(metric, str):

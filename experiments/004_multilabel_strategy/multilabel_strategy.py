@@ -19,6 +19,8 @@ def run_strategy(ds, strategy, cv=3):
     from sklearn.multiclass import OneVsRestClassifier
     from sklearn.model_selection import KFold
     from sklearn.metrics import f1_score
+    from joblib import Parallel, delayed
+    from tqdm import tqdm
     import copy
 
     feat_cls = get_feature(FEATURE)
@@ -26,19 +28,23 @@ def run_strategy(ds, strategy, cv=3):
     y = ds.labels().toarray() if hasattr(ds.labels(), "toarray") else ds.labels()
     base = get_model(MODEL)()
     t0 = time.time()
-    fold_scores = []
-    for tr_idx, te_idx in tqdm(KFold(cv, shuffle=True, random_state=42).split(X),
-                                desc=f"  {strategy}", unit="fold", leave=False, total=cv):
-        if strategy == "br":
-            clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1)
-        elif strategy == "cc":
+
+    splits = list(KFold(cv, shuffle=True, random_state=42).split(X))
+
+    def _fold(tr_idx, te_idx):
+        if strategy == "cc":
             from sklearn.multioutput import ClassifierChain
             clf = ClassifierChain(copy.deepcopy(base), order="random", random_state=42, cv=3)
-        elif strategy == "lp":
+        else:
             clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1)
         clf.fit(X[tr_idx], y[tr_idx])
         y_pred = clf.predict(X[te_idx])
-        fold_scores.append(f1_score(y[te_idx], y_pred, average="macro", zero_division=0))
+        return f1_score(y[te_idx], y_pred, average="macro", zero_division=0)
+
+    fold_scores = Parallel(n_jobs=-1)(
+        delayed(_fold)(tr, te)
+        for tr, te in tqdm(splits, desc=f"  {strategy}", unit="fold", leave=False, total=cv)
+    )
     return {"dataset": ds.name, "feature": FEATURE, "model": MODEL,
             "strategy": strategy, "f1_macro": round(np.mean(fold_scores), 4),
             "f1_macro_std": round(np.std(fold_scores), 4),
