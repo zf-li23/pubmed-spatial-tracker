@@ -105,7 +105,7 @@ Return a JSON object with the 8 fields as specified in the system prompt."""
 
 def call_deepseek(
     title, abstract, mesh_terms, keywords,
-    api_key="sk-27482f0eceb3438dbc475ffafda3ddf7",
+    api_key,
     model="deepseek-v4-flash",
     base_url="https://api.deepseek.com",
     timeout=120,
@@ -173,7 +173,7 @@ def call_deepseek(
 
 def annotate_batch(
     articles,
-    api_key="sk-27482f0eceb3438dbc475ffafda3ddf7",
+    api_key,
     model="deepseek-v4-flash",
     base_url="https://api.deepseek.com",
     batch_size=10,
