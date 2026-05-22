@@ -1,0 +1,23 @@
+{
+  "total": 9148,
+  "category_distribution": {
+    "Research": 5333,
+    "Technology": 1785,
+    "Review": 1308,
+    "Protocol": 551,
+    "Data Resource": 91,
+    "Benchmark": 79
+  },
+  "top_tags": {
+    "Niche & Microenvironment": 2987,
+    "Cell-Cell Communication": 2137,
+    "Spatial Domain Identification": 1766,
+    "Cell-Type Deconvolution": 1362,
+    "Image-Based Analysis": 1320,
+    "Spatial Integration": 1283,
+    "Multi-Omics Integration": 1233,
+    "Spatially Variable Genes": 762,
+    "Spatial Trajectory Inference": 456,
+    "Spatial Preprocessing": 455
+  }
+}
