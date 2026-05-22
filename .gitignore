@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
+
+# Frontend generated (built in CI)
+frontend/public/data/articles.json
+frontend/dist/
 dist/
 build/
 
