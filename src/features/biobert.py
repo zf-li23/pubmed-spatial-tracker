@@ -9,11 +9,11 @@ from ..config import BIOBERT_MODEL
 
 
 class BioBERTExtractor:
-    def __init__(self, model_name=BIOBERT_MODEL, device=None, batch_size=32):
+    def __init__(self, model_name=BIOBERT_MODEL, device=None, batch_size=64):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.batch_size = batch_size
-        self.tokenizer = BertTokenizer.from_pretrained(model_name)
-        self.model = BertModel.from_pretrained(model_name).to(self.device)
+        self.tokenizer = BertTokenizer.from_pretrained(model_name, local_files_only=True)
+        self.model = BertModel.from_pretrained(model_name, local_files_only=True).to(self.device)
         self.model.eval()
 
     def _embed(self, texts):

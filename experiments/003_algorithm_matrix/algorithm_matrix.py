@@ -9,8 +9,8 @@ from tqdm import tqdm
 from _common import load_dataset, get_model, save_results, run_cv
 
 OUT = HERE / "results"
-DATASETS = {"ohsumed": {"min_df": 10, "max_samples": 5000},
-            "pml": {}, "pgb": {"max_samples": 5000, "build_graph": False}}
+DATASETS = {"ohsumed": {"min_df": 50, "max_samples": 2000},
+            "pml": {}, "pgb": {"max_samples": 2000, "build_graph": False}}
 FEATURES = ["tfidf", "biobert"]
 MODELS = ["nb", "knn", "svm", "lr", "rf", "ada", "xgb"]
 BIOBERT_ONLY = {"pml": {}}

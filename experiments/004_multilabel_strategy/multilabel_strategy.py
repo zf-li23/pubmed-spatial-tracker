@@ -10,7 +10,7 @@ import numpy as np
 from _common import load_dataset, get_model, get_feature, save_results
 
 OUT = HERE / "results"
-DATASETS = {"ohsumed": {"min_df": 10, "max_samples": 10000}, "pml": {}}
+DATASETS = {"ohsumed": {"min_df": 100, "max_samples": 10000}, "pml": {}}
 FEATURE = "tfidf"
 MODEL = "lr"
 

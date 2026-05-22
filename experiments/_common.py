@@ -56,12 +56,14 @@ def get_feature(name):
 
 
 def save_results(rows, path):
-    """Write list-of-dicts to CSV."""
     path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
         return
+    all_keys = set()
+    for r in rows:
+        all_keys.update(r.keys())
     with open(path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        w = csv.DictWriter(f, fieldnames=sorted(all_keys))
         w.writeheader()
         w.writerows(rows)
     print(f"  -> saved {len(rows)} rows to {path}")
