@@ -27,3 +27,21 @@ NNN_experiment_name/
 | 编号 | 名称 | 目的 | 状态 |
 |---|---|---|---|
 | 001 | query_analysis | PubMed 检索式设计 & 各字段对比 | ✅ 完成 |
+| 002 | feature_compare | TF-IDF / BioBERT / LDA / Meta × 3 数据集（固定 LR） | 🔄 待运行 |
+| 003 | algorithm_matrix | 7 模型 × TF-IDF / BioBERT / LDA × 3 数据集 | 🔄 待运行 |
+| 004 | multilabel_strategy | BR / CC / LP 多标签策略对比 | 🔄 待运行 |
+| 005 | graph_deep | Node2Vec + BioBERT-MLP（规划中） | ⬜ 规划中 |
+
+## 特征表示注册表
+
+| Key | 类 | 维度 | 适用数据集 |
+|---|---|---|---|
+| `tfidf` | TFIDFExtractor | 5,000 | 全部 4 个 |
+| `biobert` | BioBERTExtractor | 768 | 全部 4 个 |
+| `lda` | LDAExtractor | 15 | ohsumed, pml, st |
+| `meta` | MetaExtractor | 3–5 | 全部 4 个 |
+| `node2vec` | Node2VecExtractor | 128 | pgb only |
+
+## 缓存
+
+`_cache/` 存放预计算的特征矩阵（`.npz`）。同一 `(dataset, feature)` 组合只提取一次，跨实验复用。

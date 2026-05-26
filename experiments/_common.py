@@ -31,12 +31,14 @@ def load_dataset(name, **kwargs):
     from src.datasets.ohsumed import OHSUMEDLoader
     from src.datasets.pubmed_multilabel import PMLLoader
     from src.datasets.pgb import PGBLoader
+    from src.datasets.spatial_tracker import STLoader
     from src.config import OHSUMED_PATH, PML_PATH, PGB_DIR
 
     registry = {
         "ohsumed": lambda: OHSUMEDLoader(str(OHSUMED_PATH), **kwargs),
         "pml":     lambda: PMLLoader(str(PML_PATH), **kwargs),
         "pgb":     lambda: PGBLoader(str(PGB_DIR), **kwargs),
+        "st":      lambda: STLoader(**kwargs),
     }
     return registry[name]()
 
@@ -51,12 +53,21 @@ def get_model(name):
 
 
 def get_feature(name):
+    """Return feature extractor class by short name."""
     from src.features.tfidf import TFIDFExtractor
     from src.features.biobert import BioBERTExtractor
     from src.features.lda_features import LDAExtractor
-    registry = {"tfidf": TFIDFExtractor, "biobert": BioBERTExtractor, "lda": LDAExtractor}
+    from src.features.metadata import MetaExtractor
+    from src.features.node2vec import Node2VecExtractor
+    registry = {
+        "tfidf":   TFIDFExtractor,
+        "biobert": BioBERTExtractor,
+        "lda":     LDAExtractor,
+        "meta":    MetaExtractor,
+        "node2vec": Node2VecExtractor,
+    }
     if name not in registry:
-        raise ValueError(f"Unknown feature: {name}")
+        raise ValueError(f"Unknown feature: {name}, options: {list(registry)}")
     return registry[name]
 
 
@@ -76,6 +87,10 @@ def get_cached_features(ds, feat_name, ds_kwargs=None):
 
     On first call:  compute features, save to _cache/.
     On later calls: load from _cache/ (instant).
+
+    Special cases:
+      - 'meta':     MetaExtractor needs dataset.metadata()
+      - 'node2vec': Node2Vec needs PGB citation graph (build_graph=True)
     """
     if ds_kwargs is None:
         ds_kwargs = {}
@@ -96,8 +111,20 @@ def get_cached_features(ds, feat_name, ds_kwargs=None):
 
     print(f"  [cache MISS] {key}  → computing features...")
     t0 = time.time()
-    feat_cls = get_feature(feat_name)
-    X = feat_cls().fit_transform(ds.texts())
+
+    if feat_name == "meta":
+        from src.features.metadata import MetaExtractor
+        X = MetaExtractor(dataset=ds).fit_transform()
+    elif feat_name == "node2vec":
+        from src.features.node2vec import Node2VecExtractor
+        graph = ds.get_graph() if hasattr(ds, "get_graph") else None
+        if graph is None:
+            raise ValueError("node2vec requires PGB dataset with build_graph=True")
+        X = Node2VecExtractor().fit_transform(graph=graph, n_nodes=len(ds))
+    else:
+        feat_cls = get_feature(feat_name)
+        X = feat_cls().fit_transform(ds.texts())
+
     y = ds.labels()
     if hasattr(y, "toarray"):
         y = y.toarray()

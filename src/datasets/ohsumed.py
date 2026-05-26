@@ -77,8 +77,13 @@ class OHSUMEDLoader(BiomedDataset):
         return self._pmids
 
     def metadata(self):
-        yr = np.array(self._years).reshape(-1, 1)
-        return (yr - yr.mean()) / (yr.std() + 1e-8)
+        """Meta features: [year_norm, text_length_norm, has_abstract]."""
+        yr = np.array(self._years, dtype=np.float64).reshape(-1, 1)
+        yr = (yr - yr.mean()) / (yr.std() + 1e-8)
+        txt_len = np.array([len(t) for t in self.texts()], dtype=np.float64).reshape(-1, 1)
+        txt_len = (txt_len - txt_len.mean()) / (txt_len.std() + 1e-8)
+        has_abs = np.array([float(len(a) > 20) for a in self._abstracts], dtype=np.float64).reshape(-1, 1)
+        return np.hstack([yr, txt_len, has_abs])
 
     @property
     def n_labels(self):

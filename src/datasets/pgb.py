@@ -89,9 +89,14 @@ class PGBLoader(BiomedDataset):
         return self._pmids
 
     def metadata(self):
-        yr = np.array(self._years).reshape(-1, 1)
+        """Meta features: [year_norm, num_mesh_norm, text_len_norm]."""
+        yr = np.array(self._years, dtype=np.float64).reshape(-1, 1)
         yr = (yr - yr.mean()) / (yr.std() + 1e-8)
-        return yr
+        n_mesh = np.array([len(m) for m in self._mesh_terms], dtype=np.float64).reshape(-1, 1)
+        n_mesh = (n_mesh - n_mesh.mean()) / (n_mesh.std() + 1e-8)
+        txt_len = np.array([len(t) for t in self.texts()], dtype=np.float64).reshape(-1, 1)
+        txt_len = (txt_len - txt_len.mean()) / (txt_len.std() + 1e-8)
+        return np.hstack([yr, n_mesh, txt_len])
 
     @property
     def n_labels(self):
