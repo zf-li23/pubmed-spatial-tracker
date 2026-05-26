@@ -7,6 +7,9 @@ __pycache__/
 # Frontend generated (built in CI)
 frontend/public/data/articles.json
 frontend/dist/
+
+# Experiment cache
+experiments/_cache/
 dist/
 build/
 

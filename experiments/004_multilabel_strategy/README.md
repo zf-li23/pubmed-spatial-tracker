@@ -1,8 +1,37 @@
-# 004: 多标签策略对比 — BR / CC / LP
+# E1.3 — Multi-label Strategy
 
-## 目的
+**目标**: 对比 Binary Relevance (BR)、Classifier Chain (CC)、Label Powerset (LP) 三种多标签策略在不同标签空间大小下的扩展能力。
 
-比较三种多标签转换策略在多标签文献分类上的效果。
+## 实验矩阵
+
+| 数据集 | 样本 | 标签数 | 策略 |
+|---|---|---|---|
+| OHSUMED | 10,000 | ~1,650 | BR, CC, LP |
+| PML | 10,000 | 16 | BR, CC, LP |
+
+- 特征: TF-IDF（固定）
+- 模型: Logistic Regression（固定）
+- CV: 5 折
+- 总计: **2 × 3 = 6 组**
+
+## 运行
+
+```bash
+# 本地
+conda activate zf-li23
+cd experiments/004_multilabel_strategy
+python -u multilabel_strategy.py
+
+# 集群
+sbatch run_exp.slurm
+```
+
+## 预期结果
+
+- 输出: `results/multilabel_strategy.csv`
+- 小标签空间（PML, 16 labels）: BR ≈ LP > CC
+- 大标签空间（OHSUMED, ~1.6K labels）: 所有策略表现均较低，CC 极慢
+- 与 E1.1/E1.2 共享 TF-IDF 缓存
 
 ## 方法
 
@@ -19,13 +48,14 @@
 | Dataset | BR | CC | LP |
 |---------|----|----|----|
 | OHSUMED (1,650 标签) | 0.0062 | 0.0077 | 0.0062 |
-| PML (16 标签) | **0.5580** | ❌ | **0.5580** |
+| PML (16 标签) | **0.5580** | ❌ 超时 | **0.5580** |
 
-### 分析
+### 结论
 
-- **OHSUMED** 上所有策略表现接近随机（F1 ≈ 0.006），原因是标签空间过大（1,650 标签）且标签稀疏——这是多标签分类的极端困难场景
-- **PML** 上 BR 和 LP 完全一致（0.5580），说明在 16 标签的粗粒度分类中，标签组合的幂集没有额外收益
-- **CC** 在 PML 上失败（超时/内存），说明链式依赖在大标签空间下计算开销过大
+1. **标签空间大小决定一切**——OHSUMED 上 1,650 标签太稀疏，三种策略均接近随机。
+2. **PML 上 BR = LP**——16 标签时结果完全一致（0.5580），LP 的幂集编码无额外收益。
+3. **CC 不稳定**——PML 上超时失败，链式依赖计算量过大。
+4. **实践中优先用 BR**，简单可靠。标签空间 > 100 时需先降维。
 
 ## 如何复现
 

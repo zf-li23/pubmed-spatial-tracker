@@ -1,0 +1,9 @@
+accuracy,accuracy_std,dataset,f1_macro,f1_macro_std,f1_samples,f1_samples_std,f1_weighted,f1_weighted_std,feature,n_labels,n_samples,train_time_s
+,,ohsumed,0.0958,0.002,0.5257,0.005,,,tfidf,45,3000,2.65
+,,ohsumed,0.3135,0.0108,0.6037,0.0045,,,biobert,45,3000,321.64
+,,ohsumed,0.0832,0.0003,0.4855,0.0049,,,lda,45,3000,1.89
+,,pubmed_multilabel,0.558,0.0046,0.8086,0.0011,,,tfidf,16,10000,2.36
+,,pubmed_multilabel,0.6665,0.0068,0.8343,0.0005,,,biobert,16,10000,249.82
+,,pubmed_multilabel,0.5264,0.0018,0.7825,0.0018,,,lda,16,10000,1.83
+0.9942,0.0006,pgb,0.3324,0.0001,,,0.9913,0.0008,tfidf,3,5000,1.11
+0.9942,0.0006,pgb,0.3324,0.0001,,,0.9914,0.0009,biobert,3,5000,5.48

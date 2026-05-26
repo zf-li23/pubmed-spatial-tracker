@@ -1,6 +1,6 @@
 # PLAN.md — PubMed Spatial Tracker 彻底重构计划
 
-> 创建: 2026-05-20 | 最后更新: 2026-05-21
+> 创建: 2026-05-20 | 最后更新: 2026-05-25
 >
 > 基于以下材料的综合分析：
 > - OHSUMED（TREC-9 Filtering Track 基准，~294K 篇，14,466 个 MeSH 标签）
@@ -15,12 +15,14 @@
 
 | 阶段 | 状态 | 完成内容 |
 |---|---|---|
-| 0️⃣ **Phase 0: 数据基础设施** | ✅ **已完成** | 全部 4 数据集加载器、4 种文本表示、7 种经典模型、评估框架、实验流水线 |
-| 🔬 **Exp 001: PubMed 查询分析** | ✅ **已完成** | 比较 7 种查询变体（MeSH vs 文本词），选定最终检索式（9,148 篇） |
-| 📡 **PubMed 数据抓取** | ✅ **已完成** | `src/search/pubmed_search.py`（Entrez + Biopython，批量/增量/重试），`data/spatial_tracker/articles.csv` |
+| 0️⃣ **Phase 0: 数据基础设施** | ✅ **已完成** | 全部 4 数据集加载器、4 种文本表示、7+ 种模型、评估框架、实验流水线 |
+| 🔬 **Exp 001: PubMed 查询分析** | ✅ **已完成** | 7 种查询变体比较，选定最终检索式（9,148 篇） |
+| 📡 **PubMed 数据抓取** | ✅ **已完成** | 稳健抓取脚本，`data/spatial_tracker/articles.csv`（9,148 篇） |
 | 🏷️ **Step 2a: LLM 标签体系设计** | ✅ **已完成** | 6 类别 × 15 分析标签 × 19 技术 × 17 生物领域 |
-| 🏷️ **Step 2b: LLM 批量标注** | 🔄 **进行中** | 已标注 3,990/9,148 篇（43.6%），支持断点续跑 |
-| 🧪 **Step 1: 跨数据集算法筛选** | ⬜ **未开始** | 约 100 组实验 |
+| 🏷️ **Step 2b: LLM 批量标注** | ✅ **已完成** | 9,148 篇全部标注完成（DeepSeek-v4-flash），含置信度评分 |
+| 🧪 **Step 1a: 特征对比 (E1.1)** | ✅ **已完成** | BioBERT >> TF-IDF > LDA；OHSUMED 上 BioBERT 提升 3.3× |
+| 🧪 **Step 1b: 多标签策略 (E1.3)** | ✅ **已完成** | BR = LP > CC；标签空间大时 (~1.6K) 所有策略失效 |
+| 🧪 **Step 1c: 算法全矩阵 (E1.2)** | 🔄 **运行中** | 12h 作业在集群运行，7 模型 × TF-IDF/BioBERT × 3 数据集 |
 | 🔀 **Step 3: 迁移微调探索** | ⬜ **未开始** | 3 种算法的微调实验 |
 
 ---
@@ -232,7 +234,7 @@ AND hasabstract[text] AND english[Language] AND 2016:2026[dp]
 | `has_new_data` / `has_code` / `is_preprint` | bool | — |
 | `confidence` | 3 级 | high / medium / low |
 
-### LLM 批量标注（进行中）
+### LLM 批量标注（2026-05-22 完成）
 
 `src/annotate/batch_annotate.py`：
 - 调用 DeepSeek API（`deepseek-v4-flash`，`https://api.deepseek.com`）
@@ -240,42 +242,43 @@ AND hasabstract[text] AND english[Language] AND 2016:2026[dp]
 - JSON 输出解析与验证
 - **自动断点续跑**：检测已有输出文件，跳过已标注 PMID
 - 增量保存（每 10 篇），支持暂停/恢复
-- 当前进度：**3,990 / 9,148 篇**（43.6%）
+- 全部 **9,148 篇**标注完成
 
 标注分布：
 ```
-Research: 2,553  |  Technology: 665  |  Review: 624
-Protocol: 76     |  Data Resource: 43 |  Benchmark: 28
-Top tags: Niche & Microenvironment (1,682), Cell-Cell Communication (1,226),
-           Spatial Domain Identification (872), Multi-Omics Integration (782)
-has_new_data: 2,210 | has_code: 481 | is_preprint: 1
+Research: 5,333  |  Technology: 1,785  |  Review: 1,308
+Protocol: 551    |  Data Resource: 91  |  Benchmark: 79
+Confidence: high=4,307  medium=4,439  low=401
+Top tags: Niche & Microenvironment (2,987), Cell-Cell Communication (2,137),
+           Spatial Domain Identification (1,766)
+has_new_data: 5,236 | has_code: 1,127 | is_preprint: 2
 ```
 
----
+### Step 1 实验（2026-05-25 进行中）
 
-## 待完成工作
+**E1.1 特征对比**（已完成）:
+固定 Logistic Regression，比较 TF-IDF / BioBERT / LDA。
 
-### Step 1: 跨数据集算法筛选（核心实验，预计 2-3 周）
+| Dataset | TF-IDF | LDA | **BioBERT** |
+|---------|--------|-----|-------------|
+| OHSUMED (3K, 45 lbl) | 0.0958 | 0.0832 | **0.3135** |
+| PML (10K, 16 lbl) | 0.5580 | 0.5264 | **0.6665** |
+| PGB (5K, 3 cls) | 0.3324 | — | 0.3324 |
 
-**实验矩阵**（约 100 组）：
+**初步结论**：BioBERT >> TF-IDF > LDA。BioBERT 在稀疏标签数据集上提升 3.3×。
 
-```
-OHSUMED (1) × TF-IDF/BioBERT/LDA/Meta (4) × 8种算法 = 32
-PubMed-ML (1) × TF-IDF/BioBERT/LDA/Meta (4) × 8种算法 = 32
-PGB (1) × TF-IDF/BioBERT/node2vec/GCN/GraphSAGE (5) × 10种方法 = ~40
-                                              ─────
-                                    约 100 组实验
-```
+**E1.2 算法全矩阵**（集群运行中，12h 作业）：
+固定 TF-IDF 特征，比较 NB/k-NN/SVM/LR/RF/AdaBoost/XGBoost 在三个全标注数据集上的表现。
 
-每组实验用 5 折交叉验证，报告均值和标准差。
+**E1.3 多标签策略**（已完成）：
+比较 BR / CC / LP 三种多标签转换策略。
 
-**子实验设计**：
+| Dataset | BR | CC | LP |
+|---------|----|----|----|
+| OHSUMED (10K, 1,650 lbl) | 0.0062 | 0.0077 | 0.0062 |
+| PML (10K, 16 lbl) | **0.5580** | ❌ | **0.5580** |
 
-| 编号 | 名称 | 目的 |
-|---|---|---|
-| E1.1 | **特征对比** | 最优文本表示（固定 SVM，4 种表示对比） |
-| E1.2 | **算法全矩阵** | 固定 BioBERT 嵌入，10 种算法排序 |
-| E1.3 | **多标签策略** | BR/CC/LP 转换策略对比 |
+**初步结论**：BR = LP > CC。标签空间 > 100 时所有策略失效。
 | E1.4 | **图方法**（PGB 特有） | node2vec/GCN/GraphSAGE vs 纯文本方法 |
 | E1.5 | **MeSH 层级消融**（PGB 特有） | 有/无 MeSH tree number 的 GCN 差异 |
 | E1.6 | **跨数据迁移** | 一个数据集训练 → 另一个测试 |
