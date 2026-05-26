@@ -26,6 +26,11 @@ sbatch run_exp.slurm
 
 ## Notes
 
-This is the only model that fine-tunes BioBERT end-to-end
-(instead of using frozen embeddings).  Compare with 001's
-`biobert`+LR row to quantify the benefit of fine-tuning.
+- This is the only model that fine-tunes BioBERT end-to-end
+  (instead of using frozen embeddings).  Compare with 001's
+  `biobert`+LR row to quantify the benefit of fine-tuning.
+- Cluster fix (2026-05-26): Added `local_files_only=True` to
+  `AutoModel.from_pretrained()` and `AutoTokenizer.from_pretrained()`
+  in `src/models/deep.py` so BioBERT loads from HuggingFace cache
+  without network access.
+- `sentencepiece` is **not** required — BioBERT uses WordPiece tokenizer.

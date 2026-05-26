@@ -19,7 +19,7 @@ sys.path.insert(0, str(HERE.parent.parent))
 
 import numpy as np
 from tqdm import tqdm
-from _common import load_dataset, get_model, save_results, get_cached_features
+from _common import load_dataset, save_results, get_cached_features
 
 OUT = HERE / "results"
 
@@ -36,36 +36,56 @@ STRATEGIES = ["br", "cc", "lp"]
 
 def run_strategy(ds, ds_kwargs, strategy, cv=CV):
     """Run one multi-label strategy using cached TF-IDF features."""
-    from sklearn.multiclass import OneVsRestClassifier
-    from sklearn.multioutput import ClassifierChain
     from sklearn.model_selection import KFold
     from sklearn.metrics import f1_score
     from joblib import Parallel, delayed
-    import copy
 
     X, y = get_cached_features(ds, FEATURE, ds_kwargs)
     if hasattr(y, "toarray"):
         y = y.toarray()
 
-    base = get_model(MODEL)()
     t0 = time.time()
     splits = list(KFold(cv, shuffle=True, random_state=42).split(X))
 
     def _fold(tr_idx, te_idx):
-        if strategy == "cc":
-            clf = ClassifierChain(copy.deepcopy(base), order="random",
-                                  random_state=42)
-        elif strategy == "lp":
-            clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1)
-        else:  # br
-            clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1)
+        from sklearn.linear_model import LogisticRegression
+        fresh_lr = LogisticRegression(max_iter=1000, random_state=42)
 
-        clf.fit(X[tr_idx], y[tr_idx])
+        # PML has a constant label column (V: 0% positive) that breaks
+        # ClassifierChain.  Drop any column that is constant in the
+        # training fold to avoid "only one class" error.
+        y_tr = y[tr_idx]
+        y_te = y[te_idx]
+        # Drop constant label columns (e.g. PML column V is all-zero)
+        # to avoid "only one class" error in ClassifierChain.
+        valid = y_tr.max(axis=0) - y_tr.min(axis=0) > 0
+        if not valid.all():
+            y_tr = y_tr[:, valid]
+            # y_te stays as-is (full label space); y_pred will be
+            # restored below before scoring.
+
+        if strategy == "cc":
+            from sklearn.multioutput import ClassifierChain
+            clf = ClassifierChain(fresh_lr, order="random", random_state=42)
+        elif strategy == "lp":
+            from sklearn.multiclass import OneVsRestClassifier
+            clf = OneVsRestClassifier(fresh_lr, n_jobs=-1)
+        else:  # br
+            from sklearn.multiclass import OneVsRestClassifier
+            clf = OneVsRestClassifier(fresh_lr, n_jobs=-1)
+
+        clf.fit(X[tr_idx], y_tr)
         y_pred = clf.predict(X[te_idx])
+        # Restore dropped columns as all-zero predictions
+        if not valid.all():
+            full = np.zeros((y_pred.shape[0], len(valid)), dtype=y_pred.dtype)
+            full[:, valid] = y_pred
+            y_pred = full
+
         return {
-            "f1_macro": f1_score(y[te_idx], y_pred, average="macro", zero_division=0),
-            "f1_micro": f1_score(y[te_idx], y_pred, average="micro", zero_division=0),
-            "f1_samples": f1_score(y[te_idx], y_pred, average="samples", zero_division=0),
+            "f1_macro": f1_score(y_te, y_pred, average="macro", zero_division=0),
+            "f1_micro": f1_score(y_te, y_pred, average="micro", zero_division=0),
+            "f1_samples": f1_score(y_te, y_pred, average="samples", zero_division=0),
         }
 
     fold_results = Parallel(n_jobs=-1)(

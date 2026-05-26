@@ -1,18 +1,22 @@
 """BioBERT + MLP fine-tuning wrapper."""
 
+import os
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from transformers import AutoTokenizer, AutoModel
+from tqdm import tqdm
+from transformers import BertTokenizer, BertModel
 from ..config import BIOBERT_MODEL
 
 
 class BioBERTMLP(nn.Module):
     def __init__(self, n_labels, hidden_dim=256):
         super().__init__()
-        self.bert = AutoModel.from_pretrained(BIOBERT_MODEL)
+        self.bert = BertModel.from_pretrained(BIOBERT_MODEL, local_files_only=True)
         self.classifier = nn.Sequential(
             nn.Linear(768, hidden_dim),
             nn.ReLU(),
@@ -33,7 +37,7 @@ class BioBERTFineTuner:
         self.epochs = epochs
         self.batch_size = batch_size
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.tokenizer = AutoTokenizer.from_pretrained(BIOBERT_MODEL)
+        self.tokenizer = BertTokenizer.from_pretrained(BIOBERT_MODEL, local_files_only=True)
         self.model = BioBERTMLP(n_labels).to(self.device)
         self.criterion = nn.BCEWithLogitsLoss()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=lr)
@@ -46,13 +50,16 @@ class BioBERTFineTuner:
         dl = DataLoader(ds, batch_size=self.batch_size, shuffle=True)
         self.model.train()
         for ep in range(self.epochs):
-            for ids, mask, lbl in dl:
+            pbar = tqdm(dl, desc=f"  epoch {ep+1}/{self.epochs}",
+                        unit="batch", leave=False)
+            for ids, mask, lbl in pbar:
                 ids, mask, lbl = ids.to(self.device), mask.to(self.device), lbl.to(self.device)
                 self.optimizer.zero_grad()
                 out = self.model(ids, mask)
                 loss = self.criterion(out, lbl)
                 loss.backward()
                 self.optimizer.step()
+                pbar.set_postfix(loss=loss.item())
         return self
 
     def predict(self, texts):

@@ -1,18 +1,13 @@
-"""005 — Graph Models: Node2Vec / GCN / GraphSAGE on PGB
+"""005 — Graph Models: Node2Vec×7 + GCN + GraphSAGE on PGB
 
-PGB is the only dataset with a citation graph.  This experiment tests
-three graph-aware approaches:
+PGB is the only dataset with a citation graph.  This experiment tests:
 
-  1. Node2Vec (src/features/node2vec.py) + LogisticRegression
+  1. Node2Vec embeddings + 7 classical models (NB/k-NN/SVM/LR/RF/Ada/XGB)
   2. GCN (2-layer Graph Convolutional Network)
   3. GraphSAGE (2-layer GraphSAGE with mean aggregator)
 
-All three use the same PGB citation graph (build_graph=True).
-
 Grid:
-    PGB (5K) × [Node2Vec+LR, GCN, GraphSAGE] = 3 runs
-
-Requires GPU for GCN/GraphSAGE (slurm --gres=gpu:1).
+    PGB (5K) × [Node2Vec×7, GCN, GraphSAGE] = 9 runs
 """
 from pathlib import Path
 import sys, time
@@ -22,7 +17,7 @@ sys.path.insert(0, str(HERE.parent.parent))
 
 import numpy as np
 from tqdm import tqdm
-from _common import load_dataset, save_results, get_cached_features
+from _common import load_dataset, save_results, get_cached_features, get_model
 
 OUT = HERE / "results"
 
@@ -33,15 +28,16 @@ HIDDEN_DIM = 64
 EPOCHS = 200
 LR = 0.01
 
+N2V_CLASSICAL_MODELS = ["nb", "knn", "svm", "lr", "rf", "ada", "xgb"]
+
 
 # ═══════════════════════════════════════════════════════════
-# 1. Node2Vec + LogisticRegression
+# 1. Node2Vec + 7 classical models
 # ═══════════════════════════════════════════════════════════
 
-def run_node2vec_lr(ds):
-    """Node2Vec embeddings + LR classifier."""
+def run_node2vec(ds, model_name):
+    """Node2Vec embeddings + a classical classifier."""
     from sklearn.model_selection import StratifiedKFold
-    from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import f1_score, accuracy_score
 
     X = get_cached_features(ds, "node2vec", DS_KWARGS)[0]
@@ -50,11 +46,12 @@ def run_node2vec_lr(ds):
         y = y.toarray()
     y = y.argmax(axis=1) if y.ndim > 1 else y
 
+    model_fn = get_model(model_name)
     splits = list(StratifiedKFold(CV, shuffle=True, random_state=42).split(X, y))
     t0 = time.time()
     fold_scores = []
-    for tr, te in tqdm(splits, desc="  node2vec+LR", unit="fold", leave=False):
-        clf = LogisticRegression(max_iter=1000)
+    for tr, te in tqdm(splits, desc=f"  {model_name}", unit="fold", leave=False):
+        clf = model_fn()
         clf.fit(X[tr], y[tr])
         y_pred = clf.predict(X[te])
         fold_scores.append({
@@ -63,7 +60,7 @@ def run_node2vec_lr(ds):
         })
 
     elapsed = time.time() - t0
-    res = {"dataset": ds.name, "feature": "node2vec", "model": "Node2Vec+LR",
+    res = {"dataset": ds.name, "feature": "node2vec", "model": f"Node2Vec+{model_name}",
            "n_samples": len(ds), "n_labels": ds.n_labels,
            "train_time_s": round(elapsed, 2)}
     for m in fold_scores[0]:
@@ -291,15 +288,16 @@ if __name__ == "__main__":
 
     rows = []
 
-    # 1. Node2Vec + LR
-    print("\n--- Node2Vec + LR ---")
-    try:
-        r = run_node2vec_lr(ds)
-        rows.append(r)
-        print(f"  f1_macro={r['f1_macro']:.4f}  accuracy={r['accuracy']:.4f}")
-    except Exception as e:
-        print(f"  ERROR: {e}")
-        import traceback; traceback.print_exc()
+    # 1. Node2Vec + 7 classical models
+    for mdl in N2V_CLASSICAL_MODELS:
+        print(f"\n--- Node2Vec + {mdl} ---")
+        try:
+            r = run_node2vec(ds, mdl)
+            rows.append(r)
+            print(f"  f1_macro={r['f1_macro']:.4f}  accuracy={r['accuracy']:.4f}")
+        except Exception as e:
+            print(f"  ERROR: {e}")
+            import traceback; traceback.print_exc()
 
     # 2. GCN
     print("\n--- GCN ---")
@@ -322,4 +320,4 @@ if __name__ == "__main__":
         import traceback; traceback.print_exc()
 
     save_results(rows, OUT / "graph_models.csv")
-    print(f"\n✅ 005 done — {len(rows)} results")
+    print(f"\n✅ 005 done — {len(rows)} results (7 Node2Vec + 1 GCN + 1 GraphSAGE)")

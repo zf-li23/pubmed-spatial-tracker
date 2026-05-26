@@ -3,7 +3,7 @@
 #SBATCH --output=slurm_%j.log
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=04:00:00
+#SBATCH --time=48:00:00
 
 source $HOME/miniconda3/etc/profile.d/conda.sh
 conda activate pubmed-tracker

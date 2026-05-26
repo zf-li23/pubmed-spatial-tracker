@@ -85,6 +85,24 @@ if __name__ == "__main__":
     rows = []
     pbar = tqdm(total=total, desc="001", unit="run")
 
+    # ── Resume support: load existing results, skip completed combos ──
+    results_path = OUT / "classical_matrix.csv"
+    completed = set()
+    if results_path.exists():
+        import csv
+        with open(results_path) as f:
+            for row in csv.DictReader(f):
+                completed.add((row["dataset"], row["feature"], row["model"]))
+        leftover = total - len(completed)
+        if leftover > 0:
+            print(f"  ⏩  found {len(completed)} completed, {leftover} remaining")
+        elif leftover == 0:
+            print(f"  ✅  all {total} combos already completed!")
+            pbar.update(total)
+            pbar.close()
+            exit(0)
+    # ──────────────────────────────────────────────────────────────────
+
     for ds_name in ds_list:
         ds_kw = DATASETS[ds_name]
         ds = load_dataset(ds_name, **ds_kw)
@@ -97,6 +115,12 @@ if __name__ == "__main__":
             for m in md_list:
                 label = f"001 {ds_name}/{feat}/{m}"
                 pbar.set_description(label[:40])
+
+                # Skip already-completed combos
+                if (ds_name, feat, model_label(m)) in completed:
+                    pbar.update(1)
+                    continue
+
                 try:
                     r = run_cv(ds, feat, get_model(m), cv=args.cv, ds_kwargs=ds_kw)
                     r["model"] = model_label(m)
@@ -105,8 +129,12 @@ if __name__ == "__main__":
                           f"time={r['train_time_s']:.1f}s")
                 except Exception as e:
                     print(f"  {m:5s}  ERROR: {e}")
+                    import traceback; traceback.print_exc()
+
+                # Incremental save: every 5 combos or on error
+                save_results(rows, results_path)
                 pbar.update(1)
 
     pbar.close()
-    save_results(rows, OUT / "classical_matrix.csv")
-    print(f"\n✅ 001 done — {len(rows)} results")
+    saved = len(completed) + len(rows)
+    print(f"\n✅ 001 done — {saved} / {total} combos saved to {results_path}")

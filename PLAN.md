@@ -1,6 +1,6 @@
 # PLAN.md — PubMed Spatial Tracker 彻底重构计划
 
-> 创建: 2026-05-20 | 最后更新: 2026-05-25
+> 创建: 2026-05-20 | 最后更新: 2026-05-26
 >
 > 基于以下材料的综合分析：
 > - OHSUMED（TREC-9 Filtering Track 基准，~294K 篇，14,466 个 MeSH 标签）
@@ -20,15 +20,11 @@
 | 📡 **PubMed 数据抓取** | ✅ **已完成** | `data/spatial_tracker/articles.csv`（9,148 篇） |
 | 🏷️ **Step 2a: LLM 标签体系设计** | ✅ **已完成** | 6 类别 × 15 分析标签 × 19 技术 × 17 生物领域 |
 | 🏷️ **Step 2b: LLM 批量标注** | ✅ **已完成** | 9,148 篇全部标注完成（DeepSeek-v4-flash） |
-| 🧪 **Exp 001: 经典算法矩阵** | 🔄 **待运行** | 7 模型 × 4 特征 × 3 数据集 = 84 组 |
-| 🧪 **Exp 002: BioBERT+MLP 微调** | 🔄 **待运行** | 端到端微调 × 3 数据集 = 3 组 |
-| 🧪 **Exp 003: LDA+聚类** | 🔄 **待运行** | 无监督 × 3 数据集 = 3 组 |
-| 🧪 **Exp 004: 多标签策略** | 🔄 **待运行** | BR/CC/LP × 2 数据集 = 6 组 |
-| 🧪 **Exp 005: 图模型** | 🔄 **待运行** | Node2Vec/GCN/GraphSAGE × PGB = 3 组 |
-| 🔀 **Step 3: 迁移微调探索** | ⬜ **未开始** | 3 种算法的微调实验 |
-| 🧪 **Exp 001: 经典算法矩阵** | 🔄 **待运行** | 7 模型 × 4 特征 × 3 数据集 = 84 组 |
-| 🧪 **Exp 002: BioBERT+MLP 微调** | 🔄 **待运行** | 端到端微调 × 3 数据集 = 3 组 |
-| 🧪 **Exp 003: LDA+聚类** | 🔄 **待运行** | 无监督 × 3 数据集 = 3 组 |
+| 🧪 **Exp 001: 经典算法矩阵** | 🔄 **部分完成** | 84 组超时（仅 2/84 完成），需分片重跑 |
+| 🧪 **Exp 002: BioBERT+MLP 微调** | 🔄 **待运行** | 端到端微调 × 3 数据集 = 3 组，GPU 任务 |
+| 🧪 **Exp 003: LDA+聚类** | ✅ **已完成** | OHSUMED NMI=0.44, PML NMI=0.10, PGB NMI=0.005 |
+| 🧪 **Exp 004: 多标签策略** | ✅ **已完成** | BR=LP 在 PML 上 f1=0.5686（修复 CC 死锁后重跑中） |
+| 🧪 **Exp 005: 图模型** | 🔄 **待运行** | Node2Vec×7 + GCN + GraphSAGE = 9 组 |
 | 🔀 **Step 3: 迁移微调探索** | ⬜ **未开始** | 3 种算法的微调实验 |
 
 ---
@@ -199,7 +195,7 @@ MeSH 词             ✓          ✓                    ✓（含层级）  ✓
 
 **实验流水线**：`src/pipeline.py`——`run_experiment()`，带交叉验证和日志记录
 
-### 实验 001: PubMed 查询分析（2026-05-21 完成）
+### 实验 000: PubMed 查询分析（2026-05-21 完成）
 
 `experiments/001_query_analysis/` 比较了 7 种查询变体：
 
@@ -260,17 +256,17 @@ Top tags: Niche & Microenvironment (2,987), Cell-Cell Communication (2,137),
 has_new_data: 5,236 | has_code: 1,127 | is_preprint: 2
 ```
 
-### Step 1 实验（2026-05-26 重构，待运行）
+### Step 1 实验（2026-05-26 更新）
 
-| 实验 | 内容 | 组数 | 提交方式 |
+| 实验 | 内容 | 组数 | 状态 |
 |---|---|---|---|
-| 001 | 经典算法矩阵：7 模型 × 4 特征 × 3 数据集 | 84 | `sbatch experiments/001_classical_matrix/run_exp.slurm` |
-| 002 | BioBERT+MLP 端到端微调 × 3 数据集 | 3 | `sbatch experiments/002_biobert_mlp/run_exp.slurm` |
-| 003 | LDA+KMeans 无监督聚类 × 3 数据集 | 3 | `sbatch experiments/003_lda_cluster/run_exp.slurm` |
-| 004 | 多标签策略 BR/CC/LP × 2 数据集 | 6 | `sbatch experiments/004_multilabel_strategy/run_exp.slurm` |
-| 005 | 图模型 Node2Vec/GCN/GraphSAGE × PGB | 3 | `sbatch experiments/005_graph_models/run_exp.slurm` |
+| 001 | 经典算法矩阵：7 模型 × 4 特征 × 3 数据集 | 84 | 🔄 超时（4h），需分片重跑 |
+| 002 | BioBERT+MLP 端到端微调 × 3 数据集 | 3 | 🔄 GPU 任务就绪（`local_files_only` 已修复） |
+| 003 | LDA+KMeans 无监督聚类 × 3 数据集 | 3 | ✅ 已完成 |
+| 004 | 多标签策略 BR/CC/LP × 2 数据集 | 6 | ✅ 已完成（CC 死锁修复后重跑中） |
+| 005 | 图模型 Node2Vec×7 + GCN + GraphSAGE × PGB | 9 | 🔄 待运行 |
 
-**总计：99 组**。001 支持 `--datasets/--features/--models` 选择性运行。
+**总计：105 组**（原 99 组 + 005 扩展 6 组）。001 支持 `--datasets/--features/--models` 选择性运行。
 
 **预期产出**：
 1. 算法 × 数据集 × 特征热力图（001）
