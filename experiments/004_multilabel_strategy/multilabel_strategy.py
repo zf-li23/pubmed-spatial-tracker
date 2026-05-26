@@ -1,16 +1,15 @@
-"""E1.3 — Multi-label Strategy: BR / CC / LP（固定 TF-IDF + LR）
+"""004 — Multi-label Strategy: BR / CC / LP
 
-设计思路：
-  多标签分类有三种经典策略：Binary Relevance (BR)、Classifier Chain (CC)、Label Powerset (LP)。
-  对比三者在不同标签空间大小下的扩展能力。
+Compares Binary Relevance, Classifier Chain, and Label Powerset
+on multi-label biomedical datasets.  PGB is excluded because it is
+treated as 3-class single-label (argmax) in our pipeline.
 
-运行矩阵：
-  OHSUMED (10K, ~1.6K labels) × [BR, CC, LP] × TF-IDF × LR
-  PML     (10K, 16 labels)    × [BR, CC, LP] × TF-IDF × LR
+Grid:
+    OHSUMED (10K, ~1.6K labels) × [BR, CC, LP] × TF-IDF × LR
+    PML     (10K, 16 labels)    × [BR, CC, LP] × TF-IDF × LR
+    = 6 runs
 
-总计: 2 × 3 = 6 组（与 E1.1/E1.2 共享 TF-IDF 缓存）
-
-预计耗时: < 10 分钟（本地）
+Uses feature cache (shares TF-IDF with 001).
 """
 from pathlib import Path
 import sys, time
@@ -36,7 +35,7 @@ STRATEGIES = ["br", "cc", "lp"]
 
 
 def run_strategy(ds, ds_kwargs, strategy, cv=CV):
-    """Run one multi-label strategy using cached features."""
+    """Run one multi-label strategy using cached TF-IDF features."""
     from sklearn.multiclass import OneVsRestClassifier
     from sklearn.multioutput import ClassifierChain
     from sklearn.model_selection import KFold
@@ -56,8 +55,11 @@ def run_strategy(ds, ds_kwargs, strategy, cv=CV):
         if strategy == "cc":
             clf = ClassifierChain(copy.deepcopy(base), order="random",
                                   random_state=42)
-        else:
+        elif strategy == "lp":
             clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1)
+        else:  # br
+            clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1)
+
         clf.fit(X[tr_idx], y[tr_idx])
         y_pred = clf.predict(X[te_idx])
         return {
@@ -88,16 +90,16 @@ def run_strategy(ds, ds_kwargs, strategy, cv=CV):
 if __name__ == "__main__":
     rows = []
     total = len(DATASETS) * len(STRATEGIES)
-    pbar = tqdm(total=total, desc="E1.3", unit="run")
+    pbar = tqdm(total=total, desc="004", unit="run")
 
     for ds_name, ds_kw in DATASETS.items():
         ds = load_dataset(ds_name, **ds_kw)
         print(f"\n{'='*50}")
-        print(f"  Dataset: {ds_name}  |  {len(ds)} docs  |  {ds.n_labels} labels")
+        print(f"  {ds_name}: {len(ds)} docs, {ds.n_labels} labels")
         print(f"{'='*50}")
 
         for strat in STRATEGIES:
-            pbar.set_description(f"E1.3 {ds_name}/{strat}")
+            pbar.set_description(f"004 {ds_name}/{strat}")
             try:
                 r = run_strategy(ds, ds_kw, strat)
                 rows.append(r)
@@ -110,4 +112,4 @@ if __name__ == "__main__":
 
     pbar.close()
     save_results(rows, OUT / "multilabel_strategy.csv")
-    print(f"\n✅ E1.3 done — {len(rows)} results")
+    print(f"\n✅ 004 done — {len(rows)} results")

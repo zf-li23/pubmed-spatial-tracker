@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 001_query_analysis — 一键复现
+# 000_query_analysis — 一键复现
 set -e
 cd "$(dirname "$0")"
 mkdir -p results

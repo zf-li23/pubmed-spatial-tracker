@@ -15,14 +15,20 @@
 
 | 阶段 | 状态 | 完成内容 |
 |---|---|---|
-| 0️⃣ **Phase 0: 数据基础设施** | ✅ **已完成** | 全部 4 数据集加载器、4 种文本表示、7+ 种模型、评估框架、实验流水线 |
-| 🔬 **Exp 001: PubMed 查询分析** | ✅ **已完成** | 7 种查询变体比较，选定最终检索式（9,148 篇） |
-| 📡 **PubMed 数据抓取** | ✅ **已完成** | 稳健抓取脚本，`data/spatial_tracker/articles.csv`（9,148 篇） |
+| 0️⃣ **Phase 0: 数据基础设施** | ✅ **已完成** | 4 数据集加载器、5 种文本表示、Node2Vec、Meta 特征、评估框架 |
+| 🔬 **Exp 000: PubMed 查询分析** | ✅ **已完成** | 7 种查询变体比较，选定最终检索式（9,148 篇） |
+| 📡 **PubMed 数据抓取** | ✅ **已完成** | `data/spatial_tracker/articles.csv`（9,148 篇） |
 | 🏷️ **Step 2a: LLM 标签体系设计** | ✅ **已完成** | 6 类别 × 15 分析标签 × 19 技术 × 17 生物领域 |
-| 🏷️ **Step 2b: LLM 批量标注** | ✅ **已完成** | 9,148 篇全部标注完成（DeepSeek-v4-flash），含置信度评分 |
-| 🧪 **Step 1a: 特征对比 (E1.1)** | ✅ **已完成** | BioBERT >> TF-IDF > LDA；OHSUMED 上 BioBERT 提升 3.3× |
-| 🧪 **Step 1b: 多标签策略 (E1.3)** | ✅ **已完成** | BR = LP > CC；标签空间大时 (~1.6K) 所有策略失效 |
-| 🧪 **Step 1c: 算法全矩阵 (E1.2)** | 🔄 **运行中** | 12h 作业在集群运行，7 模型 × TF-IDF/BioBERT × 3 数据集 |
+| 🏷️ **Step 2b: LLM 批量标注** | ✅ **已完成** | 9,148 篇全部标注完成（DeepSeek-v4-flash） |
+| 🧪 **Exp 001: 经典算法矩阵** | 🔄 **待运行** | 7 模型 × 4 特征 × 3 数据集 = 84 组 |
+| 🧪 **Exp 002: BioBERT+MLP 微调** | 🔄 **待运行** | 端到端微调 × 3 数据集 = 3 组 |
+| 🧪 **Exp 003: LDA+聚类** | 🔄 **待运行** | 无监督 × 3 数据集 = 3 组 |
+| 🧪 **Exp 004: 多标签策略** | 🔄 **待运行** | BR/CC/LP × 2 数据集 = 6 组 |
+| 🧪 **Exp 005: 图模型** | 🔄 **待运行** | Node2Vec/GCN/GraphSAGE × PGB = 3 组 |
+| 🔀 **Step 3: 迁移微调探索** | ⬜ **未开始** | 3 种算法的微调实验 |
+| 🧪 **Exp 001: 经典算法矩阵** | 🔄 **待运行** | 7 模型 × 4 特征 × 3 数据集 = 84 组 |
+| 🧪 **Exp 002: BioBERT+MLP 微调** | 🔄 **待运行** | 端到端微调 × 3 数据集 = 3 组 |
+| 🧪 **Exp 003: LDA+聚类** | 🔄 **待运行** | 无监督 × 3 数据集 = 3 组 |
 | 🔀 **Step 3: 迁移微调探索** | ⬜ **未开始** | 3 种算法的微调实验 |
 
 ---
@@ -254,39 +260,24 @@ Top tags: Niche & Microenvironment (2,987), Cell-Cell Communication (2,137),
 has_new_data: 5,236 | has_code: 1,127 | is_preprint: 2
 ```
 
-### Step 1 实验（2026-05-25 进行中）
+### Step 1 实验（2026-05-26 重构，待运行）
 
-**E1.1 特征对比**（已完成）:
-固定 Logistic Regression，比较 TF-IDF / BioBERT / LDA。
+| 实验 | 内容 | 组数 | 提交方式 |
+|---|---|---|---|
+| 001 | 经典算法矩阵：7 模型 × 4 特征 × 3 数据集 | 84 | `sbatch experiments/001_classical_matrix/run_exp.slurm` |
+| 002 | BioBERT+MLP 端到端微调 × 3 数据集 | 3 | `sbatch experiments/002_biobert_mlp/run_exp.slurm` |
+| 003 | LDA+KMeans 无监督聚类 × 3 数据集 | 3 | `sbatch experiments/003_lda_cluster/run_exp.slurm` |
+| 004 | 多标签策略 BR/CC/LP × 2 数据集 | 6 | `sbatch experiments/004_multilabel_strategy/run_exp.slurm` |
+| 005 | 图模型 Node2Vec/GCN/GraphSAGE × PGB | 3 | `sbatch experiments/005_graph_models/run_exp.slurm` |
 
-| Dataset | TF-IDF | LDA | **BioBERT** |
-|---------|--------|-----|-------------|
-| OHSUMED (3K, 45 lbl) | 0.0958 | 0.0832 | **0.3135** |
-| PML (10K, 16 lbl) | 0.5580 | 0.5264 | **0.6665** |
-| PGB (5K, 3 cls) | 0.3324 | — | 0.3324 |
-
-**初步结论**：BioBERT >> TF-IDF > LDA。BioBERT 在稀疏标签数据集上提升 3.3×。
-
-**E1.2 算法全矩阵**（集群运行中，12h 作业）：
-固定 TF-IDF 特征，比较 NB/k-NN/SVM/LR/RF/AdaBoost/XGBoost 在三个全标注数据集上的表现。
-
-**E1.3 多标签策略**（已完成）：
-比较 BR / CC / LP 三种多标签转换策略。
-
-| Dataset | BR | CC | LP |
-|---------|----|----|----|
-| OHSUMED (10K, 1,650 lbl) | 0.0062 | 0.0077 | 0.0062 |
-| PML (10K, 16 lbl) | **0.5580** | ❌ | **0.5580** |
-
-**初步结论**：BR = LP > CC。标签空间 > 100 时所有策略失效。
-| E1.4 | **图方法**（PGB 特有） | node2vec/GCN/GraphSAGE vs 纯文本方法 |
-| E1.5 | **MeSH 层级消融**（PGB 特有） | 有/无 MeSH tree number 的 GCN 差异 |
-| E1.6 | **跨数据迁移** | 一个数据集训练 → 另一个测试 |
+**总计：99 组**。001 支持 `--datasets/--features/--models` 选择性运行。
 
 **预期产出**：
-1. 算法 × 数据集热力图
-2. 特征有效性排序（BioBERT vs TF-IDF vs LDA vs 图嵌入）
-3. 数据特性影响分析（标签空间大小、图结构、MeSH 层级）
+1. 算法 × 数据集 × 特征热力图（001）
+2. 端到端微调 vs 冻结嵌入的对比（002 vs 001-biobert+LR）
+3. 多标签策略在小/大标签空间下的扩展性（004）
+4. 图结构对分类的边际收益（005 vs 001-PGB）
+5. 无监督聚类的 NMI/ARI 基线（003）
 4. 每数据集推荐算法
 
 ### Step 2 续：标注完成后的分析
@@ -467,12 +458,13 @@ PGB (1) × TF-IDF/BioBERT/node2vec/GCN/GraphSAGE (5) × 3种图方法 + 7种文�
 
 | 实验编号 | 名称 | 目的 | 方法 |
 |---|---|---|---|
-| E1.1 | **特征对比** | 最优文本表示 | 固定 SVM，TF-IDF/BioBERT/LDA/组合 在 3 个全标注数据集上比较 |
-| E1.2 | **算法全矩阵** | 13 种算法排序 | 固定 BioBERT 嵌入，所有算法在 3 个全标注数据集上比较 Macro F1 与训练时间 |
-| E1.3 | **多标签策略** | 最优转换策略 | BR/CC/LP × 基分类器，对比 Jaccard 与 Hamming Loss |
-| E1.4 | **图方法**（PGB 特有） | 结构信息价值 | node2vec/GCN/GraphSAGE vs 纯文本方法，用/不用 MeSH 层级 |
-| E1.5 | **MeSH 层级消融**（PGB 特有） | 层级信息收益 | 有/无 MeSH tree number 的 GCN 性能差异 |
-| E1.6 | **跨数据迁移** | 泛化验证 | 在同一文本表示下，一个数据集训练 → 另一个数据集测试 |
+| 实验 | 目标 | 预期结论 | 方法 |
+|---|---|---|---|---|
+| 001 | **经典算法矩阵** | 算法×数据集×特征热力图 | 7 模型 × 4 特征 × 3 数据集，CV=5 |
+| 002 | **BioBERT+MLP 微调** | 端到端 vs 冻结嵌入 | BioBERT+MLP × 3 数据集，CV=3 |
+| 003 | **LDA+聚类** | 无监督基线 NMI/ARI | LDA+KMeans × 3 数据集 |
+| 004 | **多标签策略** | BR/CC/LP 扩展性 | TF-IDF+LR × 3 策略 × 2 数据集 |
+| 005 | **图模型**（PGB 特有） | 图结构边际收益 | Node2Vec/GCN/GraphSAGE × PGB |
 
 ### 2.3 预期产出
 

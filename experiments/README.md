@@ -16,32 +16,33 @@ NNN_experiment_name/
 
 ## 原则
 
-1. **可复现** — `bash run.sh` 即复现全部结果，无需手动操作
-2. **自包含** — 实验脚本可独立运行；若需要引用 `src/` 中的代码，通过 `sys.path` 或 `PYTHONPATH` 引入
-3. **不提交产物** — `results/` 中的输出文件应加入 `.gitignore`（但保留 `results/.gitkeep` 使目录结构入仓）
-4. **记录原始数据** — 关键中间结果（如检索 ID 列表、计数）保存为 CSV/JSON，供后续报告使用
-5. **迭代编号** — 新实验按顺序编号 `NNN_`，避免冲突
+1. **可复现** — `sbatch run_exp.slurm` 在集群提交即复现全部结果
+2. **自包含** — 实验脚本可独立运行；引用 `src/` 通过 `sys.path` 引入
+3. **缓存共享** — `_cache/` 存放预计算特征矩阵，跨实验复用
+4. **集群运行** — 所有实验用 Slurm 在集群执行，不本地跑
+5. **迭代编号** — 新实验按顺序编号，000 为前期探索，001+ 为 Step 1
 
 ## 实验清单
 
-| 编号 | 名称 | 目的 | 状态 |
-|---|---|---|---|
-| 001 | query_analysis | PubMed 检索式设计 & 各字段对比 | ✅ 完成 |
-| 002 | feature_compare | TF-IDF / BioBERT / LDA / Meta × 3 数据集（固定 LR） | 🔄 待运行 |
-| 003 | algorithm_matrix | 7 模型 × TF-IDF / BioBERT / LDA × 3 数据集 | 🔄 待运行 |
-| 004 | multilabel_strategy | BR / CC / LP 多标签策略对比 | 🔄 待运行 |
-| 005 | graph_deep | Node2Vec + BioBERT-MLP（规划中） | ⬜ 规划中 |
+| 编号 | 名称 | 目的 | 组数 | 状态 |
+|---|---|---|---|---|
+| 000 | query_analysis | PubMed 检索式设计 & 各字段对比 | 7 | ✅ 完成 |
+| 001 | classical_matrix | 7 模型 × 4 特征 × 3 数据集 | 84 | 🔄 待运行 |
+| 002 | biobert_mlp | BioBERT+MLP 端到端微调 | 3 | 🔄 待运行 |
+| 003 | lda_cluster | LDA+KMeans 无监督聚类 | 3 | 🔄 待运行 |
+| 004 | multilabel_strategy | BR / CC / LP 多标签策略 | 6 | 🔄 待运行 |
+| 005 | graph_models | Node2Vec / GCN / GraphSAGE (PGB) | 3 | 🔄 待运行 |
 
 ## 特征表示注册表
 
 | Key | 类 | 维度 | 适用数据集 |
 |---|---|---|---|
-| `tfidf` | TFIDFExtractor | 5,000 | 全部 4 个 |
-| `biobert` | BioBERTExtractor | 768 | 全部 4 个 |
+| `tfidf` | TFIDFExtractor | 5,000 | ohsumed, pml, pgb, st |
+| `biobert` | BioBERTExtractor | 768 | ohsumed, pml, pgb, st |
 | `lda` | LDAExtractor | 15 | ohsumed, pml, pgb, st |
-| `meta` | MetaExtractor | 3–5 | 全部 4 个 |
+| `meta` | MetaExtractor | 3–5 | ohsumed, pml, pgb, st |
 | `node2vec` | Node2VecExtractor | 128 | pgb only |
 
 ## 缓存
 
-`_cache/` 存放预计算的特征矩阵（`.npz`）。同一 `(dataset, feature)` 组合只提取一次，跨实验复用。
+`_cache/` 存放 `.npz` 特征矩阵。同一 `(dataset, feature)` 组合只提取一次，跨实验复用。

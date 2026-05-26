@@ -50,7 +50,7 @@ AND hasabstract[text] AND english[Language] AND 2016:2026[dp]
 ## 如何复现
 
 ```bash
-cd experiments/001_query_analysis
+cd experiments/000_query_analysis
 bash run.sh
 ```
 
