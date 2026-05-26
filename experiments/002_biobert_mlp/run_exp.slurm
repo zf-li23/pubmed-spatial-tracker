@@ -8,5 +8,5 @@
 
 source $HOME/miniconda3/etc/profile.d/conda.sh
 conda activate zf-li23
-cd $HOME/pubmed-spatial-tracker/experiments/002_biobert_mlp
+cd $HOME/zf-li23/pubmed-tracker/experiments/002_biobert_mlp
 python -u biobert_mlp.py

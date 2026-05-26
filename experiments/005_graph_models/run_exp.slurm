@@ -8,5 +8,5 @@
 
 source $HOME/miniconda3/etc/profile.d/conda.sh
 conda activate zf-li23
-cd $HOME/pubmed-spatial-tracker/experiments/005_graph_models
+cd $HOME/zf-li23/pubmed-tracker/experiments/005_graph_models
 python -u graph_models.py

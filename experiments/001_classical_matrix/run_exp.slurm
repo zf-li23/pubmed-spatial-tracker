@@ -7,5 +7,5 @@
 
 source $HOME/miniconda3/etc/profile.d/conda.sh
 conda activate zf-li23
-cd $HOME/pubmed-spatial-tracker/experiments/001_classical_matrix
+cd $HOME/zf-li23/pubmed-tracker/experiments/001_classical_matrix
 python -u classical_matrix.py
