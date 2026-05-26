@@ -6,13 +6,13 @@
 
 | 数据集 | 样本 | 标签数 | 特征 | 模型 |
 |---|---|---|---|---|
-| OHSUMED | 10,000 | ~1,650 | TF-IDF / BioBERT | NB, kNN, SVM, LR, RF, AdaBoost, XGBoost |
-| PML | 10,000 | 16 | TF-IDF / BioBERT | NB, kNN, SVM, LR, RF, AdaBoost, XGBoost |
-| PGB | 5,000 | 3 | TF-IDF / BioBERT | NB, kNN, SVM, LR, RF, AdaBoost, XGBoost |
+| OHSUMED | 10,000 | ~1,650 | TF-IDF / BioBERT / LDA | NB, kNN, SVM, LR, RF, AdaBoost, XGBoost |
+| PML | 10,000 | 16 | TF-IDF / BioBERT / LDA | NB, kNN, SVM, LR, RF, AdaBoost, XGBoost |
+| PGB | 5,000 | 3 | TF-IDF / BioBERT / LDA | NB, kNN, SVM, LR, RF, AdaBoost, XGBoost |
 
 - CV: 5 折
 - 策略: Binary Relevance (OneVsRest)
-- 总计: **3 × 2 × 7 = 42 组**
+- 总计: **3 × 3 × 7 = 63 组**
 
 ## 运行
 

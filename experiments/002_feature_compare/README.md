@@ -8,12 +8,11 @@
 |---|---|---|---|---|---|
 | OHSUMED | 10,000 | ~1,650 | ✅ | ✅ | ✅ |
 | PML | 10,000 | 16 | ✅ | ✅ | ✅ |
-| PGB | 5,000 | 3 | ✅ | ✅ | — |
+| PGB | 5,000 | 3 | ✅ | ✅ | ✅ |
 
 - 模型: Logistic Regression (OneVsRest)
 - CV: 5 折
-- 指标: f1_macro, f1_micro, f1_samples（多标签）/ f1_weighted, accuracy（单标签）
-- 总计: **8 组**
+- 总计: **9 组**
 
 ## 运行
 

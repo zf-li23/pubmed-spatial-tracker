@@ -38,7 +38,7 @@ NNN_experiment_name/
 |---|---|---|---|
 | `tfidf` | TFIDFExtractor | 5,000 | 全部 4 个 |
 | `biobert` | BioBERTExtractor | 768 | 全部 4 个 |
-| `lda` | LDAExtractor | 15 | ohsumed, pml, st |
+| `lda` | LDAExtractor | 15 | ohsumed, pml, pgb, st |
 | `meta` | MetaExtractor | 3–5 | 全部 4 个 |
 | `node2vec` | Node2VecExtractor | 128 | pgb only |
 

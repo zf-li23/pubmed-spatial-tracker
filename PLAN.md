@@ -118,7 +118,7 @@ MeSH 词             ✓          ✓                    ✓（含层级）  ✓
 │  PubMed-ML ─→ TF-IDF/BioBERT/LDA ──→ 10种课程算法 ──→ 最优方法 Top-3 │
 │  (15标签)      + Meta Features                                       │
 │                                                                      │
-│  PGB ───────→ TF-IDF/BioBERT ──────→ 10种课程算法 ──→ 最优方法 Top-3 │
+│  PGB ───────→ TF-IDF/BioBERT/LDA ──→ 10种课程算法 ──→ 最优方法 Top-3 │
 │  (图+MeSH层级)  + Meta + Node2Vec     + node2vec/GCN/GraphSAGE       │
 │                                                                      │
 │  → 产出：算法×数据集热力图、特征有效性排序、图结构边际收益量化         │
