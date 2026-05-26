@@ -7,6 +7,6 @@
 #SBATCH --time=04:00:00
 
 source $HOME/miniconda3/etc/profile.d/conda.sh
-conda activate zf-li23
+conda activate pubmed-tracker
 cd $HOME/zf-li23/pubmed-tracker/experiments/005_graph_models
 python -u graph_models.py
