@@ -66,7 +66,8 @@ def run_biobert_mlp(ds, epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, cv=CV):
 
         n_labels = y_tr.shape[1] if y_tr.ndim > 1 else len(np.unique(y_tr))
         tuner = BioBERTFineTuner(n_labels=n_labels, lr=lr,
-                                 epochs=epochs, batch_size=batch_size)
+                                 epochs=epochs, batch_size=batch_size,
+                                 multilabel=is_ml)
         tuner.fit(texts_tr, y_tr)
         y_pred = tuner.predict(texts_te)
 

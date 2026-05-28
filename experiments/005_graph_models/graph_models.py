@@ -28,7 +28,7 @@ HIDDEN_DIM = 64
 EPOCHS = 200
 LR = 0.01
 
-N2V_CLASSICAL_MODELS = ["nb", "knn", "svm", "lr", "rf", "ada", "xgb"]
+N2V_CLASSICAL_MODELS = ["knn", "svm", "lr", "rf", "ada", "xgb"]
 
 
 # ═══════════════════════════════════════════════════════════
@@ -77,6 +77,7 @@ def run_node2vec(ds, model_name):
 def run_gcn(ds):
     """Simple 2-layer GCN on PGB citation graph."""
     import torch
+    from sklearn.metrics import f1_score, accuracy_score
     import torch.nn as nn
     import torch.nn.functional as F
     import torch.optim as optim
@@ -184,6 +185,7 @@ def run_gcn(ds):
 
 def run_graphsage(ds):
     """Simple 2-layer GraphSAGE with mean aggregator."""
+    from sklearn.metrics import f1_score, accuracy_score
     import torch
     import torch.nn as nn
     import torch.nn.functional as F
@@ -222,7 +224,7 @@ def run_graphsage(ds):
             super().__init__()
             self.w_self = nn.Linear(in_dim, hidden)
             self.w_neigh = nn.Linear(in_dim, hidden)
-            self.out = nn.Linear(hidden * 2, out_dim)
+            self.out = nn.Linear(hidden, out_dim)
 
         def forward(self, x_self, x_neigh):
             h = F.relu(self.w_self(x_self) + self.w_neigh(x_neigh))

@@ -90,6 +90,7 @@ class Node2VecExtractor:
                         nxt = self._alias_draw(
                             alias_nodes[(prev, cur)][0],
                             alias_nodes[(prev, cur)][1],
+                            alias_nodes[(prev, cur)][2],
                         )
                     walk.append(nxt)
                 walks.append([str(n) for n in walk])
