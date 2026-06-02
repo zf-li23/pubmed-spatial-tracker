@@ -53,6 +53,8 @@ def parse_args():
                    help="Comma-separated models (default: all). Options: nb,knn,svm,lr,rf,ada,xgb")
     p.add_argument("--cv",       type=int, default=CV,
                    help=f"CV folds (default: {CV})")
+    p.add_argument("--out-suffix", type=str, default=None,
+                   help="Output file suffix (e.g. ohsumed_tfidf)")
     return p.parse_args()
 
 
@@ -64,30 +66,19 @@ if __name__ == "__main__":
     ft_list = args.features.split(",") if args.features else FEATURES
     md_list = args.models.split(",")   if args.models   else MODELS
 
-    # Validate
-    for d in ds_list:
-        if d not in DATASETS:
-            raise ValueError(f"Unknown dataset: {d}. Options: {list(DATASETS)}")
-    for f in ft_list:
-        if f not in FEATURES:
-            raise ValueError(f"Unknown feature: {f}. Options: {FEATURES}")
-    for m in md_list:
-        if m not in MODELS:
-            raise ValueError(f"Unknown model: {m}. Options: {MODELS}")
-
+    OUT.mkdir(parents=True, exist_ok=True)
+    out_name = f"classical_matrix_{args.out_suffix}.csv" if args.out_suffix else "classical_matrix.csv"
+    results_path = OUT / out_name
     total = len(ds_list) * len(ft_list) * len(md_list)
-    print(f"001 Classical Matrix: {len(ds_list)} datasets × {len(ft_list)} features × "
+    print(f"001 Classical Matrix: {len(ds_list)} datasets x {len(ft_list)} features x "
           f"{len(md_list)} models = {total} runs, CV={args.cv}")
     print(f"  datasets: {ds_list}")
     print(f"  features: {ft_list}")
     print(f"  models:   {md_list}")
 
     rows = []
-    pbar = tqdm(total=total, desc="001", unit="run")
-
-    # ── Resume support: load existing results, skip completed combos ──
-    results_path = OUT / "classical_matrix.csv"
     completed = set()
+    pbar = tqdm(total=total, desc="001", unit="run")
     if results_path.exists():
         import csv
         with open(results_path) as f:
