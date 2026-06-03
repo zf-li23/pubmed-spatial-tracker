@@ -299,16 +299,92 @@ has_new_data: 5,236 | has_code: 1,127 | is_preprint: 2
 - ✅ **人工抽检模板** → `report/review_template.csv`（200 篇分层抽样，填入人工标注后计算 Cohen's κ）
 - ✅ **应用 Step 1 最优方法 vs BioBERT 基线** → Exp 006（TF-IDF+SVM 0.6365, BioBERT+LR 0.8068, BioBERT+MLP **0.8444** 🏆）
 
-### Step 3: 迁移微调探索（Exp 007，预计 3-4 天）
+### Step 3: 迁移微调探索 ✅ **已规划（待运行）**
 
-详见 `experiments/007_transfer_learning/README.md`
+**核心问题**：在源域（OHSUMED/PML/PGB）上训练的分类器，能否通过在 Spatial Tracker 上微调获得比直接训练更高的 F1？
 
-| 实验 | 源域 | 目标域 | 算法 | 组数 |
+#### 与 Step 2 的延续性
+
+| Step 2 产出 | Step 3 利用方式 |
+|---|---|
+| `annotated_articles.csv` (9,148 篇, 6 类别) | 固定 80/10/10 划分，所有 007 实验共用同一测试集 |
+| Exp 006 三方法 F1 基线 (TF-IDF+SVM 0.6365, BioBERT+LR 0.8068, BioBERT+MLP 0.8444) | B 组直接训练基线（对齐 006 评估方式，但使用固定划分而非 5-fold CV） |
+| OHSUMED(1,650 标签) / PML(16 标签) / PGB(3 标签) 数据集 | 作为 A 组零样本和 C 组微调的源域 |
+| BioBERT 特征缓存 (`_cache/biobert_*.npz`) | 所有 A/B/C 实验共享同一缓存，无需重复提取 |
+
+#### 实验 A: Zero-shot 迁移（5 组）
+
+在源域训练分类器，不做任何 ST 适配，直接在 ST 测试集上评估。**检验源域知识是否可泛化到目标域。**
+
+| 编号 | 源域 | 特征 | 分类器 | 意义 |
 |---|---|---|---|---|
-| **A**: Zero-shot | OHSUMED / PML / PGB | ST 测试集 | BioBERT+LR, XGBoost | 5 |
-| **B**: 直接训练基线 | ST 训练集 | ST 测试集 | BioBERT+LR/MLP, XGBoost | 3 |
-| **C**: 预训练→微调 | PML / OHSUMED → ST | ST 测试集 | BioBERT+MLP, XGBoost warm start | 4 |
-| **—** | **共计** | | | **13** |
+| **A1** | OHSUMED | BioBERT 嵌入 | LR | 大规模稀疏标签 → 6 类 |
+| **A2** | PML | BioBERT 嵌入 | LR | 粗粒度标签 → 6 类 |
+| **A3** | OHSUMED | BioBERT 嵌入 | XGBoost | 同上，非线性分类器 |
+| **A4** | PML | BioBERT 嵌入 | XGBoost | 同上 |
+| **A5** | PGB | BioBERT 嵌入 | LR | 节点分类 → 6 类 |
+
+#### 实验 B: 直接训练基线（3 组）
+
+在 ST 训练集上标准训练，在 ST 测试集上评估。**作为微调增益的量化基准。**
+
+| 编号 | 方法 | 预期 (参照 Exp 006) |
+|---|---|---|
+| **B1** | BioBERT + LR (冻结嵌入) | F1 ≈ 0.8068 |
+| **B2** | BioBERT + MLP (端到端) | F1 ≈ 0.8444 |
+| **B3** | XGBoost on BioBERT 嵌入 | ~0.75-0.80 |
+
+#### 实验 C: 预训练 → 微调 → 测试（4 组）
+
+先在大规模源域上预训练，再在 ST 上微调。**量化迁移学习的具体增益。**
+
+| 编号 | 预训练域 | 算法 | 微调策略 | 预期增益 |
+|---|---|---|---|---|
+| **C1** | PML | BioBERT+MLP | 加载 BERT 权重，替换分类头，全模型微调 | +1~3% |
+| **C2** | OHSUMED | BioBERT+MLP | 同上（OHSUMED 采样 5K 篇加速） | +0~2% |
+| **C3** | PML | XGBoost | warm start (`xgb_model` 参数) | +1~2% |
+| **C4** | OHSUMED | XGBoost | warm start | +0~1% |
+
+#### 共计：13 组实验
+
+#### 关键技术实现
+
+**BioBERT+MLP 迁移（C1, C2）**：
+```
+预训练阶段:
+  1. 创建 BioBERTFineTuner(n_labels=源域标签数)
+  2. 在源域上训练 2 个 epoch（OHSUMED 采样 5K 篇加速）
+  3. 保存 state_dict
+
+微调阶段:
+  1. 创建 BioBERTFineTuner(n_labels=6)  -> 随机初始化分类头
+  2. 加载预训练的 BERT 权重: model.bert.load_state_dict(bert_weights)
+  3. 分类头保持随机（6 类）
+  4. 在 ST 上微调 3 个 epoch
+```
+
+**XGBoost warm start（C3, C4）**：
+```python
+# 预训练
+src_clf = XGBClassifier(n_estimators=200)
+src_clf.fit(X_src, y_src)
+src_clf.save_model("xgb_pretrained.json")
+
+# warm start 微调
+tgt_clf = XGBClassifier(n_estimators=100)
+tgt_clf.fit(X_tr, y_tr, xgb_model="xgb_pretrained.json")
+```
+
+#### 与 Step 2 的演进对比
+
+| 维度 | Exp 006 (Step 2) | Exp 007 (Step 3) |
+|---|---|---|
+| 评估方式 | 5-fold CV | 固定 80/10/10 划分 |
+| 评估集 | 每 fold 不同 | **同一测试集** → 实验间严格可比 |
+| 方法数 | 3 | 13 |
+| 新增能力 | — | 零样本 + 迁移微调 |
+| GPU 需求 | BioBERT+MLP | BioBERT+MLP + C1/C2 预训练+微调 |
+| 预期最佳 | BioBERT+MLP 0.8444 | C1 (PML→ST MLP) ~0.85-0.87 |
 
 ---
 
@@ -338,7 +414,8 @@ data/
 ├── ohsumed/, pgb/, PubMed-MultiLabel/  # 原始数据
 experiments/
 ├── 001_query_analysis/      # 查询变体比较
-├── 007_transfer_learning/   # Step 3: 迁移微调探索
+├── 006_st_benchmark/        # ST 三方法基准
+└── 007_transfer_learning/   # 迁移微调探索（Step 3）
 publications/               # 参考论文
 ```
 
@@ -567,10 +644,9 @@ PGB 中包含约 2.3% 的空间转录组学相关文献（基于 100K 样本估�
         - DeepSeek API 标注 + 蒸馏
         - 最优方法 vs BioBERT 基线对比
         
-周 8-9: Step 3 — 迁移微调探索（2026-06-03 开始）
-        - Exp 007: Zero-shot + 直接训练 + 微调 = 13 组
-        - 跨源域迁移（OHSUMED / PML → ST）
-        - 同期: 001 最后 2 组补跑完成（Job 228590）
+周 8-9: Step 3 — 迁移微调探索
+        - 3 种算法的微调实验
+        - 跨数据集迁移（PGB → ST）
         - 最终结论
 
 周 10:  报告撰写 + 代码整理
