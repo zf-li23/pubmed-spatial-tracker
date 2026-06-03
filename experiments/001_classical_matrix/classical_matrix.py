@@ -84,9 +84,16 @@ if __name__ == "__main__":
         with open(results_path) as f:
             for row in csv.DictReader(f):
                 completed.add((row["dataset"], row["feature"], row["model"]))
-        leftover = total - len(completed)
+        # Only count completed combos that match current filter
+        completed_match = set()
+        for ds_name in ds_list:
+            for feat in ft_list:
+                for m in md_list:
+                    if (ds_name, feat, model_label(m)) in completed:
+                        completed_match.add((ds_name, feat, model_label(m)))
+        leftover = total - len(completed_match)
         if leftover > 0:
-            print(f"  ⏩  found {len(completed)} completed, {leftover} remaining")
+            print(f"  ⏩  found {len(completed_match)} completed, {leftover} remaining")
         elif leftover == 0:
             print(f"  ✅  all {total} combos already completed!")
             pbar.update(total)
@@ -108,7 +115,7 @@ if __name__ == "__main__":
                 pbar.set_description(label[:40])
 
                 # Skip already-completed combos
-                if (ds_name, feat, model_label(m)) in completed:
+                if (ds_name, feat, model_label(m)) in completed_match:
                     pbar.update(1)
                     continue
 
@@ -127,5 +134,5 @@ if __name__ == "__main__":
                 pbar.update(1)
 
     pbar.close()
-    saved = len(completed) + len(rows)
+    saved = len(completed_match) + len(rows)
     print(f"\n✅ 001 done — {saved} / {total} combos saved to {results_path}")
