@@ -10,4 +10,4 @@
 source $HOME/miniconda3/etc/profile.d/conda.sh
 conda activate biobert_env
 cd $HOME/zf-li23/pubmed-tracker/experiments/006_st_benchmark
-python -u st_benchmark.py --methods biobert_mlp
+python -u st_benchmark.py --methods biobert_mlp --out-suffix gpu

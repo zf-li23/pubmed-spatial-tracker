@@ -29,6 +29,7 @@
 | **003** | LDA+KMeans 无监督聚类 | 3 | ✅ 完成 |
 | **004** | 多标签策略（BR/CC/LP） | 6 | ✅ 完成 |
 | **005** | 图模型（Node2Vec/GCN/GraphSAGE） | **9** | ✅ **8 完成** |
+| **006** | Spatial Tracker 三方法基准测试 | **3** | ✅ **3 完成** |
 
 ## 3. 关键技术挑战与解决过程
 
@@ -127,6 +128,16 @@
 3. ❌ GraphSAGE `Linear(hidden * 2, out_dim)` 但输入是 `hidden` 维 → 维度不匹配
 4. ✅ 改为 `Linear(hidden, out_dim)`
 
+### 3.8 Spatial Tracker 基准测试（实验 006）
+
+**挑战：** CPU 与 GPU 任务同时写入同一 CSV 造成覆盖。
+
+**迭代过程：**
+1. ❌ 首次提交：CPU 写 TF-IDF+SVM + BioBERT+LR，GPU 写 BioBERT+MLP → GPU 覆盖 CPU 结果
+2. ✅ 添加 `--out-suffix` 参数：CPU 写入 `st_benchmark_cpu.csv`，GPU 写入 `st_benchmark_gpu.csv`
+3. ✅ 编写 `merge_results.py` 合并为完整三行
+4. ✅ 最终 3/3 方法全部完成
+
 ## 4. 最终实验结果
 
 ### 实验 001 — 经典算法矩阵（82/84 组）
@@ -172,6 +183,18 @@
 ### 实验 005 — 图模型（8/9 ✅）
 - **GCN 0.4125** 🏆 >> Node2Vec 0.3324 ≈ GraphSAGE 0.3324
 
+### 实验 006 — Spatial Tracker 基准测试（3/3 ✅）
+
+| 方法 | F1-macro | Accuracy | 训练时间 |
+|---|---|---|---|
+| TF-IDF + SVM | 0.6365 ± 0.0123 | 0.9167 ± 0.0011 | 913s |
+| BioBERT + LR | 0.8068 ± 0.0320 | 0.9298 ± 0.0035 | 138s |
+| **BioBERT + MLP** | **0.8444** 🏆 ± 0.0353 | **0.9380** 🏆 ± 0.0124 | 1039s |
+
+- BioBERT+MLP 在 Spatial Tracker 上 F1=0.8444，比 TF-IDF+SVM 提升 33%
+- BioBERT+LR（冻结嵌入）F1=0.8068，仅比 MLP 差 4.7%，但速度快 7.5 倍
+- 三方法的排名与实验 001/002 的结论一致：BioBERT 嵌入 >> TF-IDF 特征
+
 ## 5. 关键发现
 
 1. **AdaBoost + TF-IDF 在稀疏标签空间意外地好**：OHSUMED 上 0.1687，远超其他模型
@@ -179,6 +202,8 @@
 3. **GCN 显著优于 Node2Vec 和 GraphSAGE**（0.4125 vs 0.3324），图卷积结构对 PGB 的节点分类任务更有效
 4. **Classifier Chains 在多标签上有边际收益**（CC 0.5796 vs BR 0.5686），但只在小标签空间（16 labels）上体现
 5. **OHSUMED 的 1,650 标签太稀疏**，所有方法 F1-macro < 0.2
+6. **BioBERT+MLP + Spatial Tracker 达到最高绝对分数**（F1=0.8444），验证了端到端微调在目标数据集上的优势
+7. **BioBERT+LR 是性价比最优选择**：F1=0.8068（仅差 4.7%），但训练时间只需 138s（快 7.5 倍）
 
 ## 6. 技术债务与教训
 
@@ -202,4 +227,5 @@
 | 003 LDA 聚类 | 2 | 8h |
 | 004 多标签策略 | **~6 次** | ~1 天 |
 | 005 图模型 | **~5 次** | ~1 天 |
-| **总计** | **~48 次提交** | **~2 周** |
+| 006 ST 基准 | **~4 次** | ~6h |
+| **总计** | **~52 次提交** | **~2 周** |

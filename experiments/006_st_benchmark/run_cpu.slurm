@@ -9,4 +9,4 @@
 source $HOME/miniconda3/etc/profile.d/conda.sh
 conda activate pubmed-tracker
 cd $HOME/zf-li23/pubmed-tracker/experiments/006_st_benchmark
-python -u st_benchmark.py --methods tfidf_svm,biobert_lr
+python -u st_benchmark.py --methods tfidf_svm,biobert_lr --out-suffix cpu

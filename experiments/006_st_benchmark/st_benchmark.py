@@ -147,12 +147,18 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description="006 — Spatial Tracker Benchmark")
     p.add_argument("--methods", type=str, default="tfidf_svm,biobert_lr,biobert_mlp",
                    help="Comma-separated methods")
+    p.add_argument("--out-suffix", type=str, default=None,
+                   help="Output file suffix")
     args = p.parse_args()
 
     method_list = args.methods.split(",")
     for m in method_list:
         if m not in METHODS:
             raise ValueError(f"Unknown method: {m}. Options: {list(METHODS)}")
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    out_name = f"st_benchmark_{args.out_suffix}.csv" if args.out_suffix else "st_benchmark.csv"
+    out_path = OUT / out_name
 
     print(f"006 — Spatial Tracker Benchmark")
     print(f"  methods: {method_list}")
@@ -180,5 +186,5 @@ if __name__ == "__main__":
             import traceback; traceback.print_exc()
 
     OUT.mkdir(parents=True, exist_ok=True)
-    save_results(rows, OUT / "st_benchmark.csv")
-    print(f"\n✅ 006 done — {len(rows)} results")
+    save_results(rows, out_path)
+    print(f"\n✅ 006 done — {len(rows)} results saved to {out_path}")
