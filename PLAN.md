@@ -20,11 +20,14 @@
 | 📡 **PubMed 数据抓取** | ✅ **已完成** | `data/spatial_tracker/articles.csv`（9,148 篇） |
 | 🏷️ **Step 2a: LLM 标签体系设计** | ✅ **已完成** | 6 类别 × 15 分析标签 × 19 技术 × 17 生物领域 |
 | 🏷️ **Step 2b: LLM 批量标注** | ✅ **已完成** | 9,148 篇全部标注完成（DeepSeek-v4-flash） |
-| 🧪 **Exp 001: 经典算法矩阵** | 🔄 **部分完成** | 84 组超时（仅 2/84 完成），需分片重跑 |
-| 🧪 **Exp 002: BioBERT+MLP 微调** | 🔄 **待运行** | 端到端微调 × 3 数据集 = 3 组，GPU 任务 |
+| 📊 **Step 2续: 标注统计分析** | ✅ **已完成** | 标签分布、类别统计、置信度报告 → `report/annotation_stats.md` |
+| 📝 **Step 2续: 人工抽检设计** | ✅ **已完成** | 200 篇分层抽样 + Cohen's κ 模板 → `report/review_template.csv` |
+| 🧪 **Exp 001: 经典算法矩阵** | ✅ **82/84 完成** | 🔄 Job 228590 补跑最后 2 组（ohsumed+biobert+ada+xgb） |
+| 🧪 **Exp 002: BioBERT+MLP 微调** | ✅ **已完成** | OHSUMED(F1=0.0013), PML(F1=0.6411), PGB(F1=0.3601) |
 | 🧪 **Exp 003: LDA+聚类** | ✅ **已完成** | OHSUMED NMI=0.44, PML NMI=0.10, PGB NMI=0.005 |
-| 🧪 **Exp 004: 多标签策略** | ✅ **已完成** | BR=LP 在 PML 上 f1=0.5686（修复 CC 死锁后重跑中） |
-| 🧪 **Exp 005: 图模型** | 🔄 **待运行** | Node2Vec×7 + GCN + GraphSAGE = 9 组 |
+| 🧪 **Exp 004: 多标签策略** | ✅ **已完成** | BR/CC/LP 对比，CC on PML F1=0.5796 🏆 |
+| 🧪 **Exp 005: 图模型** | ✅ **8/9 完成** | GCN(0.4125🏆) >> Node2Vec(0.3324) ≈ GraphSAGE(0.3324) |
+| 🧪 **Exp 006: ST 基准测试** | ✅ **已完成** | BioBERT+MLP(0.8444🏆) > BioBERT+LR(0.8068) > TF-IDF+SVM(0.6365) |
 | 🔀 **Step 3: 迁移微调探索** | ⬜ **未开始** | 3 种算法的微调实验 |
 
 ---
@@ -264,9 +267,23 @@ has_new_data: 5,236 | has_code: 1,127 | is_preprint: 2
 | 002 | BioBERT+MLP 端到端微调 × 3 数据集 | 3 | 🔄 GPU 任务就绪（`local_files_only` 已修复） |
 | 003 | LDA+KMeans 无监督聚类 × 3 数据集 | 3 | ✅ 已完成 |
 | 004 | 多标签策略 BR/CC/LP × 2 数据集 | 6 | ✅ 已完成（CC 死锁修复后重跑中） |
-| 005 | 图模型 Node2Vec×7 + GCN + GraphSAGE × PGB | 9 | 🔄 待运行 |
+| 005 | 图模型 Node2Vec×7 + GCN + GraphSAGE × PGB | 9 | ✅ 8/9 完成 |
+| **006** | ST 基准测试 × Spatial Tracker | **3** | ✅ **全部完成** |
 
-**总计：105 组**（原 99 组 + 005 扩展 6 组）。001 支持 `--datasets/--features/--models` 选择性运行。
+### Exp 006: Spatial Tracker 基准测试 ✅
+
+在 9,148 篇 LLM 标注完成的 Spatial Tracker 数据集上，比较 3 种方法：
+
+| 方法 | F1-macro | Accuracy | 时间 | 特点 |
+|---|---|---|---|---|
+| TF-IDF + SVM | 0.6365 ± 0.0123 | 0.9167 ± 0.0011 | 913s | 传统基线，无需 GPU |
+| BioBERT + LR | 0.8068 ± 0.0320 | 0.9298 ± 0.0035 | **138s** ⚡ | 冻结嵌入，性价比最优 |
+| **BioBERT + MLP** | **0.8444** 🏆 ± 0.0353 | **0.9380** ± 0.0124 | 1039s | 端到端微调，最高分 |
+
+**结论**：BioBERT+MLP 是 F1 冠军（0.8444），但 BioBERT+LR 仅差 4.7% 且快 7.5 倍，是最优性价比方案。
+| **006** | ST 基准测试（TF-IDF+SVM / BioBERT+LR / BioBERT+MLP）× Spatial Tracker | **3** | ✅ **3 完成** |
+
+**总计：108 组**（原 105 组 + 006 扩展 3 组）。001 支持 `--datasets/--features/--models` 选择性运行。
 
 **预期产出**：
 1. 算法 × 数据集 × 特征热力图（001）
@@ -276,11 +293,11 @@ has_new_data: 5,236 | has_code: 1,127 | is_preprint: 2
 5. 无监督聚类的 NMI/ARI 基线（003）
 4. 每数据集推荐算法
 
-### Step 2 续：标注完成后的分析
+### Step 2 续：标注完成后的分析 ✅
 
-- 全部 9,148 篇标注完成后 → 统计分析
-- 人工抽检 200 篇评估标注质量 + 计算 Cohen's κ
-- 应用 Step 1 最优方法 vs BioBERT 基线
+- ✅ **统计分析** → `report/annotation_stats.md`（类别/标签/置信度/年份/标签密度分布）
+- ✅ **人工抽检模板** → `report/review_template.csv`（200 篇分层抽样，填入人工标注后计算 Cohen's κ）
+- ✅ **应用 Step 1 最优方法 vs BioBERT 基线** → Exp 006（TF-IDF+SVM 0.6365, BioBERT+LR 0.8068, BioBERT+MLP **0.8444** 🏆）
 
 ### Step 3: 迁移微调探索（预计 1-2 周）
 
