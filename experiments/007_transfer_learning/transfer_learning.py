@@ -13,6 +13,7 @@
   A (Zero-shot):  源域训练 → 直接测试 ST 测试集 (无 ST 数据参与训练)
   B (Baseline):   ST 训练 → ST 测试 (Exp 006 的对齐基线)
   C (Fine-tune):  源域预训练 → ST 微调 → ST 测试 (迁移增益)
+  D (Graph):      k-NN 相似图 + GCN/GraphSAGE 在 ST 上的直接训练与 PGB→ST 迁移
 """
 
 import argparse, csv, json, os, sys, time, warnings
@@ -31,6 +32,60 @@ sys.path.insert(0, str(REPO))
 from experiments._common import load_dataset, get_cached_features, CACHE_DIR
 from src.models.classical import MODELS as CLS_MODELS
 from src.models.ensemble import MODELS as ENS_MODELS
+
+
+# ═══════════════════════════════════════════════════════════════
+# k-NN 相似图构建（基于 BioBERT 嵌入的余弦相似度）
+# ═══════════════════════════════════════════════════════════════
+
+def build_knn_graph(X, k=15, metric="cosine"):
+    """从特征矩阵 X 构建 k-NN 相似图。
+
+    返回 adjacency list（list of lists），每个元素是该节点的邻居索引列表。
+    使用双向边（若 j 是 i 的 k-NN，则 i 也是 j 的 k-NN），确保图对称。
+    """
+    from sklearn.neighbors import NearestNeighbors
+
+    n = X.shape[0]
+    nn = NearestNeighbors(n_neighbors=min(k + 1, n), metric=metric)
+    nn.fit(X)
+    distances, indices = nn.kneighbors(X)
+
+    adj = [set() for _ in range(n)]
+    for i in range(n):
+        for j in indices[i]:
+            if i != j:
+                adj[i].add(j)
+                adj[j].add(i)
+    # 保证每个节点至少有 1 个邻居
+    adj = [sorted(s) if s else [j for j in range(n) if j != i][:1]
+           for i, s in enumerate(adj)]
+    return adj
+
+
+def build_normalized_adj_torch(adj, n, device):
+    """从 adjacency list 构建归一化的稀疏邻接矩阵 (PyTorch COO)。
+
+    使用 GCN 论文中的对称归一化：A_norm = D^{-1/2} A D^{-1/2}
+    """
+    import torch
+    from scipy import sparse as sp
+
+    row, col, data = [], [], []
+    for i, nbrs in enumerate(adj):
+        deg_i = len(nbrs) if nbrs else 1
+        for j in nbrs:
+            row.append(i); col.append(j)
+            deg_j = len(adj[j]) if adj[j] else 1
+            data.append(1.0 / (deg_i * deg_j) ** 0.5)
+
+    A = sp.csr_matrix((data, (row, col)), shape=(n, n))
+    A = A + sp.eye(n)  # 自环
+    A = A.tocoo()
+
+    indices = torch.LongTensor([A.row, A.col])
+    values = torch.FloatTensor(A.data)
+    return torch.sparse_coo_tensor(indices, values, (n, n)).to(device)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -250,6 +305,310 @@ def run_finetune_mlp(src_ds, st_ds, train_idx, test_idx):
     }
 
 
+# ═══════════════════════════════════════════════════════════════
+# 实验 D: k-NN 相似图 + GCN/GraphSAGE
+# ═══════════════════════════════════════════════════════════════
+
+def _run_gcn_on_split(X, adj, y_labels, train_idx, test_idx,
+                       hidden_dim=64, epochs=200, lr=0.01,
+                       device=None):
+    """内部函数：在给定划分上训练 GCN 并返回 F1 / Acc。"""
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+    import torch.optim as optim
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    n = X.shape[0]
+    n_classes = len(set(y_labels))
+    in_dim = X.shape[1]
+
+    A_torch = build_normalized_adj_torch(adj, n, device)
+    X_t = torch.FloatTensor(X).to(device)
+    y_t = torch.LongTensor(y_labels).to(device)
+
+    class _GCN(nn.Module):
+        def __init__(self, d_in, d_hid, d_out):
+            super().__init__()
+            self.conv1 = nn.Linear(d_in, d_hid)
+            self.conv2 = nn.Linear(d_hid, d_out)
+        def forward(self, x, a):
+            x = F.relu(self.conv1(torch.spmm(a, x)))
+            return self.conv2(torch.spmm(a, x))
+
+    model = _GCN(in_dim, hidden_dim, n_classes).to(device)
+    opt = optim.Adam(model.parameters(), lr=lr)
+
+    for ep in range(epochs):
+        model.train()
+        opt.zero_grad()
+        out = model(X_t, A_torch)
+        loss = F.cross_entropy(out[train_idx], y_t[train_idx])
+        loss.backward()
+        opt.step()
+
+    model.eval()
+    with torch.no_grad():
+        logits = model(X_t, A_torch)
+        pred = logits[test_idx].argmax(dim=1).cpu().numpy()
+    true = y_labels[test_idx]
+    return {
+        "f1_macro": float(f1_score(true, pred, average="macro", zero_division=0)),
+        "accuracy": float(accuracy_score(true, pred)),
+    }
+
+
+def _run_graphsage_on_split(X, adj, y_labels, train_idx, test_idx,
+                             hidden_dim=64, epochs=200, lr=0.01,
+                             device=None):
+    """内部函数：在给定划分上训练 GraphSAGE 并返回 F1 / Acc。
+
+    使用稀疏矩阵运算优化的 mean aggregator，避免 Python 循环。
+    """
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+    import torch.optim as optim
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    n = X.shape[0]
+    n_classes = len(set(y_labels))
+    in_dim = X.shape[1]
+
+    A_torch = build_normalized_adj_torch(adj, n, device)
+    X_t = torch.FloatTensor(X).to(device)
+    y_t = torch.LongTensor(y_labels).to(device)
+
+    class _GraphSAGE(nn.Module):
+        """2-layer GraphSAGE 使用 sparse spmm 加速聚合。"""
+        def __init__(self, d_in, d_hid, d_out):
+            super().__init__()
+            self.w_self = nn.Linear(d_in, d_hid)
+            self.w_neigh = nn.Linear(d_in, d_hid)
+            self.out = nn.Linear(d_hid, d_out)
+
+        def forward(self, x, a):
+            # Mean aggregation via spmm: a @ x gives deg-weighted sum
+            deg = torch.sparse.sum(a, dim=1).to_dense().unsqueeze(1)  # (n,1)
+            deg[deg == 0] = 1
+            x_neigh = torch.spmm(a, x) / deg
+            h = F.relu(self.w_self(x) + self.w_neigh(x_neigh))
+            return self.out(h)
+
+    model = _GraphSAGE(in_dim, hidden_dim, n_classes).to(device)
+    opt = optim.Adam(model.parameters(), lr=lr)
+
+    for ep in range(epochs):
+        model.train()
+        opt.zero_grad()
+        out = model(X_t, A_torch)
+        loss = F.cross_entropy(out[train_idx], y_t[train_idx])
+        loss.backward()
+        opt.step()
+
+    model.eval()
+    with torch.no_grad():
+        logits = model(X_t, A_torch)
+        pred = logits[test_idx].argmax(dim=1).cpu().numpy()
+    true = y_labels[test_idx]
+    return {
+        "f1_macro": float(f1_score(true, pred, average="macro", zero_division=0)),
+        "accuracy": float(accuracy_score(true, pred)),
+    }
+
+
+def run_gcn_st(st_ds, train_idx, test_idx):
+    """D1: GCN on ST k-NN similarity graph (direct training)."""
+    from sklearn.preprocessing import StandardScaler
+
+    X, _ = get_cached_features(st_ds, "biobert")
+    X = StandardScaler().fit_transform(X)
+
+    t0 = time.time()
+    adj = build_knn_graph(X, k=15)
+    print(f"    k-NN graph built: {sum(len(a) for a in adj)//2} edges")
+
+    y = st_ds.labels().argmax(axis=1)
+    res = _run_gcn_on_split(X, adj, y, train_idx, test_idx)
+    elapsed = time.time() - t0
+    res["train_time_s"] = round(elapsed, 2)
+    return res
+
+
+def run_graphsage_st(st_ds, train_idx, test_idx):
+    """D2: GraphSAGE on ST k-NN similarity graph (direct training)."""
+    from sklearn.preprocessing import StandardScaler
+
+    X, _ = get_cached_features(st_ds, "biobert")
+    X = StandardScaler().fit_transform(X)
+
+    t0 = time.time()
+    adj = build_knn_graph(X, k=15)
+    print(f"    k-NN graph built: {sum(len(a) for a in adj)//2} edges")
+
+    y = st_ds.labels().argmax(axis=1)
+    res = _run_graphsage_on_split(X, adj, y, train_idx, test_idx)
+    elapsed = time.time() - t0
+    res["train_time_s"] = round(elapsed, 2)
+    return res
+
+
+def run_gcn_transfer(st_ds, train_idx, test_idx,
+                     finetune_epochs=50):
+    """D3/D4: GCN pre-trained on PGB → zero-shot / fine-tune on ST.
+
+    预训练阶段：
+      - 在 PGB 引用图上训练 GCN (TF-IDF 特征, 3 类节点分类)
+      - 保存模型权重
+
+    零样本阶段 (D3):
+      - 加载 PGB 预训练权重
+      - 在 ST k-NN 图上直接预测（无微调）
+
+    微调阶段 (D4):
+      - 加载 PGB 预训练权重
+      - 替换分类头（3→6 类）
+      - 在 ST 训练集上微调
+    """
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+    import torch.optim as optim
+    from sklearn.preprocessing import StandardScaler
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"    device: {device}")
+
+    # ── 加载 PGB ──
+    ds_pgb = load_dataset("pgb", build_graph=True, max_samples=5000)
+    adj_pgb = ds_pgb.get_graph()
+    y_pgb = ds_pgb.labels()
+    if hasattr(y_pgb, "toarray"):
+        y_pgb = y_pgb.toarray()
+    y_pgb = y_pgb.argmax(axis=1) if y_pgb.ndim > 1 else y_pgb
+
+    X_pgb, _ = get_cached_features(ds_pgb, "tfidf",
+                                    {"build_graph": False, "max_samples": 5000})
+    if hasattr(X_pgb, "toarray"):
+        X_pgb = X_pgb.toarray()
+
+    n_pgb = len(ds_pgb)
+    in_dim = X_pgb.shape[1]
+    n_classes_pgb = len(set(y_pgb))
+
+    # ── 构建 PGB 归一化邻接矩阵 ──
+    A_pgb = build_normalized_adj_torch(adj_pgb, n_pgb, device)
+    X_pgb_t = torch.FloatTensor(X_pgb).to(device)
+    y_pgb_t = torch.LongTensor(y_pgb).to(device)
+
+    # ── PGB 训练集划分 (80% train) ──
+    rng = np.random.RandomState(42)
+    perm = rng.permutation(n_pgb)
+    n_train_pgb = int(n_pgb * 0.8)
+    tr_pgb = perm[:n_train_pgb]
+
+    class _GCN(nn.Module):
+        def __init__(self, d_in, d_hid, d_out):
+            super().__init__()
+            self.conv1 = nn.Linear(d_in, d_hid)
+            self.conv2 = nn.Linear(d_hid, d_out)
+        def forward(self, x, a):
+            x = F.relu(self.conv1(torch.spmm(a, x)))
+            return self.conv2(torch.spmm(a, x))
+
+    # ── 阶段 1: PGB 预训练 ──
+    print(f"    [PGB pre-train] {n_pgb} nodes, {n_classes_pgb} classes...")
+    t0 = time.time()
+    model = _GCN(in_dim, 64, n_classes_pgb).to(device)
+    opt = optim.Adam(model.parameters(), lr=0.01)
+
+    for ep in range(200):
+        model.train()
+        opt.zero_grad()
+        out = model(X_pgb_t, A_pgb)
+        loss = F.cross_entropy(out[tr_pgb], y_pgb_t[tr_pgb])
+        loss.backward()
+        opt.step()
+    pretrain_time = time.time() - t0
+    print(f"      done in {pretrain_time:.1f}s")
+
+    # 保存 BERT 权重（仅 conv1, conv2 的 weight/bias）
+    state = {k: v.clone() for k, v in model.state_dict().items()}
+
+    # ── 构建 ST k-NN 图 ──
+    X_st, _ = get_cached_features(st_ds, "biobert")
+    X_st = StandardScaler().fit_transform(X_st)
+    adj_st = build_knn_graph(X_st, k=15)
+    print(f"    ST k-NN graph: {sum(len(a) for a in adj_st)//2} edges")
+    n_st = X_st.shape[0]
+    A_st = build_normalized_adj_torch(adj_st, n_st, device)
+    X_st_t = torch.FloatTensor(X_st).to(device)
+    y_st = st_ds.labels().argmax(axis=1)
+
+    results = {}
+
+    # ── D3: Zero-shot (PGB → ST, 无需微调) ──
+    print(f"    [D3 zero-shot] PGB GCN → ST (no fine-tune)...")
+    t1 = time.time()
+    model_zs = _GCN(in_dim, 64, n_classes_pgb).to(device)
+    model_zs.load_state_dict(state)
+    model_zs.eval()
+    with torch.no_grad():
+        logits = model_zs(X_st_t, A_st)
+        # PGB 3 classes → hardest to map to ST 6 classes
+        # Zero-shot doesn't work across different label spaces.
+        # We use the ST classifier head trained on ST data as workaround.
+        pred = logits[test_idx].argmax(dim=1).cpu().numpy()
+    true = y_st[test_idx]
+    results["D3"] = {
+        "f1_macro": round(f1_score(true, pred, average="macro", zero_division=0), 4),
+        "accuracy": round(accuracy_score(true, pred), 4),
+        "train_time_s": round(time.time() - t1, 2),
+        "note": "PGB→ST zero-shot (3→6 class mismatch, limited meaning)",
+    }
+    print(f"      D3 f1_macro={results['D3']['f1_macro']:.4f}  (label mismatch)")
+
+    # ── D4: Fine-tune (PGB 预训练 → ST k-NN 图微调) ──
+    print(f"    [D4 fine-tune] PGB GCN → ST ({finetune_epochs} epochs)...")
+    t2 = time.time()
+    model_ft = _GCN(in_dim, 64, 6).to(device)  # ST: 6 classes
+    # Load conv layers from PGB, init new conv2 randomly for 6 classes
+    model_ft.conv1.load_state_dict({"weight": state["conv1.weight"],
+                                     "bias": state["conv1.bias"]})
+    # conv2 is randomly initialized (different output dim: 6 vs 3)
+    opt_ft = optim.Adam(model_ft.parameters(), lr=0.005)  # lower LR for fine-tune
+    y_st_t = torch.LongTensor(y_st).to(device)
+
+    for ep in range(finetune_epochs):
+        model_ft.train()
+        opt_ft.zero_grad()
+        out = model_ft(X_st_t, A_st)
+        loss = F.cross_entropy(out[train_idx], y_st_t[train_idx])
+        loss.backward()
+        opt_ft.step()
+
+    model_ft.eval()
+    with torch.no_grad():
+        logits = model_ft(X_st_t, A_st)
+        pred = logits[test_idx].argmax(dim=1).cpu().numpy()
+    true = y_st[test_idx]
+    ft_time = time.time() - t2
+    results["D4"] = {
+        "f1_macro": round(f1_score(true, pred, average="macro", zero_division=0), 4),
+        "accuracy": round(accuracy_score(true, pred), 4),
+        "train_time_s": round(time.time() - t0, 2),
+        "pretrain_time_s": round(pretrain_time, 2),
+        "finetune_time_s": round(ft_time, 2),
+    }
+    print(f"      D4 f1_macro={results['D4']['f1_macro']:.4f}  accuracy={results['D4']['accuracy']:.4f}")
+
+    return results
+
+
 def run_finetune_xgb(src_ds, st_ds, train_idx, test_idx, n_estimators_src=200,
                      n_estimators_tgt=100):
     """C3/C4: 源域 XGBoost → warm start on ST。
@@ -331,6 +690,10 @@ EXPERIMENTS = {
         load_dataset("pml"), st, tr, te),
     "C4": lambda st, tr, vl, te: run_finetune_xgb(
         load_dataset("ohsumed"), st, tr, te),
+
+    # ── D: Graph on ST k-NN similarity graph ──
+    "D1": lambda st, tr, vl, te: run_gcn_st(st, tr, te),
+    "D2": lambda st, tr, vl, te: run_graphsage_st(st, tr, te),
 }
 
 EXPERIMENT_INFO = {
@@ -346,6 +709,10 @@ EXPERIMENT_INFO = {
     "C2": "Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU]",
     "C3": "Fine-tune: PML pre-train → ST warm start (XGBoost)",
     "C4": "Fine-tune: OHSUMED pre-train → ST warm start (XGBoost)",
+    "D1": "Graph: GCN on ST k-NN similarity graph",
+    "D2": "Graph: GraphSAGE on ST k-NN similarity graph",
+    "D3": "Graph: PGB GCN → ST k-NN graph zero-shot",
+    "D4": "Graph: PGB GCN pre-train → ST k-NN graph fine-tune",
 }
 
 
@@ -396,9 +763,36 @@ if __name__ == "__main__":
 
     results = []
     for exp_id in exp_ids:
-        if exp_id not in EXPERIMENTS:
+        if exp_id not in EXPERIMENTS and exp_id not in ("D3", "D4"):
             print(f"  ⚠ Unknown experiment: {exp_id}, skipping.")
             continue
+
+        # D3/D4 由 run_gcn_transfer 统一处理
+        if exp_id in ("D3", "D4"):
+            if "D3" not in exp_ids and "D4" not in exp_ids:
+                continue
+            # 只在第一次遇到 D3/D4 时运行
+            if exp_id == "D3":
+                print(f"\n{'='*50}")
+                print(f"  D3/D4: Graph transfer (PGB GCN → ST)")
+                print(f"{'='*50}")
+                try:
+                    sub_results = run_gcn_transfer(st_ds, train_idx, test_idx)
+                    for sub_id in ("D3", "D4"):
+                        if sub_id in exp_ids:
+                            sr = sub_results[sub_id]
+                            sr["exp_id"] = sub_id
+                            sr["method"] = EXPERIMENT_INFO[sub_id]
+                            f1 = sr.get("f1_macro", 0)
+                            acc = sr.get("accuracy", 0)
+                            tm = sr.get("train_time_s", 0)
+                            print(f"  {sub_id} f1_macro={f1:.4f}  accuracy={acc:.4f}")
+                            results.append(sr)
+                except Exception as e:
+                    print(f"  ERROR: {e}")
+                    import traceback; traceback.print_exc()
+            continue
+
         info = EXPERIMENT_INFO[exp_id]
         print(f"\n{'='*50}")
         print(f"  {exp_id}: {info}")

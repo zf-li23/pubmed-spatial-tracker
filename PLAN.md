@@ -345,7 +345,33 @@ has_new_data: 5,236 | has_code: 1,127 | is_preprint: 2
 | **C3** | PML | XGBoost | warm start (`xgb_model` 参数) | +1~2% |
 | **C4** | OHSUMED | XGBoost | warm start | +0~1% |
 
-#### 共计：13 组实验
+#### 共计：17 组实验（+4 图实验）
+
+#### 实验 D: k-NN 相似图 + GCN/GraphSAGE
+
+基于 BioBERT 嵌入的余弦相似度构建文章的 k-NN 相似图（k=15），在其上训练图模型。
+
+| 编号 | 方法 | k-NN 图 | 训练方式 | 意义 |
+|---|---|---|---|---|
+| **D1** | GCN | ST | 图直接训练 | 基线：图模型在 ST 上的表现 |
+| **D2** | GraphSAGE | ST | 图直接训练（spmm 加速） | 同上 |
+| **D3** | GCN | ST | PGB 预训练 → 零样本 | 检验 PGB GCN 权重的跨图泛化能力 |
+| **D4** | GCN | ST | PGB 预训练 → 微调 50 epochs | 量化图迁移增益 |
+
+**图构建方法**：
+```python
+from sklearn.neighbors import NearestNeighbors
+nn = NearestNeighbors(n_neighbors=16, metric="cosine")
+nn.fit(X_biobert)
+distances, indices = nn.kneighbors(X_biobert)
+# 对称化双向边
+```
+
+**GCN 迁移策略 (D3/D4)**：
+- **D3 (零样本)**：PGB 引用图训练 GCN → 加载权重 → ST k-NN 图预测（标签空间 3→6 不匹配，意义有限）
+- **D4 (微调)**：PGB 引用图训练 GCN → 加载 conv1 权重，随机初始化 conv2(6类) → ST k-NN 图低学习率微调 50 epochs
+
+**预期**：D1 (GCN from scratch) ~0.75-0.82；D4 若图迁移有效可比 D1 高 1-3%
 
 #### 关键技术实现
 
