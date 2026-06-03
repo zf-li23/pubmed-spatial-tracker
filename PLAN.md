@@ -299,15 +299,16 @@ has_new_data: 5,236 | has_code: 1,127 | is_preprint: 2
 - ✅ **人工抽检模板** → `report/review_template.csv`（200 篇分层抽样，填入人工标注后计算 Cohen's κ）
 - ✅ **应用 Step 1 最优方法 vs BioBERT 基线** → Exp 006（TF-IDF+SVM 0.6365, BioBERT+LR 0.8068, BioBERT+MLP **0.8444** 🏆）
 
-### Step 3: 迁移微调探索（预计 1-2 周）
+### Step 3: 迁移微调探索（Exp 007，预计 3-4 天）
 
-| 实验 | 训练集 | 测试集 |
-|---|---|---|
-| A: 宽泛预训练 → ST 测试 | OHSUMED 或 PubMed-ML | Spatial Tracker |
-| B: ST 微调 → ST 测试 | Spatial Tracker（训练部分） | Spatial Tracker（测试部分） |
-| C: 预训练 → 微调 → 测试 | OHSUMED → ST 微调 | Spatial Tracker |
+详见 `experiments/007_transfer_learning/README.md`
 
-重点算法：BioBERT + MLP, XGBoost (warm start), GCN/GraphSAGE（图迁移）
+| 实验 | 源域 | 目标域 | 算法 | 组数 |
+|---|---|---|---|---|
+| **A**: Zero-shot | OHSUMED / PML / PGB | ST 测试集 | BioBERT+LR, XGBoost | 5 |
+| **B**: 直接训练基线 | ST 训练集 | ST 测试集 | BioBERT+LR/MLP, XGBoost | 3 |
+| **C**: 预训练→微调 | PML / OHSUMED → ST | ST 测试集 | BioBERT+MLP, XGBoost warm start | 4 |
+| **—** | **共计** | | | **13** |
 
 ---
 
@@ -336,7 +337,8 @@ data/
 │   └── annotated_articles.csv   # 3,990 篇（标注中）
 ├── ohsumed/, pgb/, PubMed-MultiLabel/  # 原始数据
 experiments/
-└── 001_query_analysis/      # 查询变体比较
+├── 001_query_analysis/      # 查询变体比较
+├── 007_transfer_learning/   # Step 3: 迁移微调探索
 publications/               # 参考论文
 ```
 
@@ -565,9 +567,10 @@ PGB 中包含约 2.3% 的空间转录组学相关文献（基于 100K 样本估�
         - DeepSeek API 标注 + 蒸馏
         - 最优方法 vs BioBERT 基线对比
         
-周 8-9: Step 3 — 迁移微调探索
-        - 3 种算法的微调实验
-        - 跨数据集迁移（PGB → ST）
+周 8-9: Step 3 — 迁移微调探索（2026-06-03 开始）
+        - Exp 007: Zero-shot + 直接训练 + 微调 = 13 组
+        - 跨源域迁移（OHSUMED / PML → ST）
+        - 同期: 001 最后 2 组补跑完成（Job 228590）
         - 最终结论
 
 周 10:  报告撰写 + 代码整理
