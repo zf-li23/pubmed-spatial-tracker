@@ -1,0 +1,4 @@
+exp_id,method,f1_macro,accuracy,train_time_s,finetune_time_s,pretrain_time_s
+B2,Baseline: ST → ST (BioBERT+MLP) [GPU],0.8345,0.9509,389.44,,
+C1,Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.9143,0.9476,755.7,388.5,359.13
+C2,Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.8503,0.9378,561.45,388.68,164.66

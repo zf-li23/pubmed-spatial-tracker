@@ -1,0 +1,9 @@
+exp_id,method,f1_macro,accuracy,train_time_s
+A1,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",0.0,0.0,428.67
+A2,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",0.0014,0.0044,56.24
+A4,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",0.0055,0.0066,57.55
+A5,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",0.0018,0.0055,2.47
+B1,Baseline: ST → ST (BioBERT+LR),0.8157,0.9378,21.54
+B3,Baseline: ST → ST (BioBERT+XGBoost),0.7457,0.9236,30.1
+D1,Graph: GCN on ST k-NN similarity graph,0.771573918649275,0.9082969432314411,22.84
+D2,Graph: GraphSAGE on ST k-NN similarity graph,0.7602847228289752,0.9224890829694323,18.15
