@@ -33,6 +33,9 @@ from experiments._common import load_dataset, get_cached_features, CACHE_DIR
 from src.models.classical import MODELS as CLS_MODELS
 from src.models.ensemble import MODELS as ENS_MODELS
 
+# 所有实验共享缓存键约定（与其他实验一致）
+_CACHE_KW = {"max_samples": None}
+
 
 # ═══════════════════════════════════════════════════════════════
 # k-NN 相似图构建（基于 BioBERT 嵌入的余弦相似度）
@@ -110,11 +113,11 @@ def run_zero_shot_lr(src_ds, src_feat, st_ds, st_test_idx, label_map_fn=None):
     """Zero-shot: 源域 BioBERT 嵌入 + LR → 直接预测 ST 测试集。"""
     from sklearn.linear_model import LogisticRegression
 
-    X_src, y_src_raw = get_cached_features(src_ds, src_feat)
+    X_src, y_src_raw = get_cached_features(src_ds, src_feat, _CACHE_KW)
     y_src = y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw
 
     # 提取 ST 测试集特征
-    X_st, _ = get_cached_features(st_ds, src_feat)
+    X_st, _ = get_cached_features(st_ds, src_feat, _CACHE_KW)
     X_te = X_st[st_test_idx]
 
     t0 = time.time()
@@ -138,10 +141,10 @@ def run_zero_shot_xgb(src_ds, src_feat, st_ds, st_test_idx):
     """Zero-shot: 源域 BioBERT 嵌入 + XGBoost → 直接预测 ST 测试集。"""
     from xgboost import XGBClassifier
 
-    X_src, y_src_raw = get_cached_features(src_ds, src_feat)
+    X_src, y_src_raw = get_cached_features(src_ds, src_feat, _CACHE_KW)
     y_src = y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw
 
-    X_st, _ = get_cached_features(st_ds, src_feat)
+    X_st, _ = get_cached_features(st_ds, src_feat, _CACHE_KW)
     X_te = X_st[st_test_idx]
 
     t0 = time.time()
@@ -168,7 +171,7 @@ def run_baseline_lr(st_ds, train_idx, test_idx):
     """B1: BioBERT + LR (冻结嵌入) 在 ST 上训练测试。"""
     from sklearn.linear_model import LogisticRegression
 
-    X, y_raw = get_cached_features(st_ds, "biobert")
+    X, y_raw = get_cached_features(st_ds, "biobert", _CACHE_KW)
     y = y_raw.argmax(axis=1)
     X_tr, X_te = X[train_idx], X[test_idx]
     y_tr, y_te = y[train_idx], y[test_idx]
@@ -190,7 +193,7 @@ def run_baseline_xgb(st_ds, train_idx, test_idx):
     """B3: XGBoost on BioBERT 嵌入在 ST 上训练测试。"""
     from xgboost import XGBClassifier
 
-    X, y_raw = get_cached_features(st_ds, "biobert")
+    X, y_raw = get_cached_features(st_ds, "biobert", _CACHE_KW)
     y = y_raw.argmax(axis=1)
     X_tr, X_te = X[train_idx], X[test_idx]
     y_tr, y_te = y[train_idx], y[test_idx]
@@ -247,14 +250,20 @@ def run_finetune_mlp(src_ds, st_ds, train_idx, test_idx):
 
     # ── 确定源域标签数 ──
     y_src_raw = src_ds.labels()
-    src_n_labels = y_src_raw.shape[1] if y_src_raw.ndim > 1 else len(set(y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw))
+    src_n_labels = y_src_raw.shape[1] if y_src_raw.ndim > 1 else len(
+        set(np.argmax(y_src_raw, axis=1) if y_src_raw.ndim > 1 else y_src_raw))
 
     # ── 阶段 1: 源域预训练 ──
     print(f"    [pre-train] {src_ds.name} ({src_n_labels} labels)...")
     texts_src = src_ds.texts()
-    y_src = y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw
 
-    # 对 OHSUMED 采样加速（1650 标签太慢）
+    # 将标签转为 1D 类索引（argmax 在稀疏矩阵上可能返回 2D）
+    if y_src_raw.ndim > 1:
+        y_src = np.ravel(np.asarray(y_src_raw.argmax(axis=1)))
+    else:
+        y_src = y_src_raw.copy()
+
+    # 对超大源域采样加速
     if len(texts_src) > 5000 and src_n_labels > 100:
         rng = np.random.RandomState(42)
         idx = rng.choice(len(texts_src), 5000, replace=False)
@@ -425,7 +434,7 @@ def run_gcn_st(st_ds, train_idx, test_idx):
     """D1: GCN on ST k-NN similarity graph (direct training)."""
     from sklearn.preprocessing import StandardScaler
 
-    X, _ = get_cached_features(st_ds, "biobert")
+    X, _ = get_cached_features(st_ds, "biobert", _CACHE_KW)
     X = StandardScaler().fit_transform(X)
 
     t0 = time.time()
@@ -443,7 +452,7 @@ def run_graphsage_st(st_ds, train_idx, test_idx):
     """D2: GraphSAGE on ST k-NN similarity graph (direct training)."""
     from sklearn.preprocessing import StandardScaler
 
-    X, _ = get_cached_features(st_ds, "biobert")
+    X, _ = get_cached_features(st_ds, "biobert", _CACHE_KW)
     X = StandardScaler().fit_transform(X)
 
     t0 = time.time()
@@ -540,7 +549,7 @@ def run_gcn_transfer(st_ds, train_idx, test_idx,
     state = {k: v.clone() for k, v in model.state_dict().items()}
 
     # ── 构建 ST k-NN 图 ──
-    X_st, _ = get_cached_features(st_ds, "biobert")
+    X_st, _ = get_cached_features(st_ds, "biobert", _CACHE_KW)
     X_st = StandardScaler().fit_transform(X_st)
     adj_st = build_knn_graph(X_st, k=15)
     print(f"    ST k-NN graph: {sum(len(a) for a in adj_st)//2} edges")
@@ -619,7 +628,7 @@ def run_finetune_xgb(src_ds, st_ds, train_idx, test_idx, n_estimators_src=200,
     from xgboost import XGBClassifier
 
     # ── 源域特征 ──
-    X_src, y_src_raw = get_cached_features(src_ds, "biobert")
+    X_src, y_src_raw = get_cached_features(src_ds, "biobert", _CACHE_KW)
     y_src = y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw
 
     # ── 阶段 1: 源域预训练 ──
@@ -634,7 +643,7 @@ def run_finetune_xgb(src_ds, st_ds, train_idx, test_idx, n_estimators_src=200,
     src_clf.save_model(tmp.name)
 
     # ── 阶段 2: ST warm start ──
-    X_st, y_st_raw = get_cached_features(st_ds, "biobert")
+    X_st, y_st_raw = get_cached_features(st_ds, "biobert", _CACHE_KW)
     y_st = y_st_raw.argmax(axis=1)
     X_tr, X_te = X_st[train_idx], X_st[test_idx]
     y_tr, y_te = y_st[train_idx], y_st[test_idx]
@@ -722,8 +731,14 @@ def save_results(results, path):
         if not results:
             f.write("exp_id,method,source,f1_macro,accuracy,train_time_s\n")
             return
-        keys = results[0].keys()
-        w = csv.DictWriter(f, fieldnames=keys)
+        # 合并所有结果的字段名（不同实验可能返回不同键）
+        all_keys = set()
+        for r in results:
+            all_keys.update(r.keys())
+        # 保持 exp_id, method, f1_macro, accuracy, train_time_s 在开头
+        priority = ["exp_id", "method", "f1_macro", "accuracy", "train_time_s"]
+        ordered = priority + sorted(k for k in all_keys if k not in priority)
+        w = csv.DictWriter(f, fieldnames=ordered)
         w.writeheader()
         w.writerows(results)
     print(f"  → saved {len(results)} rows to {path}")
