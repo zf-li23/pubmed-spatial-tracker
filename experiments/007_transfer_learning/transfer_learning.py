@@ -33,8 +33,17 @@ from experiments._common import load_dataset, get_cached_features, CACHE_DIR
 from src.models.classical import MODELS as CLS_MODELS
 from src.models.ensemble import MODELS as ENS_MODELS
 
-# 所有实验共享缓存键约定（与其他实验一致）
-_CACHE_KW = {"max_samples": None}
+# 源数据集参数 — 必须与 Exp 001 完全一致，否则缓存不命中 + 数据量暴增
+SOURCE_DS = {
+    "ohsumed": {"min_df": 10, "max_samples": 10000},
+    "pml":     {},
+    "pgb":     {"build_graph": False, "max_samples": 5000},
+    "st":      {},
+}
+# 传递给 get_cached_features 的 ds_kwargs（与数据集加载参数相同）
+def _ds_cache_kw(name):
+    """返回数据集对应的缓存键 kwargs（需与 Exp 001 完全一致）。"""
+    return dict(SOURCE_DS.get(name, {}))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -113,11 +122,12 @@ def run_zero_shot_lr(src_ds, src_feat, st_ds, st_test_idx, label_map_fn=None):
     """Zero-shot: 源域 BioBERT 嵌入 + LR → 直接预测 ST 测试集。"""
     from sklearn.linear_model import LogisticRegression
 
-    X_src, y_src_raw = get_cached_features(src_ds, src_feat, _CACHE_KW)
+    kws = dict(SOURCE_DS.get(src_ds.name, {}))
+    X_src, y_src_raw = get_cached_features(src_ds, src_feat, kws)
     y_src = y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw
 
     # 提取 ST 测试集特征
-    X_st, _ = get_cached_features(st_ds, src_feat, _CACHE_KW)
+    X_st, _ = get_cached_features(st_ds, src_feat, _ds_cache_kw("st"))
     X_te = X_st[st_test_idx]
 
     t0 = time.time()
@@ -141,10 +151,11 @@ def run_zero_shot_xgb(src_ds, src_feat, st_ds, st_test_idx):
     """Zero-shot: 源域 BioBERT 嵌入 + XGBoost → 直接预测 ST 测试集。"""
     from xgboost import XGBClassifier
 
-    X_src, y_src_raw = get_cached_features(src_ds, src_feat, _CACHE_KW)
+    kws = dict(SOURCE_DS.get(src_ds.name, {}))
+    X_src, y_src_raw = get_cached_features(src_ds, src_feat, kws)
     y_src = y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw
 
-    X_st, _ = get_cached_features(st_ds, src_feat, _CACHE_KW)
+    X_st, _ = get_cached_features(st_ds, src_feat, _ds_cache_kw("st"))
     X_te = X_st[st_test_idx]
 
     t0 = time.time()
@@ -171,7 +182,7 @@ def run_baseline_lr(st_ds, train_idx, test_idx):
     """B1: BioBERT + LR (冻结嵌入) 在 ST 上训练测试。"""
     from sklearn.linear_model import LogisticRegression
 
-    X, y_raw = get_cached_features(st_ds, "biobert", _CACHE_KW)
+    X, y_raw = get_cached_features(st_ds, "biobert", _ds_cache_kw("st"))
     y = y_raw.argmax(axis=1)
     X_tr, X_te = X[train_idx], X[test_idx]
     y_tr, y_te = y[train_idx], y[test_idx]
@@ -193,7 +204,7 @@ def run_baseline_xgb(st_ds, train_idx, test_idx):
     """B3: XGBoost on BioBERT 嵌入在 ST 上训练测试。"""
     from xgboost import XGBClassifier
 
-    X, y_raw = get_cached_features(st_ds, "biobert", _CACHE_KW)
+    X, y_raw = get_cached_features(st_ds, "biobert", _ds_cache_kw("st"))
     y = y_raw.argmax(axis=1)
     X_tr, X_te = X[train_idx], X[test_idx]
     y_tr, y_te = y[train_idx], y[test_idx]
@@ -434,7 +445,7 @@ def run_gcn_st(st_ds, train_idx, test_idx):
     """D1: GCN on ST k-NN similarity graph (direct training)."""
     from sklearn.preprocessing import StandardScaler
 
-    X, _ = get_cached_features(st_ds, "biobert", _CACHE_KW)
+    X, _ = get_cached_features(st_ds, "biobert", _ds_cache_kw("st"))
     X = StandardScaler().fit_transform(X)
 
     t0 = time.time()
@@ -452,7 +463,7 @@ def run_graphsage_st(st_ds, train_idx, test_idx):
     """D2: GraphSAGE on ST k-NN similarity graph (direct training)."""
     from sklearn.preprocessing import StandardScaler
 
-    X, _ = get_cached_features(st_ds, "biobert", _CACHE_KW)
+    X, _ = get_cached_features(st_ds, "biobert", _ds_cache_kw("st"))
     X = StandardScaler().fit_transform(X)
 
     t0 = time.time()
@@ -493,7 +504,7 @@ def run_gcn_transfer(st_ds, train_idx, test_idx,
     print(f"    device: {device}")
 
     # ── 加载 PGB ──
-    ds_pgb = load_dataset("pgb", build_graph=True, max_samples=5000)
+    ds_pgb = load_dataset("pgb", **SOURCE_DS["pgb"])
     adj_pgb = ds_pgb.get_graph()
     y_pgb = ds_pgb.labels()
     if hasattr(y_pgb, "toarray"):
@@ -549,7 +560,7 @@ def run_gcn_transfer(st_ds, train_idx, test_idx,
     state = {k: v.clone() for k, v in model.state_dict().items()}
 
     # ── 构建 ST k-NN 图 ──
-    X_st, _ = get_cached_features(st_ds, "biobert", _CACHE_KW)
+    X_st, _ = get_cached_features(st_ds, "biobert", _ds_cache_kw("st"))
     X_st = StandardScaler().fit_transform(X_st)
     adj_st = build_knn_graph(X_st, k=15)
     print(f"    ST k-NN graph: {sum(len(a) for a in adj_st)//2} edges")
@@ -628,7 +639,7 @@ def run_finetune_xgb(src_ds, st_ds, train_idx, test_idx, n_estimators_src=200,
     from xgboost import XGBClassifier
 
     # ── 源域特征 ──
-    X_src, y_src_raw = get_cached_features(src_ds, "biobert", _CACHE_KW)
+    X_src, y_src_raw = get_cached_features(src_ds, "biobert", _ds_cache_kw(src_ds.name))
     y_src = y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw
 
     # ── 阶段 1: 源域预训练 ──
@@ -643,7 +654,7 @@ def run_finetune_xgb(src_ds, st_ds, train_idx, test_idx, n_estimators_src=200,
     src_clf.save_model(tmp.name)
 
     # ── 阶段 2: ST warm start ──
-    X_st, y_st_raw = get_cached_features(st_ds, "biobert", _CACHE_KW)
+    X_st, y_st_raw = get_cached_features(st_ds, "biobert", _ds_cache_kw("st"))
     y_st = y_st_raw.argmax(axis=1)
     X_tr, X_te = X_st[train_idx], X_st[test_idx]
     y_tr, y_te = y_st[train_idx], y_st[test_idx]
@@ -675,15 +686,15 @@ def run_finetune_xgb(src_ds, st_ds, train_idx, test_idx, n_estimators_src=200,
 EXPERIMENTS = {
     # ── A: Zero-shot ──
     "A1": lambda st, tr, vl, te: run_zero_shot_lr(
-        load_dataset("ohsumed"), "biobert", st, te),
+        load_dataset("ohsumed", **SOURCE_DS["ohsumed"]), "biobert", st, te),
     "A2": lambda st, tr, vl, te: run_zero_shot_lr(
-        load_dataset("pml"), "biobert", st, te),
+        load_dataset("pml", **SOURCE_DS["pml"]), "biobert", st, te),
     "A3": lambda st, tr, vl, te: run_zero_shot_xgb(
-        load_dataset("ohsumed"), "biobert", st, te),
+        load_dataset("ohsumed", **SOURCE_DS["ohsumed"]), "biobert", st, te),
     "A4": lambda st, tr, vl, te: run_zero_shot_xgb(
-        load_dataset("pml"), "biobert", st, te),
+        load_dataset("pml", **SOURCE_DS["pml"]), "biobert", st, te),
     "A5": lambda st, tr, vl, te: run_zero_shot_lr(
-        load_dataset("pgb", build_graph=True), "biobert", st, te),
+        load_dataset("pgb", **SOURCE_DS["pgb"]), "biobert", st, te),
 
     # ── B: Baseline ──
     "B1": lambda st, tr, vl, te: run_baseline_lr(st, tr, te),
@@ -692,13 +703,13 @@ EXPERIMENTS = {
 
     # ── C: Pre-train → Fine-tune ──
     "C1": lambda st, tr, vl, te: run_finetune_mlp(
-        load_dataset("pml"), st, tr, te),
+        load_dataset("pml", **SOURCE_DS["pml"]), st, tr, te),
     "C2": lambda st, tr, vl, te: run_finetune_mlp(
-        load_dataset("ohsumed"), st, tr, te),
+        load_dataset("ohsumed", **SOURCE_DS["ohsumed"]), st, tr, te),
     "C3": lambda st, tr, vl, te: run_finetune_xgb(
-        load_dataset("pml"), st, tr, te),
+        load_dataset("pml", **SOURCE_DS["pml"]), st, tr, te),
     "C4": lambda st, tr, vl, te: run_finetune_xgb(
-        load_dataset("ohsumed"), st, tr, te),
+        load_dataset("ohsumed", **SOURCE_DS["ohsumed"]), st, tr, te),
 
     # ── D: Graph on ST k-NN similarity graph ──
     "D1": lambda st, tr, vl, te: run_gcn_st(st, tr, te),
