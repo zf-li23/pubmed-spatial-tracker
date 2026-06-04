@@ -503,8 +503,8 @@ def run_gcn_transfer(st_ds, train_idx, test_idx,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"    device: {device}")
 
-    # ── 加载 PGB ──
-    ds_pgb = load_dataset("pgb", **SOURCE_DS["pgb"])
+    # ── 加载 PGB（需要图结构，与特征提取的 build_graph=False 不同）──
+    ds_pgb = load_dataset("pgb", build_graph=True, max_samples=5000)
     adj_pgb = ds_pgb.get_graph()
     y_pgb = ds_pgb.labels()
     if hasattr(y_pgb, "toarray"):
@@ -684,13 +684,11 @@ def run_finetune_xgb(src_ds, st_ds, train_idx, test_idx, n_estimators_src=200,
 # ═══════════════════════════════════════════════════════════════
 
 EXPERIMENTS = {
-    # ── A: Zero-shot ──
+    # ── A: Zero-shot (源域→ST, 标签空间不同时 F1≈0 是预期的) ──
     "A1": lambda st, tr, vl, te: run_zero_shot_lr(
         load_dataset("ohsumed", **SOURCE_DS["ohsumed"]), "biobert", st, te),
     "A2": lambda st, tr, vl, te: run_zero_shot_lr(
         load_dataset("pml", **SOURCE_DS["pml"]), "biobert", st, te),
-    "A3": lambda st, tr, vl, te: run_zero_shot_xgb(
-        load_dataset("ohsumed", **SOURCE_DS["ohsumed"]), "biobert", st, te),
     "A4": lambda st, tr, vl, te: run_zero_shot_xgb(
         load_dataset("pml", **SOURCE_DS["pml"]), "biobert", st, te),
     "A5": lambda st, tr, vl, te: run_zero_shot_lr(
@@ -706,10 +704,6 @@ EXPERIMENTS = {
         load_dataset("pml", **SOURCE_DS["pml"]), st, tr, te),
     "C2": lambda st, tr, vl, te: run_finetune_mlp(
         load_dataset("ohsumed", **SOURCE_DS["ohsumed"]), st, tr, te),
-    "C3": lambda st, tr, vl, te: run_finetune_xgb(
-        load_dataset("pml", **SOURCE_DS["pml"]), st, tr, te),
-    "C4": lambda st, tr, vl, te: run_finetune_xgb(
-        load_dataset("ohsumed", **SOURCE_DS["ohsumed"]), st, tr, te),
 
     # ── D: Graph on ST k-NN similarity graph ──
     "D1": lambda st, tr, vl, te: run_gcn_st(st, tr, te),
@@ -717,18 +711,15 @@ EXPERIMENTS = {
 }
 
 EXPERIMENT_INFO = {
-    "A1": "Zero-shot: OHSUMED → ST (BioBERT+LR)",
-    "A2": "Zero-shot: PML → ST (BioBERT+LR)",
-    "A3": "Zero-shot: OHSUMED → ST (BioBERT+XGBoost)",
-    "A4": "Zero-shot: PML → ST (BioBERT+XGBoost)",
-    "A5": "Zero-shot: PGB → ST (BioBERT+LR)",
+    "A1": "Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",
+    "A2": "Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",
+    "A4": "Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",
+    "A5": "Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",
     "B1": "Baseline: ST → ST (BioBERT+LR)",
     "B2": "Baseline: ST → ST (BioBERT+MLP) [GPU]",
     "B3": "Baseline: ST → ST (BioBERT+XGBoost)",
     "C1": "Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU]",
     "C2": "Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU]",
-    "C3": "Fine-tune: PML pre-train → ST warm start (XGBoost)",
-    "C4": "Fine-tune: OHSUMED pre-train → ST warm start (XGBoost)",
     "D1": "Graph: GCN on ST k-NN similarity graph",
     "D2": "Graph: GraphSAGE on ST k-NN similarity graph",
     "D3": "Graph: PGB GCN → ST k-NN graph zero-shot",
