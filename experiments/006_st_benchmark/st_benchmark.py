@@ -189,5 +189,5 @@ if __name__ == "__main__":
             import traceback; traceback.print_exc()
 
     OUT.mkdir(parents=True, exist_ok=True)
-    save_results(rows, out_path)
+    save_results(rows, out_path, key_fields=["dataset", "method"])
     print(f"\n✅ 006 done — {len(rows)} results saved to {out_path}")

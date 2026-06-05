@@ -130,7 +130,7 @@ if __name__ == "__main__":
                     import traceback; traceback.print_exc()
 
                 # Incremental save: every 5 combos or on error
-                save_results(rows, results_path)
+                save_results(rows, results_path, key_fields=["dataset", "feature", "model"])
                 pbar.update(1)
 
     pbar.close()

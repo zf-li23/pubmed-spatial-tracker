@@ -104,6 +104,7 @@ def run_strategy(ds, ds_kwargs, strategy, cv=CV):
         vals = [fr[metric] for fr in fold_results]
         res[metric] = round(np.mean(vals), 4)
         res[f"{metric}_std"] = round(np.std(vals), 4)
+        res[f"{metric}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 
@@ -131,5 +132,5 @@ if __name__ == "__main__":
             pbar.update(1)
 
     pbar.close()
-    save_results(rows, OUT / "multilabel_strategy.csv")
+    save_results(rows, OUT / "multilabel_strategy.csv", key_fields=["dataset", "feature", "model", "strategy"])
     print(f"\n✅ 004 done — {len(rows)} results")

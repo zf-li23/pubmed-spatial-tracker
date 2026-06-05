@@ -232,6 +232,25 @@ def run_cv(ds, feat_name, model_fn, cv=5, ds_kwargs=None):
 # I/O helpers
 # ═══════════════════════════════════════════════════════════════
 
+def _guess_key_fields(row):
+    """Guess categorical (non-metric) columns for dedup key.
+
+    Heuristic: exclude columns whose first non-NA value looks like a float.
+    Falls back to first 4 columns.
+    """
+    def _is_float(val):
+        try:
+            float(val)
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    cat_cols = [k for k, v in row.items() if not _is_float(v)]
+    if len(cat_cols) >= 3:
+        return cat_cols
+    return list(row.keys())[:4]
+
+
 def save_results(rows, path, key_fields=None):
     """Save results to CSV, merging with any existing file.
 
@@ -246,25 +265,32 @@ def save_results(rows, path, key_fields=None):
     path : Path
         Output CSV path.
     key_fields : list[str] or None
-        Fields used to identify duplicates. Default: first 2-3 fields.
+        Fields used to identify duplicates. Auto-detected from first row
+        by excluding float-like columns.  Callers that save partial results
+        incrementally SHOULD explicitly pass key_fields matching the
+        experiment's unique identifier columns (e.g. dataset, feature, model).
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
         print("  (no rows to save)")
         return
 
+    # Auto-detect key fields from first row if not provided
+    if key_fields is None:
+        key_fields = _guess_key_fields(rows[0])
+        print(f"  [key_fields auto] {key_fields}", file=sys.stderr)
+
     # Read existing rows if file exists
     existing = {}
     if path.exists():
         with open(path) as f:
             for r in csv.DictReader(f):
-                # Use first 2-3 fields as unique key (dataset, feature, model)
-                k = tuple(r.get(f, "") for f in (key_fields or list(r.keys())[:3]))
+                k = tuple(str(r.get(f, "")) for f in key_fields)
                 existing[k] = r
 
     # Merge: new rows overwrite existing
     for r in rows:
-        k = tuple(r.get(f, "") for f in (key_fields or list(r.keys())[:3]))
+        k = tuple(str(r.get(f, "")) for f in key_fields)
         existing[k] = r
 
     merged = list(existing.values())

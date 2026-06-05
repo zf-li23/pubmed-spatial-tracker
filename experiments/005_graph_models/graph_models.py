@@ -321,5 +321,5 @@ if __name__ == "__main__":
         print(f"  ERROR: {e}")
         import traceback; traceback.print_exc()
 
-    save_results(rows, OUT / "graph_models.csv")
+    save_results(rows, OUT / "graph_models.csv", key_fields=["dataset", "feature", "model"])
     print(f"\n✅ 005 done — {len(rows)} results (7 Node2Vec + 1 GCN + 1 GraphSAGE)")

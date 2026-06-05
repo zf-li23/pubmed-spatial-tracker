@@ -112,5 +112,5 @@ if __name__ == "__main__":
             print(f"  ERROR: {e}")
             import traceback; traceback.print_exc()
 
-    save_results(rows, OUT / "biobert_mlp.csv")
+    save_results(rows, OUT / "biobert_mlp.csv", key_fields=["dataset", "model"])
     print(f"\n✅ 002 done — {len(rows)} results")

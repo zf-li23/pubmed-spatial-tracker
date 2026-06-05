@@ -83,5 +83,5 @@ if __name__ == "__main__":
             print(f"  ERROR: {e}")
             import traceback; traceback.print_exc()
 
-    save_results(rows, OUT / "lda_cluster.csv")
+    save_results(rows, OUT / "lda_cluster.csv", key_fields=["dataset", "feature", "model"])
     print(f"\n✅ 003 done — {len(rows)} results")
