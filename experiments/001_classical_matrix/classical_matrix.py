@@ -78,6 +78,7 @@ if __name__ == "__main__":
 
     rows = []
     completed = set()
+    completed_match = set()
     pbar = tqdm(total=total, desc="001", unit="run")
     if results_path.exists():
         import csv
@@ -85,7 +86,6 @@ if __name__ == "__main__":
             for row in csv.DictReader(f):
                 completed.add((row["dataset"], row["feature"], row["model"]))
         # Only count completed combos that match current filter
-        completed_match = set()
         for ds_name in ds_list:
             for feat in ft_list:
                 for m in md_list:

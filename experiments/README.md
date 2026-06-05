@@ -1,7 +1,6 @@
 # Experiments
 
 本目录存放项目中的 **7 组可复现实验**（共 **115 组子任务，98.3% 完成**）。
-每个实验独立编号，包含完整代码、Slurm 提交脚本和结果。
 
 ## 规范
 
@@ -9,19 +8,47 @@
 
 ```
 NNN_experiment_name/
-├── {script}.py         # 实验代码（可独立运行）
-├── run_cpu.slurm       # CPU Slurm 提交脚本
-├── run_gpu.slurm       # GPU Slurm 提交脚本（如需）
-└── results/            # 输出 CSV 结果
+├── {script}.py          # 实验代码
+├── run.sh               # 本地复现（小规模子集）
+├── run_exp.slurm        # Slurm 集群提交（完整复现）
+└── results/             # 输出 CSV 结果
+```
+
+## 复现方式
+
+### 本地（不计成本，验证用）
+
+```bash
+# 确保 conda 环境已激活
+conda activate pubmed-tracker
+
+# 运行单个实验的快速子集
+bash experiments/001_classical_matrix/run.sh    # 1 数据集 × 1 特征 × 1 模型
+bash experiments/006_st_benchmark/run.sh        # 仅 TF-IDF+SVM
+bash experiments/007_transfer_learning/run.sh   # 仅 B1 基线
+```
+
+### 集群（Slurm，完整复现）
+
+```bash
+# CPU 任务
+sbatch experiments/001_classical_matrix/run_exp.slurm
+sbatch experiments/006_st_benchmark/run_exp.slurm
+sbatch experiments/007_transfer_learning/run_exp.slurm
+
+# GPU 任务（需要 --gres=gpu:1）
+sbatch --gres=gpu:1 experiments/002_biobert_mlp/run_exp.slurm
+sbatch --gres=gpu:1 experiments/006_st_benchmark/run_exp.slurm --methods biobert_mlp --out-suffix gpu
+sbatch --gres=gpu:1 experiments/007_transfer_learning/run_exp.slurm --exps B2,C1,C2 --out-suffix gpu
 ```
 
 ## 原则
 
-1. **可复现** — `sbatch run_cpu.slurm` 在集群提交即复现全部结果
-2. **自包含** — 实验脚本通过 `sys.path` 引用 `src/`；`_common.py` 提供统一工具函数
-3. **缓存共享** — `_cache/` 存放预计算特征矩阵 (`dataset+feature` → `.npz`)，跨实验复用，避免重复计算
-4. **集群运行** — 使用 Slurm (`pubmed-tracker` conda env) 执行 CPU/GPU 任务
-5. **增量保存** — 长时实验支持断点续跑（读取已有 CSV，跳过已完成的组合）
+1. **本地快速** — `bash run.sh` 跑小规模子集，验证代码正确性
+2. **集群完整** — `sbatch run_exp.slurm` 复现全部结果
+3. **CPU/GPU 分离** — GPU 任务通过 `--gres=gpu:1` 和 `--out-suffix` 区分输出文件
+4. **缓存共享** — `_cache/` 存放预计算特征矩阵，跨实验复用
+5. **增量保存** — `save_results()` 合并写入已有 CSV，支持断点续跑
 
 ## 完成状态
 

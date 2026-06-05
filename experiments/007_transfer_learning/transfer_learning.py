@@ -477,17 +477,6 @@ def run_graphsage_st(st_ds, train_idx, test_idx):
     return res
 
 
-        "train_time_s": round(time.time() - t0, 2),
-        "pretrain_time_s": round(pretrain_time, 2),
-        "finetune_time_s": round(ft_time, 2),
-    }
-    print(f"      D4 f1_macro={results['D4']['f1_macro']:.4f}  accuracy={results['D4']['accuracy']:.4f}")
-
-    return results
-
-
-
-
 
 # ═══════════════════════════════════════════════════════════════
 # 主流程
