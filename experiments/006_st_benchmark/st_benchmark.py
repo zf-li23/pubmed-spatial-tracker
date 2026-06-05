@@ -62,6 +62,7 @@ def run_tfidf_svm(ds, cv=CV):
         vals = [s[m] for s in scores]
         res[m] = round(np.mean(vals), 4)
         res[f"{m}_std"] = round(np.std(vals), 4)
+        res[f"{m}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 
@@ -93,6 +94,7 @@ def run_biobert_lr(ds, cv=CV):
         vals = [s[m] for s in scores]
         res[m] = round(np.mean(vals), 4)
         res[f"{m}_std"] = round(np.std(vals), 4)
+        res[f"{m}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 
@@ -134,6 +136,7 @@ def run_biobert_mlp(ds, cv=3):
         vals = [s[m] for s in scores]
         res[m] = round(np.mean(vals), 4)
         res[f"{m}_std"] = round(np.std(vals), 4)
+        res[f"{m}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 

@@ -10,13 +10,14 @@ conda activate pubmed-tracker
 cd $HOME/zf-li23/pubmed-tracker/experiments/001_classical_matrix
 
 # 用法：sbatch run_exp.slurm                                          (全量 84 组)
-#       sbatch run_exp.slurm --datasets pml --features tfidf --models lr  (子集)
-DATASETS="${1:-all}"
-FEATURES="${2:-all}"
-MODELS="${3:-all}"
+#       sbatch run_exp.slurm pml tfidf lr                              (子集)
 SUFFIX="${4:-slurm}"
-python -u classical_matrix.py \
-  ${DATASETS:+--datasets "$DATASETS"} \
-  ${FEATURES:+--features "$FEATURES"} \
-  ${MODELS:+--models "$MODELS"} \
-  --out-suffix "$SUFFIX"
+DATASETS="${1:-}"
+FEATURES="${2:-}"
+MODELS="${3:-}"
+CMD="python -u classical_matrix.py"
+[ -n "$DATASETS" ] && CMD="$CMD --datasets $DATASETS"
+[ -n "$FEATURES" ] && CMD="$CMD --features $FEATURES"
+[ -n "$MODELS" ]   && CMD="$CMD --models $MODELS"
+CMD="$CMD --out-suffix $SUFFIX"
+eval $CMD

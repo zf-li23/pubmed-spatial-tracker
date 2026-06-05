@@ -182,6 +182,10 @@ def run_cv(ds, feat_name, model_fn, cv=5, ds_kwargs=None):
 
     def _eval_fold(tr_idx, te_idx):
         X_tr, X_te = X[tr_idx], X[te_idx]
+        # GaussianNB does not support sparse matrices; convert to dense
+        if sparse.issparse(X_tr):
+            X_tr = X_tr.toarray()
+            X_te = X_te.toarray()
         y_tr, y_te = y[tr_idx], y[te_idx]
         clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1) if is_ml else copy.deepcopy(base)
         clf.fit(X_tr, y_tr)
@@ -220,6 +224,7 @@ def run_cv(ds, feat_name, model_fn, cv=5, ds_kwargs=None):
         if vals:
             res[metric] = round(np.mean(vals), 4)
             res[f"{metric}_std"] = round(np.std(vals), 4)
+            res[f"{metric}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 

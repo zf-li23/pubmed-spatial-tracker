@@ -88,7 +88,7 @@ CC on PML 最优：**F1=0.5796** 🏆，BR 与 LP 持平 0.5686。
 
 **文本表示（5 种）**：TF-IDF / BioBERT 嵌入(768d) / LDA(15 topics) / Meta 特征 / Node2Vec(128d)
 
-**分类算法（13 种）**：NaiveBayes / k-NN / SVM / LogisticReg / RandomForest / AdaBoost / XGBoost / BioBERT+MLP / LDA+KMeans / Node2Vec / GCN / GraphSAGE
+**分类算法（12 种）**：NaiveBayes / k-NN / SVM / LogisticReg / RandomForest / AdaBoost / XGBoost / BioBERT+MLP / LDA+KMeans / Node2Vec / GCN / GraphSAGE
 
 ---
 
