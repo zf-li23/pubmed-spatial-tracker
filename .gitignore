@@ -67,5 +67,12 @@ data/ohsumed/
 data/PubMed-MultiLabel/
 data/pgb/
 
+# Cluster config
+CLUSTER_SETUP.md
+
 # Node (future frontend, if any)
 node_modules/
+
+# Smoke test results (local runs)
+*_smoke.csv
+*_smoke.*

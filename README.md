@@ -140,4 +140,4 @@ pip install torch==2.5.1+cu121 --index-url https://download.pytorch.org/whl/cu12
 pip install -r requirements.txt
 ```
 
-更多细节见 [`PLAN.md`](PLAN.md)（完整计划）和 [`report/experiment_retrospective.md`](report/experiment_retrospective.md)（实验回顾）。
+更多细节见 [`PLAN.md`](PLAN.md)（完整计划）、[`CLUSTER_SETUP.md`](CLUSTER_SETUP.md)（集群部署）和 [`report/experiment_retrospective.md`](report/experiment_retrospective.md)（实验回顾）。

@@ -1,6 +1,6 @@
 # PLAN.md — PubMed Spatial Tracker 彻底重构计划
 
-> 创建: 2026-05-20 | 最后更新: 2026-06-04
+> 创建: 2026-05-20 | 最后更新: 2026-06-05
 >
 > 基于以下材料的综合分析：
 > - OHSUMED（TREC-9 Filtering Track 基准，~294K 篇，14,466 个 MeSH 标签）
