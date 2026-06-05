@@ -1,6 +1,8 @@
 dataset,feature,model,n_labels,n_samples,f1_macro,f1_macro_std,f1_micro,f1_micro_std,f1_samples,f1_samples_std,train_time_s
 ohsumed,biobert,AdaBoost,1650,10000,0.0772,0.0031,0.4068,0.0028,0.3969,0.0034,102505.46
 ohsumed,biobert,LogisticReg,1650,10000,0.0853,0.004,0.449,0.0045,0.4358,0.0051,542.03
+ohsumed,biobert,NaiveBayes,1650,10000,0.0685,0.0026,0.0596,0.0006,0.1133,0.002,170.61
+ohsumed,biobert,RandomForest,1650,10000,0.0062,0.0009,0.3269,0.0022,0.3339,0.0031,32037.53
 ohsumed,biobert,SVM,1650,10000,0.0033,0.0001,0.3508,0.0032,0.3549,0.0039,10311.03
 ohsumed,biobert,XGBoost,1650,10000,0.0546,0.0018,0.4127,0.0037,0.4044,0.0038,10213.5
 ohsumed,biobert,k-NN,1650,10000,0.0641,0.0021,0.4074,0.0046,0.3969,0.0054,1973.35
