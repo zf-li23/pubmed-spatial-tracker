@@ -10,8 +10,6 @@ frontend/dist/
 
 # Experiment cache
 experiments/_cache/
-dist/
-build/
 
 # Virtual environment
 .venv
@@ -38,26 +36,15 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 
-# SQLite (runtime artifacts)
-*.db-shm
-*.db-wal
-
-# Database backups
-spatial_literature_backup_*.db
-
 # Experiment artifacts
 src/results/
 src/logs/
 
-# Experiment outputs (keep structure, ignore results)
-experiments/*/results/
-!experiments/*/results/.gitkeep
+# Experiment outputs (keep structure, cache only, results are tracked)
+experiments/_cache/
 *.pkl
 *.h5
 *.joblib
-
-# MLflow
-mlruns/
 
 # Publications (Markdown conversions may have formatting errors)
 publications/*.md

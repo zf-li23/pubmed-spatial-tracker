@@ -1,0 +1,8 @@
+variant,query,count
+MeSH_Major,"""Spatial Transcriptomics""[MeSH Major Topic]",9933
+MeSH_All,"""Spatial Transcriptomics""[Mesh]",98948
+text_spatial,"""spatial transcriptom*""[Title/Abstract]",7412
+text_resolved,"""spatially resolved transcriptom*""[Title/Abstract]",545
+text_both,"(""spatial transcriptom*""[Title/Abstract] OR ""spatially resolved transcriptom*""[Title/Abstract])",7638
+review_only,"(""spatial transcriptom*""[Title/Abstract] OR ""spatially resolved transcriptom*""[Title/Abstract]) AND ""Review""[pt]",1122
+research_only,"(""spatial transcriptom*""[Title/Abstract] OR ""spatially resolved transcriptom*""[Title/Abstract]) NOT ""Review""[pt]",6516

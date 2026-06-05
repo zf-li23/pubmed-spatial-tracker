@@ -1,0 +1,7 @@
+dataset,f1_macro,f1_macro_std,f1_micro,f1_micro_std,f1_samples,f1_samples_std,feature,model,n_labels,n_samples,strategy,train_time_s
+ohsumed,0.0077,0.0003,0.3628,0.0017,0.3612,0.0018,tfidf,lr,1650,10000,br,72.88
+ohsumed,0.0048,0.0003,0.3126,0.0017,0.3186,0.0022,tfidf,lr,1650,10000,cc,162.64
+ohsumed,0.0077,0.0003,0.3628,0.0017,0.3612,0.0018,tfidf,lr,1650,10000,lp,69.34
+pubmed_multilabel,0.5686,0.007,0.821,0.0017,0.8113,0.0019,tfidf,lr,16,10000,br,1.7
+pubmed_multilabel,0.5796,0.0081,0.8204,0.0016,0.8106,0.0015,tfidf,lr,16,10000,cc,4.48
+pubmed_multilabel,0.5686,0.007,0.821,0.0017,0.8113,0.0019,tfidf,lr,16,10000,lp,1.65

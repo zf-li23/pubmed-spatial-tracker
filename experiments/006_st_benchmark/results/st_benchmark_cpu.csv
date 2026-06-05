@@ -1,3 +1,0 @@
-accuracy,accuracy_std,dataset,f1_macro,f1_macro_std,method,n_labels,n_samples,train_time_s
-0.9167,0.0011,spatial_tracker,0.6365,0.0123,TF-IDF+SVM,6,9148,913.11
-0.9298,0.0035,spatial_tracker,0.8068,0.032,BioBERT+LR,6,9148,137.86
