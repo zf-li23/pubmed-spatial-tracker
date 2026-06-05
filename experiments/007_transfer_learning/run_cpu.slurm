@@ -11,8 +11,8 @@ conda activate pubmed-tracker
 cd $HOME/zf-li23/pubmed-tracker/experiments/007_transfer_learning
 
 echo "=== CPU experiments ==="
-echo "  A1 A2 A4 A5 B1 B3 D1 D2 D3 D4"
+echo "  A1 A2 A4 A5 B1 B3 D1 D2"
 
 python -u transfer_learning.py \
-  --exps A1,A2,A4,A5,B1,B3,D1,D2,D3,D4 \
+  --exps A1,A2,A4,A5,B1,B3,D1,D2 \
   --out-suffix cpu

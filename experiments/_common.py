@@ -227,19 +227,51 @@ def run_cv(ds, feat_name, model_fn, cv=5, ds_kwargs=None):
 # I/O helpers
 # ═══════════════════════════════════════════════════════════════
 
-def save_results(rows, path):
+def save_results(rows, path, key_fields=None):
+    """Save results to CSV, merging with any existing file.
+
+    If path exists, existing rows are read and merged with new rows.
+    Duplicates (matched by key_fields) are overwritten by new rows.
+    This prevents loss of previously saved results on incremental saves.
+
+    Parameters
+    ----------
+    rows : list[dict]
+        New result rows to save.
+    path : Path
+        Output CSV path.
+    key_fields : list[str] or None
+        Fields used to identify duplicates. Default: first 2-3 fields.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
         print("  (no rows to save)")
         return
-    all_keys = set()
+
+    # Read existing rows if file exists
+    existing = {}
+    if path.exists():
+        with open(path) as f:
+            for r in csv.DictReader(f):
+                # Use first 2-3 fields as unique key (dataset, feature, model)
+                k = tuple(r.get(f, "") for f in (key_fields or list(r.keys())[:3]))
+                existing[k] = r
+
+    # Merge: new rows overwrite existing
     for r in rows:
+        k = tuple(r.get(f, "") for f in (key_fields or list(r.keys())[:3]))
+        existing[k] = r
+
+    merged = list(existing.values())
+    all_keys = set()
+    for r in merged:
         all_keys.update(r.keys())
+
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=sorted(all_keys))
         w.writeheader()
-        w.writerows(rows)
-    print(f"  -> saved {len(rows)} rows to {path}")
+        w.writerows(merged)
+    print(f"  -> saved {len(merged)} rows to {path}")
 
 
 def model_label(name):

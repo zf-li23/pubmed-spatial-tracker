@@ -477,149 +477,6 @@ def run_graphsage_st(st_ds, train_idx, test_idx):
     return res
 
 
-def run_gcn_transfer(st_ds, train_idx, test_idx,
-                     finetune_epochs=50):
-    """D3/D4: GCN pre-trained on PGB → zero-shot / fine-tune on ST.
-
-    预训练阶段：
-      - 在 PGB 引用图上训练 GCN (TF-IDF 特征, 3 类节点分类)
-      - 保存模型权重
-
-    零样本阶段 (D3):
-      - 加载 PGB 预训练权重
-      - 在 ST k-NN 图上直接预测（无微调）
-
-    微调阶段 (D4):
-      - 加载 PGB 预训练权重
-      - 替换分类头（3→6 类）
-      - 在 ST 训练集上微调
-    """
-    import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
-    import torch.optim as optim
-    from sklearn.preprocessing import StandardScaler
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"    device: {device}")
-
-    # ── 加载 PGB（需要图结构，与特征提取的 build_graph=False 不同）──
-    ds_pgb = load_dataset("pgb", build_graph=True, max_samples=5000)
-    adj_pgb = ds_pgb.get_graph()
-    y_pgb = ds_pgb.labels()
-    if hasattr(y_pgb, "toarray"):
-        y_pgb = y_pgb.toarray()
-    y_pgb = y_pgb.argmax(axis=1) if y_pgb.ndim > 1 else y_pgb
-
-    X_pgb, _ = get_cached_features(ds_pgb, "tfidf",
-                                    {"build_graph": False, "max_samples": 5000})
-    if hasattr(X_pgb, "toarray"):
-        X_pgb = X_pgb.toarray()
-
-    n_pgb = len(ds_pgb)
-    in_dim = X_pgb.shape[1]
-    n_classes_pgb = len(set(y_pgb))
-
-    # ── 构建 PGB 归一化邻接矩阵 ──
-    A_pgb = build_normalized_adj_torch(adj_pgb, n_pgb, device)
-    X_pgb_t = torch.FloatTensor(X_pgb).to(device)
-    y_pgb_t = torch.LongTensor(y_pgb).to(device)
-
-    # ── PGB 训练集划分 (80% train) ──
-    rng = np.random.RandomState(42)
-    perm = rng.permutation(n_pgb)
-    n_train_pgb = int(n_pgb * 0.8)
-    tr_pgb = perm[:n_train_pgb]
-
-    class _GCN(nn.Module):
-        def __init__(self, d_in, d_hid, d_out):
-            super().__init__()
-            self.conv1 = nn.Linear(d_in, d_hid)
-            self.conv2 = nn.Linear(d_hid, d_out)
-        def forward(self, x, a):
-            x = F.relu(self.conv1(torch.spmm(a, x)))
-            return self.conv2(torch.spmm(a, x))
-
-    # ── 阶段 1: PGB 预训练 ──
-    print(f"    [PGB pre-train] {n_pgb} nodes, {n_classes_pgb} classes...")
-    t0 = time.time()
-    model = _GCN(in_dim, 64, n_classes_pgb).to(device)
-    opt = optim.Adam(model.parameters(), lr=0.01)
-
-    for ep in range(200):
-        model.train()
-        opt.zero_grad()
-        out = model(X_pgb_t, A_pgb)
-        loss = F.cross_entropy(out[tr_pgb], y_pgb_t[tr_pgb])
-        loss.backward()
-        opt.step()
-    pretrain_time = time.time() - t0
-    print(f"      done in {pretrain_time:.1f}s")
-
-    # 保存 BERT 权重（仅 conv1, conv2 的 weight/bias）
-    state = {k: v.clone() for k, v in model.state_dict().items()}
-
-    # ── 构建 ST k-NN 图 ──
-    X_st, _ = get_cached_features(st_ds, "biobert", _ds_cache_kw("st"))
-    X_st = StandardScaler().fit_transform(X_st)
-    adj_st = build_knn_graph(X_st, k=15)
-    print(f"    ST k-NN graph: {sum(len(a) for a in adj_st)//2} edges")
-    n_st = X_st.shape[0]
-    A_st = build_normalized_adj_torch(adj_st, n_st, device)
-    X_st_t = torch.FloatTensor(X_st).to(device)
-    y_st = st_ds.labels().argmax(axis=1)
-
-    results = {}
-
-    # ── D3: Zero-shot (PGB → ST, 无需微调) ──
-    print(f"    [D3 zero-shot] PGB GCN → ST (no fine-tune)...")
-    t1 = time.time()
-    model_zs = _GCN(in_dim, 64, n_classes_pgb).to(device)
-    model_zs.load_state_dict(state)
-    model_zs.eval()
-    with torch.no_grad():
-        logits = model_zs(X_st_t, A_st)
-        # PGB 3 classes → hardest to map to ST 6 classes
-        # Zero-shot doesn't work across different label spaces.
-        # We use the ST classifier head trained on ST data as workaround.
-        pred = logits[test_idx].argmax(dim=1).cpu().numpy()
-    true = y_st[test_idx]
-    results["D3"] = {
-        "f1_macro": round(f1_score(true, pred, average="macro", zero_division=0), 4),
-        "accuracy": round(accuracy_score(true, pred), 4),
-        "train_time_s": round(time.time() - t1, 2),
-        "note": "PGB→ST zero-shot (3→6 class mismatch, limited meaning)",
-    }
-    print(f"      D3 f1_macro={results['D3']['f1_macro']:.4f}  (label mismatch)")
-
-    # ── D4: Fine-tune (PGB 预训练 → ST k-NN 图微调) ──
-    print(f"    [D4 fine-tune] PGB GCN → ST ({finetune_epochs} epochs)...")
-    t2 = time.time()
-    model_ft = _GCN(in_dim, 64, 6).to(device)  # ST: 6 classes
-    # Load conv layers from PGB, init new conv2 randomly for 6 classes
-    model_ft.conv1.load_state_dict({"weight": state["conv1.weight"],
-                                     "bias": state["conv1.bias"]})
-    # conv2 is randomly initialized (different output dim: 6 vs 3)
-    opt_ft = optim.Adam(model_ft.parameters(), lr=0.005)  # lower LR for fine-tune
-    y_st_t = torch.LongTensor(y_st).to(device)
-
-    for ep in range(finetune_epochs):
-        model_ft.train()
-        opt_ft.zero_grad()
-        out = model_ft(X_st_t, A_st)
-        loss = F.cross_entropy(out[train_idx], y_st_t[train_idx])
-        loss.backward()
-        opt_ft.step()
-
-    model_ft.eval()
-    with torch.no_grad():
-        logits = model_ft(X_st_t, A_st)
-        pred = logits[test_idx].argmax(dim=1).cpu().numpy()
-    true = y_st[test_idx]
-    ft_time = time.time() - t2
-    results["D4"] = {
-        "f1_macro": round(f1_score(true, pred, average="macro", zero_division=0), 4),
-        "accuracy": round(accuracy_score(true, pred), 4),
         "train_time_s": round(time.time() - t0, 2),
         "pretrain_time_s": round(pretrain_time, 2),
         "finetune_time_s": round(ft_time, 2),
@@ -629,54 +486,7 @@ def run_gcn_transfer(st_ds, train_idx, test_idx,
     return results
 
 
-def run_finetune_xgb(src_ds, st_ds, train_idx, test_idx, n_estimators_src=200,
-                     n_estimators_tgt=100):
-    """C3/C4: 源域 XGBoost → warm start on ST。
 
-    策略：源域训练 → 保存模型 → 在 ST 上继续训练 (warm start)。
-    """
-    import tempfile
-    from xgboost import XGBClassifier
-
-    # ── 源域特征 ──
-    X_src, y_src_raw = get_cached_features(src_ds, "biobert", _ds_cache_kw(src_ds.name))
-    y_src = y_src_raw.argmax(axis=1) if y_src_raw.ndim > 1 else y_src_raw
-
-    # ── 阶段 1: 源域预训练 ──
-    t0 = time.time()
-    src_clf = XGBClassifier(n_estimators=n_estimators_src, random_state=42,
-                            verbosity=0)
-    src_clf.fit(X_src, y_src)
-    pretrain_time = time.time() - t0
-
-    # 保存到临时文件
-    tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
-    src_clf.save_model(tmp.name)
-
-    # ── 阶段 2: ST warm start ──
-    X_st, y_st_raw = get_cached_features(st_ds, "biobert", _ds_cache_kw("st"))
-    y_st = y_st_raw.argmax(axis=1)
-    X_tr, X_te = X_st[train_idx], X_st[test_idx]
-    y_tr, y_te = y_st[train_idx], y_st[test_idx]
-
-    ft_t0 = time.time()
-    tgt_clf = XGBClassifier(n_estimators=n_estimators_tgt, random_state=42,
-                            verbosity=0)
-    tgt_clf.fit(X_tr, y_tr, xgb_model=tmp.name)
-    ft_time = time.time() - ft_t0
-
-    y_pred = tgt_clf.predict(X_te)
-    elapsed = time.time() - t0
-
-    os.unlink(tmp.name)
-
-    return {
-        "f1_macro": round(f1_score(y_te, y_pred, average="macro"), 4),
-        "accuracy": round(accuracy_score(y_te, y_pred), 4),
-        "train_time_s": round(elapsed, 2),
-        "pretrain_time_s": round(pretrain_time, 2),
-        "finetune_time_s": round(ft_time, 2),
-    }
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -722,8 +532,6 @@ EXPERIMENT_INFO = {
     "C2": "Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU]",
     "D1": "Graph: GCN on ST k-NN similarity graph",
     "D2": "Graph: GraphSAGE on ST k-NN similarity graph",
-    "D3": "Graph: PGB GCN → ST k-NN graph zero-shot",
-    "D4": "Graph: PGB GCN pre-train → ST k-NN graph fine-tune",
 }
 
 
@@ -780,34 +588,8 @@ if __name__ == "__main__":
 
     results = []
     for exp_id in exp_ids:
-        if exp_id not in EXPERIMENTS and exp_id not in ("D3", "D4"):
+        if exp_id not in EXPERIMENTS:
             print(f"  ⚠ Unknown experiment: {exp_id}, skipping.")
-            continue
-
-        # D3/D4 由 run_gcn_transfer 统一处理
-        if exp_id in ("D3", "D4"):
-            if "D3" not in exp_ids and "D4" not in exp_ids:
-                continue
-            # 只在第一次遇到 D3/D4 时运行
-            if exp_id == "D3":
-                print(f"\n{'='*50}")
-                print(f"  D3/D4: Graph transfer (PGB GCN → ST)")
-                print(f"{'='*50}")
-                try:
-                    sub_results = run_gcn_transfer(st_ds, train_idx, test_idx)
-                    for sub_id in ("D3", "D4"):
-                        if sub_id in exp_ids:
-                            sr = sub_results[sub_id]
-                            sr["exp_id"] = sub_id
-                            sr["method"] = EXPERIMENT_INFO[sub_id]
-                            f1 = sr.get("f1_macro", 0)
-                            acc = sr.get("accuracy", 0)
-                            tm = sr.get("train_time_s", 0)
-                            print(f"  {sub_id} f1_macro={f1:.4f}  accuracy={acc:.4f}")
-                            results.append(sr)
-                except Exception as e:
-                    print(f"  ERROR: {e}")
-                    import traceback; traceback.print_exc()
             continue
 
         info = EXPERIMENT_INFO[exp_id]
