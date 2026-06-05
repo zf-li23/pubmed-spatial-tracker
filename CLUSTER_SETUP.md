@@ -189,13 +189,13 @@ ssh -J bio-download a-cluster "cd ~/.cache/huggingface/hub && tar xzf biobert_ca
 ### 4. 在集群上运行实验
 
 ```bash
-ssh -J bio-download a-cluster
+# 使用 Slurm 提交（推荐）
+sbatch experiments/001_classical_matrix/run_exp.slurm
+sbatch experiments/006_st_benchmark/run_exp.slurm
+
+# 或直接运行（快速测试）
 cd ~/zf-li23/pubmed-tracker
 PY=~/miniconda3/envs/pubmed-tracker/bin/python
-
-# 运行实验（注意：用完整 Python 路径，不能用 conda activate）
-$PY -u experiments/002_feature_compare/feature_compare.py
-$PY -u experiments/003_algorithm_matrix/algorithm_matrix.py
 $PY -u experiments/004_multilabel_strategy/multilabel_strategy.py
 ```
 
