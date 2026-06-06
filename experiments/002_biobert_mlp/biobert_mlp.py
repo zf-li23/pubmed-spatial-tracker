@@ -93,6 +93,7 @@ def run_biobert_mlp(ds, epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR, cv=CV):
         vals = [fs[metric] for fs in fold_scores]
         res[metric] = round(np.mean(vals), 4)
         res[f"{metric}_std"] = round(np.std(vals), 4)
+        res[f"{metric}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 

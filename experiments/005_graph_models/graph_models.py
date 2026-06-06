@@ -67,6 +67,7 @@ def run_node2vec(ds, model_name):
         vals = [fs[m] for fs in fold_scores]
         res[m] = round(np.mean(vals), 4)
         res[f"{m}_std"] = round(np.std(vals), 4)
+        res[f"{m}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 
@@ -176,6 +177,7 @@ def run_gcn(ds):
         vals = [fs[m] for fs in fold_scores]
         res[m] = round(np.mean(vals), 4)
         res[f"{m}_std"] = round(np.std(vals), 4)
+        res[f"{m}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 
@@ -271,6 +273,7 @@ def run_graphsage(ds):
         vals = [fs[m] for fs in fold_scores]
         res[m] = round(np.mean(vals), 4)
         res[f"{m}_std"] = round(np.std(vals), 4)
+        res[f"{m}_folds"] = ",".join(f"{v:.4f}" for v in vals)
     return res
 
 
