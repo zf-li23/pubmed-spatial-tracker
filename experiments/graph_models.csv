@@ -1,0 +1,9 @@
+accuracy,accuracy_std,dataset,f1_macro,f1_macro_std,feature,model,n_labels,n_samples,train_time_s
+0.9942,0.0004,pgb,0.3324,0.0001,node2vec,Node2Vec+knn,3,5000,0.17
+0.9942,0.0004,pgb,0.3324,0.0001,node2vec,Node2Vec+svm,3,5000,0.87
+0.9942,0.0004,pgb,0.3324,0.0001,node2vec,Node2Vec+lr,3,5000,3.32
+0.9942,0.0004,pgb,0.3324,0.0001,node2vec,Node2Vec+rf,3,5000,2.9
+0.9936,0.0005,pgb,0.3323,0.0001,node2vec,Node2Vec+ada,3,5000,4.41
+0.9942,0.0004,pgb,0.3324,0.0001,node2vec,Node2Vec+xgb,3,5000,1.78
+0.9938,0.0007,pgb,0.359,0.0535,tfidf+graph,GCN,3,5000,135.89
+0.9944,0.0005,pgb,0.3592,0.0534,tfidf+graph,GraphSAGE,3,5000,86.64

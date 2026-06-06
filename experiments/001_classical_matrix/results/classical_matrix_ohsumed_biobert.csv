@@ -1,0 +1,2 @@
+dataset,f1_macro,f1_macro_folds,f1_macro_std,f1_micro,f1_micro_folds,f1_micro_std,f1_samples,f1_samples_folds,f1_samples_std,feature,model,n_labels,n_samples,train_time_s
+ohsumed,0.0685,"0.0692,0.0679,0.0723,0.0643,0.0688",0.0026,0.0596,"0.0592,0.0606,0.0595,0.0588,0.0597",0.0006,0.1133,"0.1112,0.1132,0.1164,0.1147,0.1111",0.002,biobert,NaiveBayes,1650,10000,210.53

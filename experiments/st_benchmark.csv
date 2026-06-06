@@ -1,0 +1,4 @@
+accuracy,accuracy_folds,accuracy_std,dataset,f1_macro,f1_macro_folds,f1_macro_std,method,n_labels,n_samples,train_time_s
+0.9167,"0.9186,0.9164,0.9169,0.9153,0.9163",0.0011,spatial_tracker,0.6365,"0.6152,0.6360,0.6466,0.6340,0.6505",0.0123,TF-IDF+SVM,6,9148,1376.4
+0.9298,"0.9290,0.9322,0.9344,0.9240,0.9295",0.0035,spatial_tracker,0.8068,"0.8130,0.8207,0.8097,0.7472,0.8434",0.032,BioBERT+LR,6,9148,140.91
+0.945,"0.9469,0.9469,0.9413",0.0026,spatial_tracker,0.8625,"0.8554,0.8675,0.8647",0.0052,BioBERT+MLP,6,9148,1075.68
