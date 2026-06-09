@@ -66,18 +66,21 @@ def sig_annotate(ax, x1, x2, y, p_val, bar_offset=0.02):
     x1, x2 : int  — bar indices
     y : float    — height of bracket (top of the taller bar + offset)
     p_val : float or None
+        None means incompatible fold counts — draws bracket with '—'.
     bar_offset : fraction of y-axis range added for the bracket line
     """
-    if p_val is None or np.isnan(p_val):
+    if p_val is None:
+        label = "—"
+    elif np.isnan(p_val):
         return
-    if p_val < 0.001:
-        stars = "***"
+    elif p_val < 0.001:
+        label = "***"
     elif p_val < 0.01:
-        stars = "**"
+        label = "**"
     elif p_val < 0.05:
-        stars = "*"
+        label = "*"
     else:
-        stars = "ns"
+        label = "ns"
 
     ylim = ax.get_ylim()
     bracket_top = y + (ylim[1] - ylim[0]) * bar_offset
@@ -85,26 +88,24 @@ def sig_annotate(ax, x1, x2, y, p_val, bar_offset=0.02):
 
     ax.plot([x1, x1, x2, x2], [y, bracket_mid, bracket_mid, y],
             lw=0.6, color="black", clip_on=False)
-    ax.text((x1 + x2) / 2, bracket_top, stars, ha="center", va="bottom",
+    ax.text((x1 + x2) / 2, bracket_top, label, ha="center", va="bottom",
             fontsize=7, fontweight="bold")
 
 
 def paired_ttest_from_folds(folds_str_a, folds_str_b):
     """Compute paired t-test p-value from comma-separated fold values.
 
-    Parameters
-    ----------
-    folds_str_a, folds_str_b : str
-        Comma-separated per-fold values, e.g. "0.6710,0.6650,0.6720,0.6680,0.6730"
-
-    Returns
-    -------
-    p_value : float
+    Returns None if fold arrays have different lengths (e.g. 3-fold vs 5-fold).
     """
-    a = np.array([float(x) for x in folds_str_a.split(",")])
-    b = np.array([float(x) for x in folds_str_b.split(",")])
-    t_stat, p = stats.ttest_rel(a, b)
-    return p
+    try:
+        a = np.array([float(x) for x in str(folds_str_a).split(",")])
+        b = np.array([float(x) for x in str(folds_str_b).split(",")])
+        if len(a) != len(b):
+            return None
+        t_stat, p = stats.ttest_rel(a, b)
+        return p
+    except (ValueError, TypeError):
+        return None
 
 
 # ── Data loaders ──
