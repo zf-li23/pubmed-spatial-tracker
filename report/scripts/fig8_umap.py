@@ -112,11 +112,32 @@ else:
 ax.set_title("(E) PGB Node2Vec\n(5K nodes, 3 types)", loc="left", fontweight="bold", fontsize=7)
 ax.set_xticks([]); ax.set_yticks([])
 
-# (F) placeholder
+# (F) ST Fine-tuned BioBERT (side-by-side with B)
 ax = axes[1, 2]
-ax.text(0.5, 0.5, "(F) Fine-tuning Effect\n(needs checkpoint)", ha="center",
-        va="center", fontsize=8, color="gray", transform=ax.transAxes)
-ax.set_title("(F) Fine-tuning Effect", loc="left", fontweight="bold", fontsize=7)
+coords, y, ln = load_2d("st_finetuned")
+if coords is not None:
+    ax.scatter(coords[:, 0], coords[:, 1], c=y, cmap="tab10",
+               s=2.5, alpha=0.6, edgecolors="none")
+    ln_ds = list(np.unique(y))  # ST has 6 classes 0-5
+    try:
+        u = np.unique(y)[:6]
+        cmap_obj = plt.colormaps.get_cmap("tab10")
+        h = [plt.Line2D([0],[0], marker="o", color="w",
+              markerfacecolor=cmap_obj(i/len(u)), markersize=3)
+             for i in range(len(u))]
+        ln_len = len(ln_ds) if ln_ds is not None else 0
+        labs = [str(ln_ds[int(i)])[:18] if ln_ds is not None and int(i) < ln_len
+                else f"C{int(i)}" for i in u]
+        ax.legend(h, labs, fontsize=4.5, loc="lower left", frameon=False, ncol=2)
+    except Exception:
+        pass
+    print(f"  st_finetuned: {coords.shape[0]} pts", flush=True)
+else:
+    ax.text(0.5, 0.5, "unavailable", ha="center", va="center",
+            fontsize=7, color="gray", transform=ax.transAxes)
+ax.set_title("(F) ST Fine-tuned BioBERT\n(post-finetune embedding)", loc="left",
+             fontweight="bold", fontsize=7)
+ax.set_xticks([]); ax.set_yticks([])
 
 plt.subplots_adjust(left=0.05, right=0.98, top=0.96, bottom=0.05,
                     hspace=0.35, wspace=0.25)

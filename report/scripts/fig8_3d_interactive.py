@@ -19,6 +19,7 @@ PANELS = [
     ("ST BioBERT", "umap_3d_st.npz", "tab10", range(6)),
     ("OHSUMED BioBERT", "umap_3d_ohsu.npz", "tab10", range(10)),
     ("PGB Node2Vec", "umap_3d_pgb.npz", "tab10", range(3)),
+    ("ST Fine-tuned BioBERT", "umap_3d_st_finetuned.npz", "tab10", range(6)),
 ]
 
 from plotly.offline import plot

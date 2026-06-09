@@ -162,7 +162,10 @@ def run_cv(ds, feat_name, model_fn, cv=5, ds_kwargs=None):
 
     is_ml = ds.task_type == "multilabel" and ds.name != "pgb"
     base = model_fn()
-    n_jobs = 1 if feat_name == "biobert" else -1
+    # Outer fold parallelism: 1 for BioBERT (memory), 1 for multi-label with
+    # many labels (nested OvR handles intra-fold parallelism). Avoids joblib
+    # nested Parallel deadlock when OvR spawns 100+ binary classifiers.
+    n_jobs = 1 if (feat_name == "biobert" or (is_ml and ds.n_labels > 100)) else -1
 
     from sklearn.model_selection import KFold, StratifiedKFold
     from sklearn.multiclass import OneVsRestClassifier

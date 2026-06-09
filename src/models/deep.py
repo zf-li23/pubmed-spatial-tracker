@@ -89,6 +89,22 @@ class BioBERTFineTuner:
         else:
             return np.concatenate(all_preds)
 
+    def extract_embeddings(self, texts, batch_size=64):
+        """Extract fine-tuned BioBERT [CLS] embeddings (768-dim)."""
+        self.model.eval()
+        all_embs = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            enc = self.tokenizer(batch, padding=True, truncation=True,
+                                 max_length=128, return_tensors="pt")
+            with torch.no_grad():
+                ids = enc["input_ids"].to(self.device)
+                mask = enc["attention_mask"].to(self.device)
+                out = self.model.bert(input_ids=ids, attention_mask=mask)
+                cls = out.last_hidden_state[:, 0, :]  # [CLS]
+                all_embs.append(cls.cpu().numpy())
+        return np.vstack(all_embs)
+
     def predict_proba(self, texts, batch_size=64):
         """Predict probabilities with batching."""
         self.model.eval()
