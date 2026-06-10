@@ -162,10 +162,10 @@ def run_cv(ds, feat_name, model_fn, cv=5, ds_kwargs=None):
 
     is_ml = ds.task_type == "multilabel" and ds.name != "pgb"
     base = model_fn()
-    # Outer fold parallelism: 1 for BioBERT (memory), 1 for multi-label with
-    # many labels (nested OvR handles intra-fold parallelism). Avoids joblib
-    # nested Parallel deadlock when OvR spawns 100+ binary classifiers.
-    n_jobs = 1 if (feat_name == "biobert" or (is_ml and ds.n_labels > 100)) else -1
+    # Outer fold parallelism: -1 for speed (all folds in parallel),
+    # but 1 for BioBERT (memory heavy) and for multi-label with many
+    # labels where OvR handles internal parallelism.
+    n_jobs = 1 if feat_name == "biobert" else -1
 
     from sklearn.model_selection import KFold, StratifiedKFold
     from sklearn.multiclass import OneVsRestClassifier
@@ -183,28 +183,9 @@ def run_cv(ds, feat_name, model_fn, cv=5, ds_kwargs=None):
 
     splits = list(fold_idx.split(X, y))
 
-    def _eval_fold(tr_idx, te_idx):
-        X_tr, X_te = X[tr_idx], X[te_idx]
-        # GaussianNB does not support sparse matrices; convert to dense
-        if sparse.issparse(X_tr):
-            X_tr = X_tr.toarray()
-            X_te = X_te.toarray()
-        y_tr, y_te = y[tr_idx], y[te_idx]
-        clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1) if is_ml else copy.deepcopy(base)
-        clf.fit(X_tr, y_tr)
-        y_pred = clf.predict(X_te)
-        return {
-            "f1_macro": f1_score(y_te, y_pred, average="macro", zero_division=0),
-            "f1_weighted": f1_score(y_te, y_pred, average="weighted", zero_division=0),
-            "accuracy": accuracy_score(y_te, y_pred),
-            "f1_micro": f1_score(y_te, y_pred, average="micro", zero_division=0),
-            "f1_samples": f1_score(y_te, y_pred, average="samples", zero_division=0)
-            if is_ml else None,
-        }
-
     t0 = time.time()
     fold_results = Parallel(n_jobs=n_jobs)(
-        delayed(_eval_fold)(tr, te)
+        delayed(_eval_cv_fold)(tr, te, X, y, copy.deepcopy(base), is_ml)
         for tr, te in tqdm(splits, desc="CV", unit="fold", leave=False)
     )
     train_time = time.time() - t0
@@ -315,3 +296,30 @@ def model_label(name):
               "ada": "AdaBoost", "xgb": "XGBoost"}
     return labels.get(name, name)
 
+
+
+# ═══════════════════════════════════════════════════════════════
+# CV fold evaluator (module-level for joblib pickling)
+# ═══════════════════════════════════════════════════════════════
+
+def _eval_cv_fold(tr_idx, te_idx, X, y, base, is_ml):
+    """Evaluate one CV fold. Module-level for joblib pickling."""
+    from sklearn.multiclass import OneVsRestClassifier
+    from sklearn.metrics import f1_score, accuracy_score
+    import copy
+    X_tr, X_te = X[tr_idx], X[te_idx]
+    if sparse.issparse(X_tr):
+        X_tr = X_tr.toarray()
+        X_te = X_te.toarray()
+    y_tr, y_te = y[tr_idx], y[te_idx]
+    clf = OneVsRestClassifier(copy.deepcopy(base), n_jobs=-1) if is_ml else copy.deepcopy(base)
+    clf.fit(X_tr, y_tr)
+    y_pred = clf.predict(X_te)
+    return {
+        "f1_macro": f1_score(y_te, y_pred, average="macro", zero_division=0),
+        "f1_weighted": f1_score(y_te, y_pred, average="weighted", zero_division=0),
+        "accuracy": accuracy_score(y_te, y_pred),
+        "f1_micro": f1_score(y_te, y_pred, average="micro", zero_division=0),
+        "f1_samples": f1_score(y_te, y_pred, average="samples", zero_division=0)
+        if is_ml else None,
+    }
