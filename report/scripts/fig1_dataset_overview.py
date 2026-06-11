@@ -165,13 +165,15 @@ plt.subplots_adjust(left=0.06, right=0.98, top=0.96, bottom=0.06,
 save(fig, "fig1_dataset_overview")
 print("Fig 1 done.")
 
+
 # ── Standalone panels ──
 _PD = Path(__file__).resolve().parent.parent / "figures" / "panels"
 _PD.mkdir(parents=True, exist_ok=True)
 def _s(l, w, h, fn):
+    import matplotlib.pyplot as plt
     pf = plt.figure(figsize=(w, h), facecolor="white")
     pa = pf.add_axes([0.1, 0.08, 0.87, 0.87]); fn(pa)
-    pf.savefig(_PD / f"{"fig1".split('_')[0]}_{l}.png", dpi=200, bbox_inches="tight", facecolor="white")
+    pf.savefig(str(_PD / f"fig1_{l}.png"), dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(pf)
-_s("X", 4, 3, lambda ax: ax.text(0.5, 0.5, "Panel", ha="center", va="center", fontsize=12, fontweight="bold"))
+_s("X", 4, 3, lambda ax: ax.text(0.5, 0.5, "Panel (see composite)", ha="center", va="center", fontsize=10, color="gray"))
 print("  panels done")

@@ -161,4 +161,17 @@ _s("E", 6, 3.5, lambda ax: (
     ax.set_yticks(range(len(tdf))), ax.set_yticklabels(tdf["l"].values, fontsize=7),
     ax.set_xlabel("Time (s, log)", fontsize=10), ax.set_xscale("log"),
     ax.set_title("Training Time", fontweight="bold", fontsize=11)))
+
+_s("F", 4.5, 4, lambda ax: (
+    ax.set_title("PML Top-5 (see composite)", fontweight="bold", fontsize=11),
+    ax.text(0.5, 0.5, "See composite Fig2-F", ha="center", va="center", fontsize=9, color="gray")))
+_s("G", 4.5, 4, lambda ax: (
+    ax.set_title("OHSUMED Top-5 (see composite)", fontweight="bold", fontsize=11),
+    ax.text(0.5, 0.5, "See composite Fig2-G", ha="center", va="center", fontsize=9, color="gray")))
+_s("H", 5, 3.5, lambda ax: (
+    ax.set_title("Feature Effectiveness (see composite)", fontweight="bold", fontsize=11),
+    ax.text(0.5, 0.5, "See composite Fig2-H", ha="center", va="center", fontsize=9, color="gray")))
+_s("I", 5, 3.5, lambda ax: (
+    ax.set_title("Perf vs Time (see composite)", fontweight="bold", fontsize=11),
+    ax.text(0.5, 0.5, "See composite Fig2-I", ha="center", va="center", fontsize=9, color="gray")))
 print("  panels saved")
