@@ -39,7 +39,7 @@ vm,vx=0,np.percentile(av,95)*1.05
 dls=list(Dl.keys())
 
 fig = plt.figure(figsize=(10,10))
-gs = fig.add_gridspec(4,4,width_ratios=[1,1,1,0.06],height_ratios=[1.2,0.5,0.8,0.65],hspace=0.4,wspace=0.1,left=0.07,right=0.93,top=0.94,bottom=0.07)
+gs = fig.add_gridspec(4,4,width_ratios=[1,1,1,0.06],height_ratios=[1.2,0.5,0.8,0.65],hspace=0.45,wspace=0.22,left=0.05,right=0.92,top=0.94,bottom=0.07)
 
 for ci,ds in enumerate(dls):
     ax=fig.add_subplot(gs[0,ci]); mat=mats[ds]
@@ -62,6 +62,8 @@ ax.set_ylabel("Best F1-macro",fontsize=7); ax.set_title("(D) Best per Dataset",l
 for b,v in zip(ba,[bd[k] for k in dls]): ax.text(b.get_x()+b.get_width()/2,b.get_height()+0.005,f"{v:.3f}",ha="center",fontsize=6.5)
 
 ax=fig.add_subplot(gs[1,1:4])
+# Shift E right to increase D-E gap
+_be=ax.get_position(); ax.set_position([_be.x0+0.04,_be.y0,_be.width-0.04,_be.height])
 DSH=dict(zip(dls,["OHSU","PML","PGB"]))
 tdf=pd.DataFrame([{"l":f"{DSH[ds]}/{FL[f]}","t":s2["train_time_s"].mean()} for ds in dls for f in Fl for s2 in [df[(df["dataset"]==ds)&(df["feature"]==f)]] if not s2.empty]).sort_values("t")
 ax.barh(range(len(tdf)),tdf["t"].values,color=C["blue"],height=0.6)
@@ -79,8 +81,8 @@ ax.bar(range(len(lb)),va,yerr=er,color=[FC[r["feature"]] for _,r in t5.iterrows(
 if len(va)>1:
     by=max(va[k]+er[k] for k in range(len(va)))
     for i in range(1,len(va)):
-        sig_annotate(ax,0,i,by+0.035*(i-1),cp(t5.iloc[0].get("f1_macro_folds"),t5.iloc[i].get("f1_macro_folds")))
-    ax.set_ylim(0,by+0.035*(len(va)-2)+by*0.15)
+        sig_annotate(ax,0,i,by+0.045*(i-1),cp(t5.iloc[0].get("f1_macro_folds"),t5.iloc[i].get("f1_macro_folds")))
+    ax.set_ylim(0,by+0.045*(len(va)-2)+by*0.2)
 ax.set_xticks(range(len(lb))); ax.set_xticklabels(lb,rotation=30,ha="right",fontsize=6.5)
 ax.set_ylabel("F1-macro",fontsize=7); ax.set_title("(F) PML — Top 5",loc="left",fontweight="bold",fontsize=8)
 
