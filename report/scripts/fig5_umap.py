@@ -180,14 +180,60 @@ save(fig, "fig5_umap")
 print("Fig 5 done.", flush=True)
 
 
+
 # ── Standalone panels ──
 _PD = Path(__file__).resolve().parent.parent / "figures" / "panels"
 _PD.mkdir(parents=True, exist_ok=True)
 def _s(l, w, h, fn):
     import matplotlib.pyplot as plt
     pf = plt.figure(figsize=(w, h), facecolor="white")
-    pa = pf.add_axes([0.1, 0.08, 0.87, 0.87]); fn(pa)
+    pa = pf.add_axes([0.08, 0.08, 0.88, 0.88]); fn(pa)
     pf.savefig(str(_PD / f"fig5_{l}.png"), dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(pf)
-_s("X", 4, 3, lambda ax: ax.text(0.5, 0.5, "Panel (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-print("  panels done")
+
+# A: PML BioBERT
+c, y, ln = load_2d("pml")
+_s("A", 5, 4.5, lambda ax: (
+    ax.scatter(c[:,0], c[:,1], c=y, cmap="tab20", s=3, alpha=0.6, edgecolors="none"),
+    legend(ax, y, ln, 8, "tab20"),
+    ax.set_title("PML BioBERT (2K, 16 categories)", fontweight="bold", fontsize=11),
+    ax.set_xticks([]), ax.set_yticks([])))
+
+# B: PML TF-IDF
+_s("B", 5, 4.5, lambda ax: (
+    ax.scatter(c[:,0], c[:,1], c=y, cmap="tab20", s=3, alpha=0.6, edgecolors="none"),
+    legend(ax, y, ln, 8, "tab20"),
+    ax.set_title("PML TF-IDF (2K, cosine UMAP)", fontweight="bold", fontsize=11),
+    ax.set_xticks([]), ax.set_yticks([])))
+
+# C: OHSUMED BioBERT
+c, y, ln = load_2d("ohsu")
+_s("C", 5, 4.5, lambda ax: (
+    ax.scatter(c[:,0], c[:,1], c=y, cmap="tab10", s=3, alpha=0.6, edgecolors="none"),
+    legend(ax, y, ln, 10, "tab10"),
+    ax.set_title("OHSUMED BioBERT (2K, top-10 MeSH)", fontweight="bold", fontsize=11),
+    ax.set_xticks([]), ax.set_yticks([])))
+
+# D: ST BioBERT
+c, y, ln = load_2d("st")
+_s("D", 5, 4.5, lambda ax: (
+    ax.scatter(c[:,0], c[:,1], c=y, cmap="tab10", s=3, alpha=0.6, edgecolors="none"),
+    legend(ax, y, ln, 6, "tab10"),
+    ax.set_title("ST BioBERT (2K, 6 categories)", fontweight="bold", fontsize=11),
+    ax.set_xticks([]), ax.set_yticks([])))
+
+# E: ST Fine-tuned
+c, y, ln = load_2d("st_finetuned")
+_s("E", 5, 4.5, lambda ax: (
+    ax.scatter(c[:,0], c[:,1], c=y, cmap="tab10", s=3, alpha=0.6, edgecolors="none"),
+    ax.set_title("ST Fine-tuned BioBERT", fontweight="bold", fontsize=11),
+    ax.set_xticks([]), ax.set_yticks([])))
+
+# F: PGB Node2Vec
+c, y, ln = load_2d("pgb")
+_s("F", 5, 4.5, lambda ax: (
+    ax.scatter(c[:,0], c[:,1], c=y, cmap="tab10", s=1.5, alpha=0.5, edgecolors="none"),
+    legend(ax, y, ln, 3, "tab10"),
+    ax.set_title("PGB Node2Vec (5K nodes, 3 types)", fontweight="bold", fontsize=11),
+    ax.set_xticks([]), ax.set_yticks([])))
+print("  panels A-F saved")

@@ -229,6 +229,7 @@ save(fig, "fig3_unsupervised_multilabel_graph")
 print("Fig 3 done.")
 
 
+
 # ── Standalone panels ──
 _PD = Path(__file__).resolve().parent.parent / "figures" / "panels"
 _PD.mkdir(parents=True, exist_ok=True)
@@ -238,5 +239,17 @@ def _s(l, w, h, fn):
     pa = pf.add_axes([0.1, 0.08, 0.87, 0.87]); fn(pa)
     pf.savefig(str(_PD / f"fig3_{l}.png"), dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(pf)
-_s("X", 4, 3, lambda ax: ax.text(0.5, 0.5, "Panel (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-print("  panels done")
+
+_s("A", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel A (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("B", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel B (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("C", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel C (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("D", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel D (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("E", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel E (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("F", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel F (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("G", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel G (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("H", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel H (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("I", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel I (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("J", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel J (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("K", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel K (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+_s("L", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel L (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+print("  panels A-L saved")
