@@ -27,7 +27,7 @@
 
 本课题在\textbf{四个独立数据集}上系统比较多策略机器学习方法：(1)~OHSUMED\footnote{\url{https://trec.nist.gov/data/filtering/t9.filtering.tar.gz}}（$\sim$294K篇，14,466个MeSH词），(2)~PubMed-MultiLabel\footnote{\url{https://www.kaggle.com/datasets/owaiskhan9654/pubmed-multilabel-text-classification}}（10K篇，15个MeSH顶级类别），(3)~PGB\footnote{Lee \& Ho, arXiv:2305.02691, 2023}（$\sim$30M篇，含MeSH层级+引用图），(4)~自建空间转录组学文献库（约数千篇，待通过PubMed检索构建）。四个数据集从标签粒度（15$\to$14,466类）、信息维度（纯文本$\to$异构图）和标注完备性（全标注$\to$待标注）形成天然梯度，支撑贝叶斯学习、集成学习、深度学习、无监督学习、基于实例的学习、图表示学习等模块的算法系统比较。
 
-本次为\textbf{修订重提交}。相比初版，我深入研究了生物医学文献分类领域，理解了MeSH主题词层级体系，重构了项目架构，新增两个高质量全标注基准数据集，并找到利用DeepSeek API（OpenAI兼容格式，\texttt{deepseek-v4}模型）进行批量标注\footnote{Touchent et al., arXiv:2506.20331, 2025}的方法来解决目标数据集标注问题。算法方面，受PGB启发新增了\textbf{图表示学习方法}（node2vec、GCN、GraphSAGE）。为严格遵守课程AI使用规定，我已删除仓库全部AI生成代码，将从头手写并全程使用Git记录。本项目不属于任何课程或SRT项目。
+本次为\textbf{修订重提交}。相比初版，我深入研究了生物医学文献分类领域，理解了MeSH主题词层级体系，重构了项目架构，新增两个高质量全标注基准数据集，并找到利用DeepSeek API（OpenAI兼容格式，\texttt{deepseek-v4}模型）进行批量标注\footnote{Touchent et al., arXiv:2506.20331, 2025}的方法来解决目标数据集标注问题。算法方面，受PGB启发新增了\textbf{图表示学习方法}（node2vec、GCN、GraphSAGE）。本项目不属于任何课程或SRT项目。
 
 \section{二、拟采用的特征与算法}
 
