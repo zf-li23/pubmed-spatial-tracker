@@ -231,25 +231,160 @@ print("Fig 3 done.")
 
 
 # ── Standalone panels ──
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from collections import Counter
+from scipy import stats as S
+from plot_utils import C, PALETTE, sig_annotate
 _PD = Path(__file__).resolve().parent.parent / "figures" / "panels"
 _PD.mkdir(parents=True, exist_ok=True)
 def _s(l, w, h, fn):
-    import matplotlib.pyplot as plt
     pf = plt.figure(figsize=(w, h), facecolor="white")
     pa = pf.add_axes([0.1, 0.08, 0.87, 0.87]); fn(pa)
     pf.savefig(str(_PD / f"fig3_{l}.png"), dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(pf)
 
-_s("A", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel A (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("B", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel B (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("C", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel C (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("D", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel D (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("E", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel E (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("F", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel F (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("G", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel G (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("H", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel H (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("I", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel I (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("J", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel J (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("K", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel K (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("L", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel L (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+# Reload data
+_REPO = Path(__file__).resolve().parent.parent.parent
+_BMLP = pd.read_csv(_REPO / "experiments" / "002_biobert_mlp" / "results" / "biobert_mlp.csv")
+_LDA = pd.read_csv(_REPO / "experiments" / "003_lda_cluster" / "results" / "lda_cluster.csv").drop_duplicates(subset=["dataset"])
+_CLF = pd.read_csv(_REPO / "experiments" / "001_classical_matrix" / "results" / "classical_matrix.csv")
+_ML = pd.read_csv(_REPO / "experiments" / "004_multilabel_strategy" / "results" / "multilabel_strategy.csv")
+_GM = pd.read_csv(_REPO / "experiments" / "005_graph_models" / "results" / "graph_models.csv")
+_TL = pd.read_csv(_REPO / "experiments" / "007_transfer_learning" / "results" / "transfer_learning.csv")
+_DS = ["ohsumed","pubmed_multilabel","pgb"]
+_DL = ["OHSUMED","PML","PGB"]
+_DC = [C["blue"],C["green"],C["orange"]]
+_BC = {}
+for ds in _DS:
+    s = _CLF[_CLF["dataset"]==ds].dropna(subset=["f1_macro"])
+    if not s.empty: _BC[ds] = s["f1_macro"].max()
+
+def _cp(fa, fb):
+    if pd.isna(fa) or pd.isna(fb) or not str(fa).strip(): return None
+    try:
+        a = np.array([float(x) for x in str(fa).split(",")])
+        b = np.array([float(x) for x in str(fb).split(",")])
+        return S.ttest_rel(a,b)[1] if len(a)==len(b) else S.ttest_ind(a,b)[1]
+    except: return None
+
+# A: BioBERT vs Classical
+_bv = [_BMLP[_BMLP["dataset"]==ds]["f1_macro"].values[0] if not _BMLP[_BMLP["dataset"]==ds].empty else 0 for ds in _DS]
+_cv = [_BC.get(ds, 0) for ds in _DS]
+_s("A", 5, 3.5, lambda ax: (
+    [ax.bar(i-0.15, _cv[i], 0.3, color=_DC[i], edgecolor="white", linewidth=0.5, alpha=0.9) for i in range(3)],
+    [ax.bar(i+0.15, _bv[i], 0.3, color=_DC[i], edgecolor="white", linewidth=0.5, alpha=0.9, hatch="////") for i in range(3)],
+    ax.legend(handles=[Patch(facecolor="gray",edgecolor="white",label="Best Classical"),
+                       Patch(facecolor="gray",edgecolor="white",hatch="////",label="BioBERT+MLP")], fontsize=7, frameon=False, ncol=2),
+    ax.set_xticks(range(3)), ax.set_xticklabels(_DL, fontsize=8),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("BioBERT+MLP vs Best Classical", fontweight="bold", fontsize=11)))
+
+# B: LDA NMI
+_lda_v = [float(_LDA[_LDA["dataset"]==ds]["nmi"].values[0]) if not _LDA[_LDA["dataset"]==ds].empty else 0 for ds in _DS]
+_s("B", 5, 3.5, lambda ax: (
+    ax.bar(_DL, _lda_v, color=_DC, width=0.5, edgecolor="white"),
+    [ax.text(i, v+0.01, f"{v:.3f}", ha="center", fontsize=8) for i, v in enumerate(_lda_v)],
+    ax.set_ylabel("NMI", fontsize=10),
+    ax.set_title("LDA Clustering Quality (NMI)", fontweight="bold", fontsize=11)))
+
+# C: Unsup vs Sup
+_s("C", 5, 3.5, lambda ax: (
+    ax.bar(np.arange(3)-0.15, _lda_v, 0.3, color=C["purple"], label="NMI (unsupervised)", edgecolor="white"),
+    ax2 := ax.twinx(),
+    ax2.bar(np.arange(3)+0.15, [_BC.get(ds,0) for ds in _DS], 0.3, color=C["green"], alpha=0.6, label="F1 (supervised)", edgecolor="white"),
+    ax.set_ylabel("NMI", fontsize=10), ax2.set_ylabel("F1-macro", fontsize=10, color=C["green"]),
+    ax.set_xticks(range(3)), ax.set_xticklabels(_DL, fontsize=8),
+    ax.set_title("Unsupervised vs Supervised", fontweight="bold", fontsize=11),
+    ax.legend(fontsize=7, frameon=False, loc="upper left")))
+
+# D: Cost-Benefit
+_s("D", 5, 3.5, lambda ax: (
+    ax.text(0.5, 0.5, "See composite Fig3-D", ha="center", va="center", fontsize=10, color="gray", transform=ax.transAxes),
+    ax.set_title("Cost-Benefit Landscape", fontweight="bold", fontsize=11)))
+
+# E: Multi-label Strategy
+_pml_ml = _ML[_ML["dataset"]=="pubmed_multilabel"]
+_sv = _pml_ml["f1_macro"].values; _se = _pml_ml["f1_macro_std"].values
+_s("E", 5, 3.5, lambda ax: (
+    ax.bar(_pml_ml["strategy"].values.astype(str), _sv, yerr=_se, color=[C["blue"],C["green"],C["orange"]], width=0.5, capsize=3, edgecolor="white"),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("Multi-label Strategy (PML)", fontweight="bold", fontsize=11)))
+
+# F: F1 vs Time
+_s("F", 5, 3.5, lambda ax: (
+    ax.bar(_pml_ml["strategy"].values.astype(str), _sv, color=[C["blue"],C["green"],C["orange"]], width=0.4, alpha=0.7, edgecolor="white"),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("F1 vs Time Cost (PML)", fontweight="bold", fontsize=11)))
+
+# G: OHSUMED zoom
+_ohs_ml = _ML[_ML["dataset"]=="ohsumed"]
+_osv = _ohs_ml["f1_macro"].values
+_s("G", 5, 3.5, lambda ax: (
+    ax.bar(_ohs_ml["strategy"].values.astype(str), _osv, color=[C["blue"],C["green"],C["orange"]], width=0.5, edgecolor="white"),
+    [ax.text(i, v+0.0002, f"{v:.4f}", ha="center", fontsize=8) for i, v in enumerate(_osv)],
+    ax.set_ylim(0, max(_osv)*1.3),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("OHSUMED (1,650 labels)", fontweight="bold", fontsize=11)))
+
+# H: Model Robustness
+_MOD = ["NaiveBayes","k-NN","SVM","LogisticReg","RandomForest","AdaBoost","XGBoost"]
+_MODL = dict(zip(_MOD,["NB","kNN","SVM","LR","RF","Ada","XGB"]))
+_bd = [_CLF[(_CLF["model"]==m)&(_CLF["dataset"]=="pubmed_multilabel")]["f1_macro"].dropna().values for m in _MOD]
+_s("H", 5, 3.5, lambda ax: (
+    [ax.boxplot(_bd, tick_labels=[_MODL[m] for m in _MOD], patch_artist=True, widths=0.6)],
+    ax.set_ylabel("F1-macro (PML)", fontsize=10),
+    ax.set_title("Model Robustness Across Features", fontweight="bold", fontsize=11)))
+
+# I: Node2Vec
+_n2v = _GM[_GM["feature"]=="node2vec"].reset_index(drop=True)
+_nm = [r["model"].replace("Node2Vec+","") for _, r in _n2v.iterrows()]
+_nv = _n2v["f1_macro"].values
+_s("I", 5, 3.5, lambda ax: (
+    ax.bar(range(len(_nm)), _nv, color=C["blue"], width=0.5, edgecolor="white"),
+    ax.set_xticks(range(len(_nm))), ax.set_xticklabels(_nm, fontsize=7),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("Node2Vec + Classifiers", fontweight="bold", fontsize=11)))
+
+# J: Graph Methods
+_gcn = _GM[_GM["model"]=="GCN"].iloc[0]; _sage = _GM[_GM["model"]=="GraphSAGE"].iloc[0]
+_n2v_best = _n2v.loc[_n2v["f1_macro"].idxmax()]
+_s("J", 5, 3.5, lambda ax: (
+    ax.bar(range(3), [_gcn["f1_macro"],_sage["f1_macro"],_n2v_best["f1_macro"]],
+           color=[C["green"],C["orange"],C["blue"]], width=0.5, edgecolor="white"),
+    ax.set_xticks(range(3)), ax.set_xticklabels(["GCN","GraphSAGE","Node2Vec\n(best)"], fontsize=7),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("Graph Methods (PGB)", fontweight="bold", fontsize=11)))
+
+# K: ST Graph
+_d1 = _TL[_TL["exp_id"]=="D1"]; _d2 = _TL[_TL["exp_id"]=="D2"]; _b1 = _TL[_TL["exp_id"]=="B1"]
+_s("K", 5, 3.5, lambda ax: (
+    ax.bar(["BioBERT+LR\n(baseline)","GCN\n(k-NN)","GraphSAGE\n(k-NN)"],
+           [_b1["f1_macro"].values[0] if not _b1.empty else 0,
+            _d1["f1_macro"].values[0] if not _d1.empty else 0,
+            _d2["f1_macro"].values[0] if not _d2.empty else 0],
+           color=[C["gray"],C["green"],C["orange"]], width=0.5, edgecolor="white"),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("ST Graph Methods", fontweight="bold", fontsize=11)))
+
+# L: Label Complexity
+_lc = {"ohsumed":1650,"pubmed_multilabel":16,"pgb":3}
+_pts = []
+for ds, nl in _lc.items():
+    for feat in ["tfidf","biobert","lda","meta"]:
+        s = _CLF[(_CLF["dataset"]==ds)&(_CLF["feature"]==feat)].dropna(subset=["f1_macro"])
+        if not s.empty: _pts.append((nl, s["f1_macro"].max()))
+_st6 = pd.read_csv(_REPO/"experiments"/"006_st_benchmark"/"results"/"st_benchmark.csv")
+for _, r in _st6.iterrows(): _pts.append((6, r["f1_macro"]))
+_xv = [x[0] for x in _pts]; _yv = [x[1] for x in _pts]
+_lx = np.log10(_xv)
+_sl, _itc, _rv, _, _ = S.linregress(_lx, _yv)
+_s("L", 5, 3.5, lambda ax: (
+    ax.scatter(_xv, _yv, c=C["blue"], s=30, alpha=0.7, edgecolors="none"),
+    ax.plot(np.logspace(np.log10(min(_xv)),np.log10(max(_xv)),100),
+            _sl*np.log10(np.logspace(np.log10(min(_xv)),np.log10(max(_xv)),100))+_itc, "--", color="gray", lw=0.8, alpha=0.6),
+    ax.set_xscale("log"), ax.set_xlabel("Number of Labels (log)", fontsize=10),
+    ax.set_ylabel("Best F1-macro", fontsize=10),
+    ax.set_title(f"Label Complexity (r={_rv:.2f})", fontweight="bold", fontsize=11)))
 print("  panels A-L saved")

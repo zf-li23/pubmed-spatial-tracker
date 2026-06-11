@@ -167,23 +167,87 @@ print("Fig 1 done.")
 
 
 
+
 # ── Standalone panels ──
+import matplotlib.pyplot as plt
+from collections import Counter
+from plot_utils import C, PALETTE
 _PD = Path(__file__).resolve().parent.parent / "figures" / "panels"
 _PD.mkdir(parents=True, exist_ok=True)
 def _s(l, w, h, fn):
-    import matplotlib.pyplot as plt
     pf = plt.figure(figsize=(w, h), facecolor="white")
     pa = pf.add_axes([0.1, 0.08, 0.87, 0.87]); fn(pa)
     pf.savefig(str(_PD / f"fig1_{l}.png"), dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(pf)
 
-_s("A", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel A (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("B", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel B (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("C", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel C (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("D", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel D (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("E", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel E (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("F", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel F (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("G", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel G (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("H", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel H (see composite)", ha="center", va="center", fontsize=10, color="gray"))
-_s("I", 5, 3.5, lambda ax: ax.text(0.5, 0.5, "Panel I (see composite)", ha="center", va="center", fontsize=10, color="gray"))
+# Reload data for standalone use
+_DF = pd.read_csv(Path(__file__).resolve().parent.parent.parent / "data/spatial_tracker/annotated_articles.csv")
+def _sc(s):
+    r = []; [r.extend([x.strip() for x in str(v).split("; ")]) for v in s.dropna()]; return r
+_AT = _sc(_DF["tags"]); _ATC = Counter(_AT)
+_CC = _DF["category"].value_counts()
+_TPA = _DF["tags"].dropna().apply(lambda x: len(str(x).split("; ")))
+
+# A: Year Trend
+_y = _DF["pub_year"].value_counts().sort_index()
+_s("A", 5, 3.5, lambda ax: (
+    ax.fill_between(_y.index, _y.values, alpha=0.2, color=C["blue"]),
+    ax.plot(_y.index, _y.values, color=C["blue"], lw=1.2),
+    ax.set_xlabel("Year", fontsize=10), ax.set_ylabel("Publications", fontsize=10),
+    ax.set_title("Publication Year Trend", fontweight="bold", fontsize=11),
+    ax.set_xlim(2016, 2026)))
+
+# B: Category Pie
+_s("B", 5, 3.5, lambda ax: (
+    ax.pie(_CC.values, labels=None, colors=PALETTE[:len(_CC)], startangle=90),
+    ax.set_title("Category Distribution", fontweight="bold", fontsize=11)))
+
+# C: Tag Distribution
+_tc = _ATC.most_common(15)
+_s("C", 5, 3.5, lambda ax: (
+    ax.barh([t for t,_ in reversed(_tc)], [c for _,c in reversed(_tc)], color=C["blue"], height=0.7),
+    ax.set_xlabel("Count", fontsize=10),
+    ax.set_title("Analysis Tag Distribution", fontweight="bold", fontsize=11)))
+
+# D: Tags per Article
+_th = _TPA.value_counts().sort_index()
+_s("D", 5, 3.5, lambda ax: (
+    ax.bar(_th.index, _th.values, color=C["green"], width=0.6, edgecolor="white", linewidth=0.3),
+    ax.set_xlabel("Tags per Article", fontsize=10), ax.set_ylabel("Count", fontsize=10),
+    ax.set_title("Tags per Article", fontweight="bold", fontsize=11)))
+
+# E: Category x Tag Heatmap placeholder
+_s("E", 5, 3.5, lambda ax: (
+    ax.text(0.5, 0.5, "Category x Tag Heatmap\n(see composite)", ha="center", va="center",
+            fontsize=10, color="gray", transform=ax.transAxes),
+    ax.set_title("Category x Tag Heatmap", fontweight="bold", fontsize=11)))
+
+# F: Technology
+_tc2 = Counter(_sc(_DF["technology"])).most_common(8)
+_s("F", 5, 3.5, lambda ax: (
+    ax.barh([t for t,_ in reversed(_tc2)], [c for _,c in reversed(_tc2)], color=C["purple"], height=0.7),
+    ax.set_xlabel("Count", fontsize=10),
+    ax.set_title("Technology Platforms", fontweight="bold", fontsize=11)))
+
+# G: Biological Topics
+_tc3 = Counter(_sc(_DF["biological_topic"])).most_common(8)
+_s("G", 5, 3.5, lambda ax: (
+    ax.barh([t for t,_ in reversed(_tc3)], [c for _,c in reversed(_tc3)], color=C["orange"], height=0.7),
+    ax.set_xlabel("Count", fontsize=10),
+    ax.set_title("Biological Topics", fontweight="bold", fontsize=11)))
+
+# H: Confidence Donut
+_conf = _DF["confidence"].value_counts()
+_s("H", 5, 3.5, lambda ax: (
+    ax.pie(_conf.values, labels=_conf.index, colors=[C["green"],C["orange"],C["red"]],
+           startangle=90, autopct="%1.0f%%"),
+    ax.set_title("Annotation Confidence", fontweight="bold", fontsize=11)))
+
+# I: Boolean Flags
+_s("I", 5, 3.5, lambda ax: (
+    ax.bar(["New Data","Has Code","Preprint"],
+           [_DF["has_new_data"].sum(), _DF["has_code"].sum(), _DF["is_preprint"].sum()],
+           color=[C["blue"],C["green"],C["orange"]], width=0.5),
+    ax.set_ylabel("Count", fontsize=10),
+    ax.set_title("Boolean Attributes", fontweight="bold", fontsize=11)))
 print("  panels A-I saved")
