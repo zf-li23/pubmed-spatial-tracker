@@ -69,9 +69,11 @@ def export_fig(script, fig_label, panel_labels):
     ns = {"__file__": str(script)}
     exec(open(script).read(), ns)
     fig = plt.gcf()
-    # Get axes that have content (not colorbars)
-    axes = [a for a in fig.axes if len(a.patches) > 0 or len(a.lines) > 0 or
-            len(a.collections) > 0 or len(a.images) > 0]
+    # Get content axes (skip colorbars: no title/labels, very narrow)
+    axes = [a for a in fig.axes if
+            (a.get_title() or a.get_xlabel() or a.get_ylabel() or
+             len(a.get_xticks()) > 0 or len(a.get_yticks()) > 0) and
+            a.get_position().width > 0.05]
     # Remove twinx axes (they'll be merged with parent)
     seen_positions = set()
     filtered = []
