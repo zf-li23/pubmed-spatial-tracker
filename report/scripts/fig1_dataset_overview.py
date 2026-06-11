@@ -219,21 +219,22 @@ _s("D", 5, 3.5, lambda ax: (
     ax.set_xlabel("Tags per Article", fontsize=10), ax.set_ylabel("Count", fontsize=10),
     ax.set_title("Tags per Article", fontweight="bold", fontsize=11)))
 
-# E: Category x Tag Heatmap
+# E: Category x Tag Heatmap (normalized by category, same as composite)
 _cat_order = ["Research","Technology","Review","Protocol","Data Resource","Benchmark"]
 _tag_order = [t for t,_ in _ATC.most_common(10)]
 _ct = np.zeros((len(_cat_order), len(_tag_order)))
-for _, row in _DF.iterrows():
-    cat = str(row["category"])
-    if cat in _cat_order:
-        tags = set(str(row["tags"]).split("; ")) if pd.notna(row["tags"]) else set()
-        for j, tg in enumerate(_tag_order):
-            if tg in tags: _ct[_cat_order.index(cat), j] += 1
-_s("E", 5, 4, lambda ax: (
-    ax.imshow(_ct, aspect="auto", cmap="YlOrRd"),
+for i, cat in enumerate(_cat_order):
+    _sub = _DF[_DF["category"]==cat]
+    _ct_tags = Counter(_sc(_sub["tags"]))
+    _total = len(_sub)
+    for j, tag in enumerate(_tag_order):
+        _ct[i, j] = _ct_tags.get(tag, 0) / _total * 100 if _total > 0 else 0
+import matplotlib.pyplot as _plt
+_s("E", 5.5, 4, lambda ax: (
+    [_plt.colorbar(ax.imshow(_ct, aspect="auto", cmap="YlOrRd"), ax=ax, fraction=0.04, pad=0.02, label="%")],
     ax.set_xticks(range(len(_tag_order))), ax.set_xticklabels([t[:12] for t in _tag_order], rotation=30, ha="right", fontsize=6),
     ax.set_yticks(range(len(_cat_order))), ax.set_yticklabels(_cat_order, fontsize=7),
-    ax.set_title("Category x Tag Heatmap", fontweight="bold", fontsize=11)))
+    ax.set_title("Category x Tag Heatmap (%)", fontweight="bold", fontsize=11)))
 
 # F: Technology
 _tc2 = Counter(_sc(_DF["technology"])).most_common(8)
