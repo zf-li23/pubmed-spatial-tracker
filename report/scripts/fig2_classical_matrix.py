@@ -119,3 +119,46 @@ l1=ax.legend(handles=dl,loc="upper right",fontsize=5.5,frameon=False,title="Data
 ax.add_artist(l1)
 ax.legend(handles=fl,loc="upper left",fontsize=5.5,frameon=False,title="Feature",title_fontsize=6)
 save(fig,"fig2_classical_matrix"); print("Fig 2 done.")
+
+# ── Standalone panel export (appended by build script) ──
+_PD = Path(__file__).resolve().parent.parent / "figures" / "panels"
+_PD.mkdir(parents=True, exist_ok=True)
+def _s(l, w, h, fn):
+    pf = plt.figure(figsize=(w, h), facecolor="white")
+    pa = pf.add_axes([0.1, 0.08, 0.87, 0.87]); fn(pa)
+    pf.savefig(_PD / f"fig2_{l}.png", dpi=200, bbox_inches="tight", facecolor="white")
+    plt.close(pf)
+
+_s("A", 4.5, 4.5, lambda ax: (
+    ax.imshow(mats["ohsumed"], aspect="auto", cmap="YlOrRd", norm=Normalize(vm, vx)),
+    [ax.text(j, i, f"{mats['ohsumed'][i,j]:.3f}", ha="center", va="center", fontsize=7,
+        color="white" if mats['ohsumed'][i,j]>(vm+vx)/2 else "black")
+     for i in range(7) for j in range(4) if not np.isnan(mats['ohsumed'][i,j])],
+    ax.set_xticks(range(4)), ax.set_xticklabels([FL[f] for f in Fl], rotation=30, ha="right", fontsize=8),
+    ax.set_yticks(range(7)), ax.set_yticklabels([MS[m] for m in Ml], fontsize=8),
+    ax.set_title("OHSUMED (1,650 labels)", fontweight="bold", fontsize=12)))
+_s("B", 4.5, 4.5, lambda ax: (
+    ax.imshow(mats["pubmed_multilabel"], aspect="auto", cmap="YlOrRd", norm=Normalize(vm, vx)),
+    [ax.text(j, i, f"{mats['pubmed_multilabel'][i,j]:.3f}", ha="center", va="center", fontsize=7,
+        color="white" if mats['pubmed_multilabel'][i,j]>(vm+vx)/2 else "black")
+     for i in range(7) for j in range(4) if not np.isnan(mats['pubmed_multilabel'][i,j])],
+    ax.set_xticks(range(4)), ax.set_xticklabels([FL[f] for f in Fl], rotation=30, ha="right", fontsize=8),
+    ax.set_yticks(range(7)), ax.set_yticklabels([MS[m] for m in Ml], fontsize=8),
+    ax.set_title("PubMed-MultiLabel (16 labels)", fontweight="bold", fontsize=12)))
+_s("C", 4.5, 4.5, lambda ax: (
+    ax.imshow(mats["pgb"], aspect="auto", cmap="YlOrRd", norm=Normalize(vm, vx)),
+    [ax.text(j, i, f"{mats['pgb'][i,j]:.3f}", ha="center", va="center", fontsize=7,
+        color="white" if mats['pgb'][i,j]>(vm+vx)/2 else "black")
+     for i in range(7) for j in range(4) if not np.isnan(mats['pgb'][i,j])],
+    ax.set_xticks(range(4)), ax.set_xticklabels([FL[f] for f in Fl], rotation=30, ha="right", fontsize=8),
+    ax.set_yticks(range(7)), ax.set_yticklabels([MS[m] for m in Ml], fontsize=8),
+    ax.set_title("PGB (3 labels)", fontweight="bold", fontsize=12)))
+_s("D", 4, 3.5, lambda ax: (
+    ax.bar(["OHSUMED","PML","PGB"], [bd[k] for k in dls], color=DC, width=0.5),
+    ax.set_ylabel("Best F1-macro", fontsize=10), ax.set_title("Best per Dataset", fontweight="bold", fontsize=11)))
+_s("E", 6, 3.5, lambda ax: (
+    ax.barh(range(len(tdf)), tdf["t"].values, color=C["blue"], height=0.6),
+    ax.set_yticks(range(len(tdf))), ax.set_yticklabels(tdf["l"].values, fontsize=7),
+    ax.set_xlabel("Time (s, log)", fontsize=10), ax.set_xscale("log"),
+    ax.set_title("Training Time", fontweight="bold", fontsize=11)))
+print("  panels saved")

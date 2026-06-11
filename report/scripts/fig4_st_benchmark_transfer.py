@@ -185,4 +185,131 @@ ax.set_title("(F) Pre-training Cost", loc="left", fontweight="bold", fontsize=8)
 ax.legend(fontsize=5, frameon=False, loc="lower right")
 
 save(fig, "fig4_st_benchmark_transfer")
-print("Fig 4 done.")
+
+# ═══════════════════════════════════════════════════════════════
+# Standalone panel export for PPT
+# ═══════════════════════════════════════════════════════════════
+PANEL_DIR = Path(__file__).resolve().parent.parent / "figures" / "panels"
+PANEL_DIR.mkdir(parents=True, exist_ok=True)
+
+def _sp(label, w, h, draw):
+    """Export a standalone panel figure."""
+    pf = plt.figure(figsize=(w, h), facecolor="white")
+    pa = pf.add_axes([0.1, 0.08, 0.87, 0.87])
+    draw(pa)
+    pf.savefig(PANEL_DIR / f"fig4_{label}.png", dpi=200, bbox_inches="tight", facecolor="white")
+    plt.close(pf)
+
+# Panel A: Feature Importance heatmap
+def _draw_A(ax):
+    im = ax.imshow(heat, aspect="auto", cmap="RdBu_r", norm=CenteredNorm())
+    ax.set_xticks([])
+    for s, e, cix in gb:
+        mid = (s + e - 1) / 2
+        ax.text(mid, 6.6, cl[cix].replace(" ", "\n"), ha="center", va="top", fontsize=7, fontweight="bold", color=DC6[cix])
+        for j in range(s, e):
+            ax.text(j, 5.6, at[j], ha="center", va="top", fontsize=6, rotation=25, color="gray")
+        if e < len(at): ax.axvline(e - 0.5, color="white", lw=1.5, ls="--", alpha=0.5)
+    ax.set_yticks(range(len(cl))); ax.set_yticklabels(cl, fontsize=8)
+    ax.set_title("Top TF-IDF Terms by Category", loc="left", fontweight="bold", fontsize=11)
+    plt.colorbar(im, ax=ax, fraction=0.04, pad=0.02, label="SVM coeff")
+_sp("A", 9, 4.5, _draw_A)
+
+# Panel B: ST Benchmark bars
+def _draw_B(ax):
+    cls_b = [C["blue"], C["green"], C["orange"]]
+    ax.bar(methods, f1_v, yerr=f1_e, color=cls_b, width=0.5, capsize=3, edgecolor="white")
+    ax.set_ylabel("F1-macro", fontsize=10)
+    ax.set_title("ST Benchmark", loc="left", fontweight="bold", fontsize=11)
+    ax.set_xticks(range(len(methods)))
+    ax.set_xticklabels(methods, rotation=15, ha="right", fontsize=9)
+    bt = [f1_v[k] + f1_e[k] for k in range(len(methods))]
+    by = max(bt)
+    for i in range(len(methods)):
+        for j in range(i + 1, len(methods)):
+            pv = _cp(st.iloc[i].get("f1_macro_folds"), st.iloc[j].get("f1_macro_folds"))
+            sig_annotate(ax, i, j, by + 0.04 * (abs(j - i) - 1), pv)
+    ax.set_ylim(0, by + 0.04 * (len(methods) - 1) + by * 0.15)
+_sp("B", 5, 4.5, _draw_B)
+
+# Panel C: Acc vs F1
+def _draw_C(ax):
+    ax.scatter(st["accuracy"].values, f1_v, color=[C["blue"],C["green"],C["orange"]], s=80, zorder=5, edgecolors="white", linewidth=0.5)
+    for i, m in enumerate(methods):
+        ax.annotate(m.split("+")[-1] if "+" in m else m, (st["accuracy"].values[i], f1_v[i]),
+                   fontsize=9, ha="center", va="bottom", xytext=(0, 8), textcoords="offset points")
+    ax.set_xlabel("Accuracy", fontsize=10); ax.set_ylabel("F1-macro", fontsize=10)
+    ax.set_xlim(0.91, 0.945); ax.set_ylim(0.6, 0.87)
+    ax.set_title("Accuracy vs F1-macro", loc="left", fontweight="bold", fontsize=11)
+_sp("C", 5, 4.5, _draw_C)
+
+# Panel D: Tag Network
+def _draw_D(ax):
+    # Recompute network
+    def sc(s):
+        r = []; [r.extend([x.strip() for x in str(v).split("; ")]) for v in s.dropna()]; return r
+    all_tags = sc(ann["tags"])
+    tc = Counter(all_tags)
+    tt = [t for t, _ in tc.most_common(10)]
+    cooc = np.zeros((10, 10))
+    for _, row in ann.iterrows():
+        tags = set(str(row["tags"]).split("; ")) if pd.notna(row["tags"]) else set()
+        for i, t1 in enumerate(tt):
+            for j, t2 in enumerate(tt):
+                if i < j and t1 in tags and t2 in tags: cooc[i, j] += 1; cooc[j, i] += 1
+    for i in range(10): cooc[i, i] = tc[tt[i]]
+    em = cooc.copy(); np.fill_diagonal(em, 0); emx = em.max() or 1
+    nx, ny = [], []
+    for i in range(10):
+        a = 2 * np.pi * i / 10 - np.pi / 2
+        nx.append(np.cos(a)); ny.append(np.sin(a))
+    for i in range(10):
+        for j in range(i + 1, 10):
+            if cooc[i, j] > 0:
+                ax.plot([nx[i], nx[j]], [ny[i], ny[j]], color="gray", lw=max(0.2, cooc[i, j] / emx * 3), alpha=0.4, zorder=1)
+    sz = [max(20, tc[tt[i]] / tc[tt[0]] * 300) for i in range(10)]
+    ax.scatter(nx, ny, s=sz, c=C["blue"], alpha=0.8, edgecolors="white", linewidth=0.5, zorder=5)
+    for i in range(10):
+        lbl = tt[i].replace("Spatial ", "Sp.\n").replace("Cell-Cell Communication", "Cell-Cell\nCommunication")
+        ax.annotate(lbl, (nx[i], ny[i]), fontsize=7, ha="center", va="center",
+                   bbox=dict(boxstyle="round,pad=0.15", facecolor="white", alpha=0.8, edgecolor="none"))
+    ax.set_xlim(-1.3, 1.3); ax.set_ylim(-1.3, 1.3); ax.set_aspect("equal"); ax.axis("off")
+    ax.set_title("Tag Co-occurrence Network", loc="left", fontweight="bold", fontsize=11)
+_sp("D", 5.5, 5, _draw_D)
+
+# Panel E: TL Waterfall
+def _draw_E(ax):
+    fm = {r["exp_id"]: r["f1_macro"] for _, r in tl.iterrows()}
+    eo = ["A1","A2","A4","A5","B3","B1","B2","D2","D1","C2","C1"]
+    avail = [e for e in eo if e in tl["exp_id"].values]
+    vals = [fm[e] for e in avail]
+    lm = {"A1":"Zero: OHSU→ST\n(LR)","A2":"Zero: PML→ST\n(LR)","A4":"Zero: PML→ST\n(XGB)","A5":"Zero: PGB→ST\n(LR)",
+          "B1":"ST→ST\n(LR)","B2":"ST→ST\n(MLP)","B3":"ST→ST\n(XGB)","C1":"PML→ST\n(MLP+FT)","C2":"OHSU→ST\n(MLP+FT)","D1":"GCN","D2":"GraphSAGE"}
+    ls = [lm.get(e, e) for e in avail]
+    cs = [C["red"] if e[0]=="A" else C["blue"] if e[0]=="B" else C["green"] if e[0]=="C" else C["purple"] for e in avail]
+    ax.bar(range(len(ls)), vals, color=cs, width=0.5, edgecolor="white")
+    ax.set_xticks(range(len(ls))); ax.set_xticklabels(ls, fontsize=7, rotation=25, ha="right")
+    ax.set_ylabel("F1-macro", fontsize=10)
+    ax.set_title("Transfer Learning Waterfall", loc="left", fontweight="bold", fontsize=11)
+_sp("E", 7, 4, _draw_E)
+
+# Panel F: Pre-training Cost
+def _draw_F(ax):
+    b2 = tl[tl["exp_id"]=="B2"].iloc[0]; c1 = tl[tl["exp_id"]=="C1"].iloc[0]; c2 = tl[tl["exp_id"]=="C2"].iloc[0]
+    b2t, c1p, c1f = b2["train_time_s"], c1["pretrain_time_s"], c1["finetune_time_s"]
+    c2p, c2f = c2["pretrain_time_s"], c2["finetune_time_s"]
+    fm = {r["exp_id"]: r["f1_macro"] for _, r in tl.iterrows()}
+    ax.barh(0, b2t, 0.4, color=C["blue"], edgecolor="white", label="Train")
+    ax.barh(1, c1p, 0.4, color=C["gray"], edgecolor="white", label="Pre-train")
+    ax.barh(1, c1f, 0.4, left=c1p, color=C["green"], edgecolor="white", label="Fine-tune")
+    ax.barh(2, c2p, 0.4, color=C["gray"], edgecolor="white")
+    ax.barh(2, c2f, 0.4, left=c2p, color=C["orange"], edgecolor="white")
+    for yp, tt, f1v, clr in [(0, b2t, fm.get("B2", 0), C["blue"]), (1, c1p+c1f, fm.get("C1",0), C["green"]), (2, c2p+c2f, fm.get("C2",0), C["orange"])]:
+        ax.text(tt + 15, yp, f"F1={f1v:.4f}", va="center", fontsize=9, color=clr, fontweight="bold")
+    ax.set_yticks(range(3)); ax.set_yticklabels(["ST→ST","PML→ST","OHSU→ST"], fontsize=8)
+    ax.set_xlabel("Time (s)", fontsize=10)
+    ax.set_title("Pre-training Cost vs. Benefit", loc="left", fontweight="bold", fontsize=11)
+    ax.legend(fontsize=7, frameon=False, loc="lower right")
+_sp("F", 6, 3.5, _draw_F)
+
+print("Fig 4 done. (panels: A B C D E F)")
