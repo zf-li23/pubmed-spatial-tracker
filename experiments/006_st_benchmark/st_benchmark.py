@@ -98,7 +98,7 @@ def run_biobert_lr(ds, cv=CV):
     return res
 
 
-def run_biobert_mlp(ds, cv=3):
+def run_biobert_mlp(ds, cv=5):
     """End-to-end BioBERT fine-tuning with MLP head (requires GPU)."""
     from src.models.deep import BioBERTFineTuner
     from sklearn.model_selection import StratifiedKFold

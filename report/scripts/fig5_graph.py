@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats as sp_stats
-from plot_utils import save, C, PALETTE
+from plot_utils import save, C, PALETTE, sig_annotate, paired_ttest_from_folds
 
 # ── Load ──
 gm = pd.read_csv(Path(__file__).resolve().parent.parent.parent /
@@ -30,36 +30,75 @@ fig, axes = plt.subplots(2, 2, figsize=(9.5, 7))
 
 # ── (A) Node2Vec + Classifiers ──
 ax = axes[0, 0]
-n2v = gm[gm["feature"] == "node2vec"]
+n2v = gm[gm["feature"] == "node2vec"].reset_index(drop=True)
 n2v_models = []
 n2v_f1 = []
+n2v_errs = []
 for _, r in n2v.iterrows():
     label = r["model"].replace("Node2Vec+", "")
     n2v_models.append(label)
     n2v_f1.append(r["f1_macro"])
+    n2v_errs.append(r["f1_macro_std"])
 
-ax.bar(n2v_models, n2v_f1, color=C["blue"], width=0.5, edgecolor="white")
+ax.bar(range(len(n2v_models)), n2v_f1, color=C["blue"], width=0.5, edgecolor="white")
+ax.set_xticks(range(len(n2v_models)))
+ax.set_xticklabels(n2v_models, fontsize=7)
 ax.set_ylabel("F1-macro")
 ax.set_title("(A) Node2Vec + Classifiers (PGB)", loc="left", fontweight="bold")
-ax.tick_params(axis="x", rotation=20)
+
+# Significance: best vs rest
+if len(n2v) > 1:
+    best_idx = n2v["f1_macro"].idxmax()
+    bar_tops = [n2v_f1[i] + n2v_errs[i] for i in range(len(n2v_f1))]
+    base_y = max(bar_tops)
+    for i in range(len(n2v)):
+        if i == best_idx:
+            continue
+        fi = n2v.iloc[best_idx].get("f1_macro_folds", None)
+        fj = n2v.iloc[i].get("f1_macro_folds", None)
+        if pd.notna(fi) and pd.notna(fj) and str(fi).strip():
+            p = paired_ttest_from_folds(str(fi), str(fj))
+        else:
+            p = None
+        step = 0.015 * (abs(i - best_idx) - 1)
+        sig_annotate(ax, best_idx, i, base_y + step, p)
+    ax.set_ylim(0, base_y + 0.015 * (len(n2v) - 2) + (base_y * 0.15))
 
 # ── (B) Graph Method Comparison (PGB) ──
 ax = axes[0, 1]
-gcn = gm[gm["model"] == "GCN"]
-sage = gm[gm["model"] == "GraphSAGE"]
-n2v_best = n2v["f1_macro"].max()
-gcn_f1 = gcn["f1_macro"].values[0] if not gcn.empty else 0
-sage_f1 = sage["f1_macro"].values[0] if not sage.empty else 0
+gm_b = gm.copy()
+gcn_row = gm_b[gm_b["model"] == "GCN"].iloc[0]
+sage_row = gm_b[gm_b["model"] == "GraphSAGE"].iloc[0]
+n2v_best_row = n2v.loc[n2v["f1_macro"].idxmax()]
 
 methods_g = ["GCN", "GraphSAGE", "Node2Vec\n(best)"]
-g_vals = [gcn_f1, sage_f1, n2v_best]
+g_vals = [gcn_row["f1_macro"], sage_row["f1_macro"], n2v_best_row["f1_macro"]]
+g_errs = [gcn_row["f1_macro_std"], sage_row["f1_macro_std"], n2v_best_row["f1_macro_std"]]
 g_colors = [C["green"], C["orange"], C["blue"]]
-bars = ax.bar(methods_g, g_vals, color=g_colors, width=0.5, edgecolor="white")
+bars = ax.bar(range(len(methods_g)), g_vals, color=g_colors, width=0.5, edgecolor="white")
+ax.set_xticks(range(len(methods_g)))
+ax.set_xticklabels(methods_g, fontsize=7)
 for bar, val in zip(bars, g_vals):
     ax.text(bar.get_x() + bar.get_width()/2, val + 0.005, f"{val:.4f}",
             ha="center", fontsize=7, fontweight="bold")
 ax.set_ylabel("F1-macro")
 ax.set_title("(B) Graph Methods (PGB)", loc="left", fontweight="bold")
+
+# Significance: pairwise
+rows_b = [gcn_row, sage_row, n2v_best_row]
+bar_tops_b = [g_vals[i] + g_errs[i] for i in range(len(g_vals))]
+base_y_b = max(bar_tops_b)
+for i in range(len(rows_b)):
+    for j in range(i + 1, len(rows_b)):
+        fi = rows_b[i].get("f1_macro_folds", None)
+        fj = rows_b[j].get("f1_macro_folds", None)
+        if pd.notna(fi) and pd.notna(fj) and str(fi).strip():
+            p = paired_ttest_from_folds(str(fi), str(fj))
+        else:
+            p = None
+        step = 0.02 * (abs(j - i) - 1)
+        sig_annotate(ax, i, j, base_y_b + step, p)
+ax.set_ylim(0, base_y_b + 0.02 * (len(rows_b) - 2) + (base_y_b * 0.18))
 
 # ── (C) ST Graph ──
 ax = axes[1, 0]

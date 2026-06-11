@@ -2,11 +2,11 @@
 
 2×3 composite with legends on all panels:
   (A) PML BioBERT       — 2K/16 MeSH categories  — umap_2d_pml.npz
-  (B) ST BioBERT        — 2K/6 LLM categories     — umap_2d_st.npz
+  (B) PML TF-IDF        — 2K/16 categories         — live UMAP
   (C) OHSUMED BioBERT   — 2K/top-10 MeSH          — umap_2d_ohsu.npz
-  (D) PML TF-IDF        — 2K/16 categories         — live UMAP
-  (E) PGB Node2Vec      — 5K nodes/3 types         — umap_2d_pgb.npz
-  (F) Fine-tuning Effect [placeholder]
+  (D) ST BioBERT        — 2K/6 LLM categories     — umap_2d_st.npz
+  (E) ST Fine-tuned     — 2K/6 categories         — umap_2d_st_finetuned.npz
+  (F) PGB Node2Vec      — 5K nodes/3 types         — umap_2d_pgb.npz
 
 Interactive 3D: python fig8_3d_interactive.py
 """
@@ -54,28 +54,27 @@ def legend(ax, y, label_names, n, cmap):
 
 fig, axes = plt.subplots(2, 3, figsize=(12, 8))
 
-# Row 1: BioBERT embeddings
-datasets_row1 = [
-    ("pml",  "(A) PML BioBERT\n(2K, 16 MeSH categories)",        "tab20", 8),
-    ("st",   "(B) ST BioBERT\n(2K, 6 LLM categories)",           "tab10", 6),
-    ("ohsu", "(C) OHSUMED BioBERT\n(2K, top-10 MeSH terms)",      "tab10", 10),
-]
-for col, (key, title, cmap, n) in enumerate(datasets_row1):
-    ax = axes[0, col]
-    coords, y, ln = load_2d(key)
-    if coords is not None:
-        ax.scatter(coords[:, 0], coords[:, 1], c=y, cmap=cmap,
-                   s=2.5, alpha=0.6, edgecolors="none")
-        legend(ax, y, ln, n, cmap)
-        print(f"  {key}: {coords.shape[0]} pts", flush=True)
-    else:
-        ax.text(0.5, 0.5, "unavailable", ha="center", va="center",
-                fontsize=7, color="gray", transform=ax.transAxes)
-    ax.set_title(title, loc="left", fontweight="bold", fontsize=7)
-    ax.set_xticks([]); ax.set_yticks([])
+# ════════════════════════════════════════════════════════
+# Row 0
+# ════════════════════════════════════════════════════════
 
-# (D) PML TF-IDF
-ax = axes[1, 0]
+# (A) PML BioBERT
+ax = axes[0, 0]
+coords, y, ln = load_2d("pml")
+if coords is not None:
+    ax.scatter(coords[:, 0], coords[:, 1], c=y, cmap="tab20",
+               s=2.5, alpha=0.6, edgecolors="none")
+    legend(ax, y, ln, 8, "tab20")
+    print(f"  pml: {coords.shape[0]} pts", flush=True)
+else:
+    ax.text(0.5, 0.5, "unavailable", ha="center", va="center",
+            fontsize=7, color="gray", transform=ax.transAxes)
+ax.set_title("(A) PML BioBERT\n(2K, 16 MeSH categories)", loc="left",
+             fontweight="bold", fontsize=7)
+ax.set_xticks([]); ax.set_yticks([])
+
+# (B) PML TF-IDF
+ax = axes[0, 1]
 try:
     from umap import UMAP
     X, _ = get_cached_features(load_dataset("pml"), "tfidf")
@@ -95,30 +94,51 @@ except Exception as e:
     ax.text(0.5, 0.5, "error", ha="center", va="center",
             fontsize=7, color="gray", transform=ax.transAxes)
     print(f"  tfidf error: {e}", flush=True)
-ax.set_title("(D) PML TF-IDF\n(2K, cosine UMAP)", loc="left", fontweight="bold", fontsize=7)
+ax.set_title("(B) PML TF-IDF\n(2K, cosine UMAP)", loc="left",
+             fontweight="bold", fontsize=7)
 ax.set_xticks([]); ax.set_yticks([])
 
-# (E) PGB Node2Vec (5000 points, 3 classes)
-ax = axes[1, 1]
-coords, y, ln = load_2d("pgb")
+# (C) OHSUMED BioBERT
+ax = axes[0, 2]
+coords, y, ln = load_2d("ohsu")
 if coords is not None:
     ax.scatter(coords[:, 0], coords[:, 1], c=y, cmap="tab10",
-               s=1.2, alpha=0.5, edgecolors="none")
-    legend(ax, y, ln, 3, "tab10")
-    print(f"  pgb: {coords.shape[0]} pts", flush=True)
+               s=2.5, alpha=0.6, edgecolors="none")
+    legend(ax, y, ln, 10, "tab10")
+    print(f"  ohsu: {coords.shape[0]} pts", flush=True)
 else:
     ax.text(0.5, 0.5, "unavailable", ha="center", va="center",
             fontsize=7, color="gray", transform=ax.transAxes)
-ax.set_title("(E) PGB Node2Vec\n(5K nodes, 3 types)", loc="left", fontweight="bold", fontsize=7)
+ax.set_title("(C) OHSUMED BioBERT\n(2K, top-10 MeSH terms)", loc="left",
+             fontweight="bold", fontsize=7)
 ax.set_xticks([]); ax.set_yticks([])
 
-# (F) ST Fine-tuned BioBERT (side-by-side with B)
-ax = axes[1, 2]
+# ════════════════════════════════════════════════════════
+# Row 1 — ST-focused + PGB
+# ════════════════════════════════════════════════════════
+
+# (D) ST BioBERT
+ax = axes[1, 0]
+coords, y, ln = load_2d("st")
+if coords is not None:
+    ax.scatter(coords[:, 0], coords[:, 1], c=y, cmap="tab10",
+               s=2.5, alpha=0.6, edgecolors="none")
+    legend(ax, y, ln, 6, "tab10")
+    print(f"  st: {coords.shape[0]} pts", flush=True)
+else:
+    ax.text(0.5, 0.5, "unavailable", ha="center", va="center",
+            fontsize=7, color="gray", transform=ax.transAxes)
+ax.set_title("(D) ST BioBERT\n(2K, 6 LLM categories)", loc="left",
+             fontweight="bold", fontsize=7)
+ax.set_xticks([]); ax.set_yticks([])
+
+# (E) ST Fine-tuned BioBERT
+ax = axes[1, 1]
 coords, y, ln = load_2d("st_finetuned")
 if coords is not None:
     ax.scatter(coords[:, 0], coords[:, 1], c=y, cmap="tab10",
                s=2.5, alpha=0.6, edgecolors="none")
-    ln_ds = list(np.unique(y))  # ST has 6 classes 0-5
+    ln_ds = list(np.unique(y))
     try:
         u = np.unique(y)[:6]
         cmap_obj = plt.colormaps.get_cmap("tab10")
@@ -135,7 +155,22 @@ if coords is not None:
 else:
     ax.text(0.5, 0.5, "unavailable", ha="center", va="center",
             fontsize=7, color="gray", transform=ax.transAxes)
-ax.set_title("(F) ST Fine-tuned BioBERT\n(post-finetune embedding)", loc="left",
+ax.set_title("(E) ST Fine-tuned BioBERT\n(post-finetune embedding)", loc="left",
+             fontweight="bold", fontsize=7)
+ax.set_xticks([]); ax.set_yticks([])
+
+# (F) PGB Node2Vec
+ax = axes[1, 2]
+coords, y, ln = load_2d("pgb")
+if coords is not None:
+    ax.scatter(coords[:, 0], coords[:, 1], c=y, cmap="tab10",
+               s=1.2, alpha=0.5, edgecolors="none")
+    legend(ax, y, ln, 3, "tab10")
+    print(f"  pgb: {coords.shape[0]} pts", flush=True)
+else:
+    ax.text(0.5, 0.5, "unavailable", ha="center", va="center",
+            fontsize=7, color="gray", transform=ax.transAxes)
+ax.set_title("(F) PGB Node2Vec\n(5K nodes, 3 types)", loc="left",
              fontweight="bold", fontsize=7)
 ax.set_xticks([]); ax.set_yticks([])
 

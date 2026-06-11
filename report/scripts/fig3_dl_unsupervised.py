@@ -41,6 +41,7 @@ fig, axes = plt.subplots(2, 2, figsize=(9, 7))
 ax = axes[0, 0]
 datasets = ["ohsumed", "pubmed_multilabel", "pgb"]
 ds_labels = ["OHSUMED", "PML", "PGB"]
+ds_colors = [C["blue"], C["green"], C["orange"]]
 x = np.arange(len(datasets))
 w = 0.3
 bmlp_vals = []
@@ -49,15 +50,29 @@ for ds in datasets:
     bmlp_vals.append(row["f1_macro"].values[0] if not row.empty else 0)
 classical_vals = [best_classical.get(ds, 0) for ds in datasets]
 
-ax.bar(x - w/2, classical_vals, w, color=C["green"], label="Best Classical",
-       edgecolor="white")
-ax.bar(x + w/2, bmlp_vals, w, color=C["blue"], label="BioBERT+MLP",
-       edgecolor="white")
+for i in range(len(datasets)):
+    ax.bar(x[i] - w/2, classical_vals[i], w, color=ds_colors[i],
+           edgecolor="white", linewidth=0.5, alpha=0.9)
+    ax.bar(x[i] + w/2, bmlp_vals[i], w, color=ds_colors[i],
+           edgecolor="white", linewidth=0.5, alpha=0.9, hatch="////")
+
+# Legend handles
+from matplotlib.patches import Patch
+legend_elements_a = [
+    Patch(facecolor="gray", edgecolor="white", label="Best Classical"),
+    Patch(facecolor="gray", edgecolor="white", hatch="////", label="BioBERT+MLP"),
+]
+ax.legend(handles=legend_elements_a, fontsize=6.5, frameon=False, ncol=2)
+
+# Annotate tiny OHSUMED MLP value
+if bmlp_vals[0] < 0.01:
+    ax.text(0 + w/2, bmlp_vals[0] + 0.002, f"{bmlp_vals[0]:.4f}",
+            ha="center", fontsize=6.5, color=C["blue"])
+
 ax.set_xticks(x)
-ax.set_xticklabels(ds_labels)
+ax.set_xticklabels(ds_labels, fontsize=7.5)
 ax.set_ylabel("F1-macro")
 ax.set_title("(A) BioBERT+MLP vs Best Classical", loc="left", fontweight="bold")
-ax.legend(fontsize=7, frameon=False)
 
 # ── (B) LDA Clustering NMI ──
 ax = axes[0, 1]
@@ -76,64 +91,86 @@ ax = axes[1, 0]
 ax2 = ax.twinx()
 ax.bar(np.arange(len(datasets)) - 0.15, lda_vals, 0.3,
        color=C["purple"], label="NMI (unsupervised)", edgecolor="white")
-ax.bar(np.arange(len(datasets)) + 0.15,
-       [best_classical.get(ds, 0) for ds in datasets], 0.3,
-       color=C["green"], label="F1 (supervised)", edgecolor="white")
+ax.set_ylabel("NMI")
+ax.set_ylim(0, max(lda_vals) * 1.6)
+
+ax2.bar(np.arange(len(datasets)) + 0.15,
+        [best_classical.get(ds, 0) for ds in datasets], 0.3,
+        color=C["green"], alpha=0.6, label="F1 (supervised)", edgecolor="white")
+ax2.set_ylabel("F1-macro (best classical)", color=C["green"])
+max_f1 = max([best_classical.get(ds, 0) for ds in datasets])
+ax2.set_ylim(0, max_f1 * 1.6)
+
 ax.set_xticks(range(len(datasets)))
 ax.set_xticklabels(ds_labels)
-ax.set_ylabel("Score")
 ax.set_title("(C) Unsupervised vs Supervised", loc="left", fontweight="bold")
+
+# Combined legend
 lines1, labels1 = ax.get_legend_handles_labels()
-ax.legend(lines1, labels1, fontsize=6, frameon=False, loc="upper left")
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax.legend(lines1 + lines2, labels1 + labels2, fontsize=6, frameon=False, loc="upper left")
 
-# ── (D) Cost-Benefit Pareto ──
+# ── (D) Cost-Benefit Landscape ──
 ax = axes[1, 1]
-# Collect F1 + time from Exp 001 + 006 + 002
-points = []
-for ds, marker, ds_color in [("ohsumed", "o", C["blue"]),
-                               ("pubmed_multilabel", "s", C["green"]),
-                               ("pgb", "^", C["orange"])]:
-    sub = clf[clf["dataset"] == ds].dropna(subset=["f1_macro", "train_time_s"])
-    for _, r in sub.iterrows():
-        points.append((r["train_time_s"], r["f1_macro"], ds, marker, ds_color))
+from matplotlib.lines import Line2D
 
-# Add Exp 006 ST points
+# Collect F1 + time from Exp 001 (classical matrix)
+for ds_name, ds_key, marker, ds_color in [
+    ("OHSUMED", "ohsumed", "o", C["blue"]),
+    ("PML", "pubmed_multilabel", "s", C["green"]),
+    ("PGB", "pgb", "^", C["orange"]),
+]:
+    sub = clf[clf["dataset"] == ds_key].dropna(subset=["f1_macro", "train_time_s"])
+    ax.scatter(sub["train_time_s"], sub["f1_macro"],
+               c=ds_color, marker=marker, s=18, alpha=0.5,
+               edgecolors="none", label=ds_name)
+
+# Exp 006 ST points
 st = pd.read_csv(Path(__file__).resolve().parent.parent.parent /
                  "experiments/006_st_benchmark/results/st_benchmark.csv")
-for _, r in st.iterrows():
-    points.append((r["train_time_s"], r["f1_macro"], "ST", "D", C["red"]))
+ax.scatter(st["train_time_s"], st["f1_macro"],
+           c=C["red"], marker="D", s=30, alpha=0.8,
+           edgecolors="black", linewidth=0.3, label="ST")
 
-# Add Exp 002 points
+# Exp 002 BioBERT+MLP points
+for _, r in bmlp.iterrows():
+    ds_label = r["dataset"]
+    c_map = {"ohsumed": C["blue"], "pubmed_multilabel": C["green"], "pgb": C["orange"]}
+    ax.scatter(r["train_time_s"], r["f1_macro"],
+               c=c_map.get(ds_label, "gray"), marker="v", s=35, alpha=0.9,
+               edgecolors="black", linewidth=0.5, label=f"BioBERT+MLP")
+
+# Best point label
+all_times = []
+all_f1s = []
+for _, r in clf.dropna(subset=["f1_macro", "train_time_s"]).iterrows():
+    all_times.append(r["train_time_s"]); all_f1s.append(r["f1_macro"])
+for _, r in st.iterrows():
+    all_times.append(r["train_time_s"]); all_f1s.append(r["f1_macro"])
 for _, r in bmlp.iterrows():
     if "train_time_s" in r and "f1_macro" in r:
-        points.append((r["train_time_s"], r["f1_macro"],
-                       r["dataset"], "v", C["purple"]))
+        all_times.append(r["train_time_s"]); all_f1s.append(r["f1_macro"])
 
-times = np.array([p[0] for p in points])
-f1s = np.array([p[1] for p in points])
-colors = [p[4] for p in points]
-markers = [p[3] for p in points]
-
-# Plot
-for ds_name, m in [("OHSUMED", "o"), ("PML", "s"), ("PGB", "^"), ("ST", "D")]:
-    idxs = [i for i, p in enumerate(points) if p[4] == {
-        "OHSUMED": C["blue"], "PML": C["green"], "PGB": C["orange"],
-        "ST": C["red"],
-        "ohsumed": C["blue"], "pubmed_multilabel": C["green"],
-        "pgb": C["orange"]
-    }.get(p[2], p[4]) if p[3] == m or ds_name == p[2].replace("pubmed_multilabel", "PML").replace("ohsumed", "OHSUMED").replace("pgb", "PGB")]
-    # Simpler: just plot all
-    pass
-
-# Specific points for BioBERT models
-ax.scatter(times, f1s, c=colors, s=20, alpha=0.6, edgecolors="none")
-
-# Labels for key methods
-best_idx = np.argmax(f1s)
-ax.annotate(f"Best:\nF1={f1s[best_idx]:.3f}",
-            (times[best_idx], f1s[best_idx]),
+best_idx = np.argmax(all_f1s)
+ax.annotate(f"Best F1={all_f1s[best_idx]:.3f}",
+            (all_times[best_idx], all_f1s[best_idx]),
             fontsize=6, ha="center", va="bottom",
             xytext=(0, 8), textcoords="offset points")
+
+# Legend
+ds_legend = [
+    Line2D([0], [0], marker="o", color="w", markerfacecolor=C["blue"],
+           markersize=5, label="OHSUMED (Exp 001)"),
+    Line2D([0], [0], marker="s", color="w", markerfacecolor=C["green"],
+           markersize=5, label="PML (Exp 001)"),
+    Line2D([0], [0], marker="^", color="w", markerfacecolor=C["orange"],
+           markersize=5, label="PGB (Exp 001)"),
+    Line2D([0], [0], marker="D", color="w", markerfacecolor=C["red"],
+           markersize=5, label="ST (Exp 006)"),
+    Line2D([0], [0], marker="v", color="w", markerfacecolor="gray",
+           markersize=5, label="BioBERT+MLP (Exp 002)"),
+]
+ax.legend(handles=ds_legend, fontsize=5.5, frameon=False, loc="upper left", ncol=1)
 
 ax.set_xscale("log")
 ax.set_xlabel("Training Time (s, log scale)")

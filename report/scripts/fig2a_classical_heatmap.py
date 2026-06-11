@@ -47,17 +47,17 @@ for ds, ds_label in DATASETS.items():
 # ── Find global range ──
 all_vals = np.concatenate([m.flatten() for m in matrices.values()])
 all_vals = all_vals[~np.isnan(all_vals)]
-vmin, vmax = 0, np.percentile(all_vals, 98)
+vmin, vmax = 0, np.percentile(all_vals, 95) * 1.05  # 5% headroom for PML high values
 
 # ═══════════════════════════════════════════════════════════════
 # Build figure
 # ═══════════════════════════════════════════════════════════════
 
 fig = plt.figure(figsize=(10, 6.5))
-gs = fig.add_gridspec(2, 4, width_ratios=[1, 1, 1, 0.08],
-                      height_ratios=[1, 0.5],
-                      hspace=0.45, wspace=0.15,
-                      left=0.06, right=0.94, top=0.95, bottom=0.12)
+gs = fig.add_gridspec(2, 4, width_ratios=[1, 1, 1, 0.06],
+                      height_ratios=[1.1, 0.5],
+                      hspace=0.4, wspace=0.1,
+                      left=0.07, right=0.93, top=0.93, bottom=0.12)
 
 # ── (A-C) Heatmaps ──
 dataset_list = list(DATASETS.keys())
@@ -74,7 +74,7 @@ for col_idx, ds in enumerate(dataset_list):
             if not np.isnan(val):
                 color = "white" if val > (vmin + vmax) / 2 else "black"
                 ax.text(j, i, f"{val:.3f}", ha="center", va="center",
-                        fontsize=5.8, color=color)
+                        fontsize=5.2, color=color)
 
     ax.set_xticks(range(len(FEATURES)))
     ax.set_xticklabels([FEAT_LABELS[f] for f in FEATURES], rotation=30,
@@ -89,8 +89,8 @@ cax = fig.add_subplot(gs[0, 3])
 cb = plt.colorbar(im, cax=cax)
 cb.set_label("F1-macro", fontsize=7)
 
-# ── (D) Legend (empty) → reused as Cross-dataset Best ──
-ax = fig.add_subplot(gs[1, :2])
+# ── (D) Best Performance per Dataset ──
+ax_d = fig.add_subplot(gs[1, 0])
 best_per_ds = {}
 for ds, ds_label in DATASETS.items():
     sub = df[df["dataset"] == ds]
@@ -99,17 +99,25 @@ for ds, ds_label in DATASETS.items():
         best_per_ds[ds] = best["f1_macro"]
 
 ds_names_short = ["OHSUMED", "PML", "PGB"]
-bars = ax.bar(ds_names_short, [best_per_ds[k] for k in dataset_list],
-              color=[C["blue"], C["green"], C["orange"]], width=0.5)
-ax.set_ylabel("Best F1-macro")
-ax.set_title("(D) Best Performance per Dataset", loc="left",
-             fontweight="bold")
+bars = ax_d.bar(ds_names_short, [best_per_ds[k] for k in dataset_list],
+                color=[C["blue"], C["green"], C["orange"]], width=0.5)
+ax_d.set_ylabel("Best F1-macro")
+ax_d.set_title("(D) Best Performance per Dataset", loc="left",
+               fontweight="bold")
 for bar, val in zip(bars, [best_per_ds[k] for k in dataset_list]):
-    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-            f"{val:.3f}", ha="center", fontsize=7)
+    ax_d.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+              f"{val:.3f}", ha="center", fontsize=7)
+
+# Shift D slightly narrower to give E room
+bbox_d = ax_d.get_position()
+ax_d.set_position([bbox_d.x0, bbox_d.y0, bbox_d.width * 0.85, bbox_d.height])
 
 # ── (E) Training Time ──
-ax = fig.add_subplot(gs[1, 2:])
+ax = fig.add_subplot(gs[1, 1:])
+# Shift E right so its y-tick labels don't overlap D
+bbox_e = ax.get_position()
+ax.set_position([bbox_e.x0 + 0.08, bbox_e.y0,
+                 bbox_e.width - 0.08, bbox_e.height])
 time_data = []
 for ds in dataset_list:
     sub = df[df["dataset"] == ds]

@@ -35,6 +35,18 @@ strategy_errs = pml_ml["f1_macro_std"].values
 colors = [C["blue"], C["green"], C["orange"]]
 bars = ax.bar(strategies, strategy_vals, yerr=strategy_errs, color=colors,
               width=0.5, capsize=3, edgecolor="white")
+# Significance: pairwise between strategies
+strategy_folds = [str(pml_ml.iloc[i].get("f1_macro_folds", None)) for i in range(len(strategies))]
+for i in range(len(strategies)):
+    for j in range(i + 1, len(strategies)):
+        fi, fj = strategy_folds[i], strategy_folds[j]
+        if pd.notna(fi) and pd.notna(fj) and fi.strip() and fj.strip():
+            p = paired_ttest_from_folds(fi, fj)
+        else:
+            p = None
+        y_max = max(strategy_vals[i] + strategy_errs[i],
+                    strategy_vals[j] + strategy_errs[j]) * 1.03
+        sig_annotate(ax, i, j, y_max, p)
 ax.set_ylabel("F1-macro")
 ax.set_title("(A) Multi-label Strategy (PML)", loc="left", fontweight="bold")
 

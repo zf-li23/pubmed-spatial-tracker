@@ -1,0 +1,110 @@
+figure,dataset,panel,bar_A,bar_B,f1_A,f1_B,fold_vals_A,fold_vals_B,t_statistic,p_value,significance,n_folds
+Fig2B,PML,A,biobert/LogisticReg,biobert/XGBoost,0.671,0.6431,"0.6647,0.6695,0.6781,0.6690,0.6740","0.6388,0.6361,0.6494,0.6394,0.6518",14.9184,1.175876e-04,***,5
+Fig2B,PML,A,biobert/LogisticReg,biobert/k-NN,0.671,0.6303,"0.6647,0.6695,0.6781,0.6690,0.6740","0.6261,0.6252,0.6367,0.6319,0.6315",31.264,6.237619e-06,***,5
+Fig2B,PML,A,biobert/LogisticReg,biobert/AdaBoost,0.671,0.6292,"0.6647,0.6695,0.6781,0.6690,0.6740","0.6296,0.6236,0.6400,0.6245,0.6282",18.8572,4.657390e-05,***,5
+Fig2B,PML,A,biobert/LogisticReg,biobert/NaiveBayes,0.671,0.6203,"0.6647,0.6695,0.6781,0.6690,0.6740","0.6257,0.6168,0.6183,0.6185,0.6220",15.1329,1.111549e-04,***,5
+Fig2B,OHSUMED,B,tfidf/AdaBoost,tfidf/XGBoost,0.1687,0.1026,N/A,N/A,N/A,N/A,—,0
+Fig2B,OHSUMED,B,tfidf/AdaBoost,biobert/LogisticReg,0.1687,0.0853,N/A,N/A,N/A,N/A,—,0
+Fig2B,OHSUMED,B,tfidf/AdaBoost,biobert/AdaBoost,0.1687,0.0772,N/A,N/A,N/A,N/A,—,0
+Fig2B,OHSUMED,B,tfidf/AdaBoost,biobert/NaiveBayes,0.1687,0.0685,N/A,N/A,N/A,N/A,—,0
+Fig2B,PGB,B,tfidf/XGBoost,tfidf/AdaBoost,0.4548,0.4215,"0.5551,0.3325,0.3320,0.7216,0.3328","0.3325,0.3325,0.4155,0.5609,0.4660",0.4846,6.532771e-01,ns,5
+Fig2B,PGB,B,tfidf/XGBoost,biobert/NaiveBayes,0.4548,0.3611,"0.5551,0.3325,0.3320,0.7216,0.3328","0.3438,0.3637,0.4367,0.3415,0.3198",1.0565,3.503440e-01,ns,5
+Fig2B,PGB,B,tfidf/XGBoost,tfidf/NaiveBayes,0.4548,0.3518,"0.5551,0.3325,0.3320,0.7216,0.3328","0.3279,0.3586,0.4030,0.3257,0.3438",1.1474,3.151626e-01,ns,5
+Fig2B,PGB,B,tfidf/XGBoost,biobert/k-NN,0.4548,0.3324,"0.5551,0.3325,0.3320,0.7216,0.3328","0.3325,0.3323,0.3322,0.3322,0.3327",1.5408,1.982105e-01,ns,5
+Fig4,PML,A,br,cc,0.5686,0.5796,"0.5721,0.5576,0.5779,0.5639,0.5714","0.5872,0.5675,0.5895,0.5750,0.5788",-8.8022,9.189885e-04,***,5
+Fig4,PML,A,br,lp,0.5686,0.5686,"0.5721,0.5576,0.5779,0.5639,0.5714","0.5721,0.5576,0.5779,0.5639,0.5714",,nan,ns,5
+Fig4,PML,A,cc,lp,0.5796,0.5686,"0.5872,0.5675,0.5895,0.5750,0.5788","0.5721,0.5576,0.5779,0.5639,0.5714",8.8022,9.189885e-04,***,5
+Fig4,OHSUMED,A,br,cc,0.0077,0.0048,"0.0076,0.0082,0.0073,0.0074,0.0077","0.0051,0.0049,0.0045,0.0045,0.0052",18.8776,4.637493e-05,***,5
+Fig4,OHSUMED,A,br,lp,0.0077,0.0077,"0.0076,0.0082,0.0073,0.0074,0.0077","0.0076,0.0082,0.0073,0.0074,0.0077",,nan,ns,5
+Fig4,OHSUMED,A,cc,lp,0.0048,0.0077,"0.0051,0.0049,0.0045,0.0045,0.0052","0.0076,0.0082,0.0073,0.0074,0.0077",-18.8776,4.637493e-05,***,5
+Fig6,ST,A,TF-IDF+SVM,BioBERT+LR,0.6365,0.8068,"0.6152,0.6360,0.6466,0.6340,0.6505","0.8130,0.8207,0.8097,0.7472,0.8434",-11.0108,3.866958e-04,***,5
+Fig6,ST,A,TF-IDF+SVM,BioBERT+MLP,0.6365,0.8485,"0.6152,0.6360,0.6466,0.6340,0.6505","0.8263,0.8470,0.8722",N/A,N/A,—,5
+Fig6,ST,A,BioBERT+LR,BioBERT+MLP,0.8068,0.8485,"0.8130,0.8207,0.8097,0.7472,0.8434","0.8263,0.8470,0.8722",N/A,N/A,—,5
+Fig5,PGB,A,Node2Vec+knn,Node2Vec+svm,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,A,Node2Vec+knn,Node2Vec+lr,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,A,Node2Vec+knn,Node2Vec+rf,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,A,Node2Vec+knn,Node2Vec+ada,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3323,0.3323,0.3323,0.3322,0.3322",2.1381,9.930068e-02,ns,5
+Fig5,PGB,A,Node2Vec+knn,Node2Vec+xgb,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+knn,Node2Vec+svm,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+knn,Node2Vec+lr,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+knn,Node2Vec+rf,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+knn,Node2Vec+ada,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3323,0.3323,0.3323,0.3322,0.3322",2.1381,9.930068e-02,ns,5
+Fig5,PGB,B,Node2Vec+knn,Node2Vec+xgb,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+knn,GCN,0.3324,0.3546,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3327,0.3322,0.4436,0.3323,0.3323",-1.0011,3.734200e-01,ns,5
+Fig5,PGB,B,Node2Vec+knn,GraphSAGE,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3322,0.3322",1.633,1.778078e-01,ns,5
+Fig5,PGB,B,Node2Vec+svm,Node2Vec+lr,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+svm,Node2Vec+rf,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+svm,Node2Vec+ada,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3323,0.3323,0.3323,0.3322,0.3322",2.1381,9.930068e-02,ns,5
+Fig5,PGB,B,Node2Vec+svm,Node2Vec+xgb,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+svm,GCN,0.3324,0.3546,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3327,0.3322,0.4436,0.3323,0.3323",-1.0011,3.734200e-01,ns,5
+Fig5,PGB,B,Node2Vec+svm,GraphSAGE,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3322,0.3322",1.633,1.778078e-01,ns,5
+Fig5,PGB,B,Node2Vec+lr,Node2Vec+rf,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+lr,Node2Vec+ada,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3323,0.3323,0.3323,0.3322,0.3322",2.1381,9.930068e-02,ns,5
+Fig5,PGB,B,Node2Vec+lr,Node2Vec+xgb,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+lr,GCN,0.3324,0.3546,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3327,0.3322,0.4436,0.3323,0.3323",-1.0011,3.734200e-01,ns,5
+Fig5,PGB,B,Node2Vec+lr,GraphSAGE,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3322,0.3322",1.633,1.778078e-01,ns,5
+Fig5,PGB,B,Node2Vec+rf,Node2Vec+ada,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3323,0.3323,0.3323,0.3322,0.3322",2.1381,9.930068e-02,ns,5
+Fig5,PGB,B,Node2Vec+rf,Node2Vec+xgb,0.3324,0.3324,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3323,0.3323",,nan,ns,5
+Fig5,PGB,B,Node2Vec+rf,GCN,0.3324,0.3546,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3327,0.3322,0.4436,0.3323,0.3323",-1.0011,3.734200e-01,ns,5
+Fig5,PGB,B,Node2Vec+rf,GraphSAGE,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3322,0.3322",1.633,1.778078e-01,ns,5
+Fig5,PGB,B,Node2Vec+ada,Node2Vec+xgb,0.3323,0.3324,"0.3323,0.3323,0.3323,0.3322,0.3322","0.3325,0.3323,0.3323,0.3323,0.3323",-2.1381,9.930068e-02,ns,5
+Fig5,PGB,B,Node2Vec+ada,GCN,0.3323,0.3546,"0.3323,0.3323,0.3323,0.3322,0.3322","0.3327,0.3322,0.4436,0.3323,0.3323",-1.0056,3.714969e-01,ns,5
+Fig5,PGB,B,Node2Vec+ada,GraphSAGE,0.3323,0.3323,"0.3323,0.3323,0.3323,0.3322,0.3322","0.3325,0.3323,0.3323,0.3322,0.3322",-1.0,3.739010e-01,ns,5
+Fig5,PGB,B,Node2Vec+xgb,GCN,0.3324,0.3546,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3327,0.3322,0.4436,0.3323,0.3323",-1.0011,3.734200e-01,ns,5
+Fig5,PGB,B,Node2Vec+xgb,GraphSAGE,0.3324,0.3323,"0.3325,0.3323,0.3323,0.3323,0.3323","0.3325,0.3323,0.3323,0.3322,0.3322",1.633,1.778078e-01,ns,5
+Fig5,PGB,B,GCN,GraphSAGE,0.3546,0.3323,"0.3327,0.3322,0.4436,0.3323,0.3323","0.3325,0.3323,0.3323,0.3322,0.3322",1.0034,3.724569e-01,ns,5
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)","Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",0.0,0.0014,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)","Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",0.0,0.0055,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)","Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",0.0,0.0018,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+LR),0.0,0.8157,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+XGBoost),0.0,0.7457,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",Graph: GCN on ST k-NN similarity graph,0.0,0.7716,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",Graph: GraphSAGE on ST k-NN similarity graph,0.0,0.7603,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+MLP) [GPU],0.0,0.8345,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.0,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",B,"Zero-shot: OHSUMED → ST (BioBERT+LR, 1650→6标签, F1≈0预期)",Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.0,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)","Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",0.0014,0.0055,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)","Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",0.0014,0.0018,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+LR),0.0014,0.8157,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+XGBoost),0.0014,0.7457,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",Graph: GCN on ST k-NN similarity graph,0.0014,0.7716,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",Graph: GraphSAGE on ST k-NN similarity graph,0.0014,0.7603,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+MLP) [GPU],0.0014,0.8345,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.0014,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+LR, 14→6标签, F1≈0预期)",Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.0014,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)","Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",0.0055,0.0018,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+LR),0.0055,0.8157,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+XGBoost),0.0055,0.7457,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",Graph: GCN on ST k-NN similarity graph,0.0055,0.7716,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",Graph: GraphSAGE on ST k-NN similarity graph,0.0055,0.7603,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+MLP) [GPU],0.0055,0.8345,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.0055,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",B,"Zero-shot: PML → ST (BioBERT+XGBoost, 14→6标签, F1≈0预期)",Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.0055,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",B,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+LR),0.0018,0.8157,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",B,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+XGBoost),0.0018,0.7457,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",B,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",Graph: GCN on ST k-NN similarity graph,0.0018,0.7716,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",B,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",Graph: GraphSAGE on ST k-NN similarity graph,0.0018,0.7603,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",B,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",Baseline: ST → ST (BioBERT+MLP) [GPU],0.0018,0.8345,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",B,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.0018,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",B,"Zero-shot: PGB → ST (BioBERT+LR, 3→6标签, F1≈0预期)",Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.0018,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+LR),B,Baseline: ST → ST (BioBERT+LR),Baseline: ST → ST (BioBERT+XGBoost),0.8157,0.7457,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+LR),B,Baseline: ST → ST (BioBERT+LR),Graph: GCN on ST k-NN similarity graph,0.8157,0.7716,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+LR),B,Baseline: ST → ST (BioBERT+LR),Graph: GraphSAGE on ST k-NN similarity graph,0.8157,0.7603,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+LR),B,Baseline: ST → ST (BioBERT+LR),Baseline: ST → ST (BioBERT+MLP) [GPU],0.8157,0.8345,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+LR),B,Baseline: ST → ST (BioBERT+LR),Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.8157,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+LR),B,Baseline: ST → ST (BioBERT+LR),Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.8157,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+XGBoost),B,Baseline: ST → ST (BioBERT+XGBoost),Graph: GCN on ST k-NN similarity graph,0.7457,0.7716,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+XGBoost),B,Baseline: ST → ST (BioBERT+XGBoost),Graph: GraphSAGE on ST k-NN similarity graph,0.7457,0.7603,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+XGBoost),B,Baseline: ST → ST (BioBERT+XGBoost),Baseline: ST → ST (BioBERT+MLP) [GPU],0.7457,0.8345,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+XGBoost),B,Baseline: ST → ST (BioBERT+XGBoost),Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.7457,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+XGBoost),B,Baseline: ST → ST (BioBERT+XGBoost),Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.7457,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Graph: GCN on ST k-NN similarity graph,B,Graph: GCN on ST k-NN similarity graph,Graph: GraphSAGE on ST k-NN similarity graph,0.7716,0.7603,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Graph: GCN on ST k-NN similarity graph,B,Graph: GCN on ST k-NN similarity graph,Baseline: ST → ST (BioBERT+MLP) [GPU],0.7716,0.8345,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Graph: GCN on ST k-NN similarity graph,B,Graph: GCN on ST k-NN similarity graph,Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.7716,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Graph: GCN on ST k-NN similarity graph,B,Graph: GCN on ST k-NN similarity graph,Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.7716,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Graph: GraphSAGE on ST k-NN similarity graph,B,Graph: GraphSAGE on ST k-NN similarity graph,Baseline: ST → ST (BioBERT+MLP) [GPU],0.7603,0.8345,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Graph: GraphSAGE on ST k-NN similarity graph,B,Graph: GraphSAGE on ST k-NN similarity graph,Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.7603,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Graph: GraphSAGE on ST k-NN similarity graph,B,Graph: GraphSAGE on ST k-NN similarity graph,Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.7603,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+MLP) [GPU],B,Baseline: ST → ST (BioBERT+MLP) [GPU],Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.8345,0.9143,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Baseline: ST → ST (BioBERT+MLP) [GPU],B,Baseline: ST → ST (BioBERT+MLP) [GPU],Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.8345,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
+Fig7,Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],B,Fine-tune: PML pre-train → ST fine-tune (BioBERT+MLP) [GPU],Fine-tune: OHSUMED pre-train → ST fine-tune (BioBERT+MLP) [GPU],0.9143,0.8503,N/A (no CV),N/A (no CV),N/A,N/A,—,0
