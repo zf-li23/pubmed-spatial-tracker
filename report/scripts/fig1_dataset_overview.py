@@ -197,11 +197,12 @@ _s("A", 5, 3.5, lambda ax: (
     ax.set_title("Publication Year Trend", fontweight="bold", fontsize=11),
     ax.set_xlim(2016, 2026)))
 
-# B: Category Pie with labels
+# B: Category Pie with legend below
 _cats = _CC.index; _catv = _CC.values
-_s("B", 5, 3.5, lambda ax: (
-    [ax.pie(_catv, labels=[n + " (" + f"{c/len(_DF)*100:.0f}%)" for n,c in zip(_cats,_catv)],
-            colors=PALETTE[:len(_cats)], startangle=90)],
+_s("B", 5, 4, lambda ax: (
+    ax.pie(_catv, labels=None, colors=PALETTE[:len(_cats)], startangle=90),
+    ax.legend([f"{n} ({c/len(_DF)*100:.0f}%)" for n,c in zip(_cats,_catv)],
+             loc="center", bbox_to_anchor=(0.5, -0.08), ncol=3, fontsize=7, frameon=False),
     ax.set_title("Category Distribution", fontweight="bold", fontsize=11)))
 
 # C: Tag Distribution

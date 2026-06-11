@@ -94,7 +94,7 @@ leg_d = [Line2D([0],[0],marker="o",color="w",markerfacecolor=C["blue"],markersiz
          Line2D([0],[0],marker="^",color="w",markerfacecolor=C["orange"],markersize=5,label="PGB"),
          Line2D([0],[0],marker="D",color="w",markerfacecolor=C["red"],markersize=5,label="ST (Exp 006)"),
          Line2D([0],[0],marker="v",color="w",markerfacecolor=C["purple"],markersize=5,label="BioBERT+MLP")]
-ax.legend(handles=leg_d, fontsize=5.5, frameon=False, loc="lower right", ncol=1)
+ax.legend(handles=leg_d, fontsize=5.5, frameon=False, loc="upper left", ncol=1)
 
 # ═══════════════════════════
 #  Fig 4: Multi-label Strategy
@@ -234,7 +234,7 @@ ax.set_title(f"(L) Label Complexity (r={rv:.2f})", loc="left", fontweight="bold"
 from matplotlib.lines import Line2D
 leg_l = [Line2D([0],[0],color=c,lw=2,label=l) for l,c in [("TF-IDF",C["blue"]),("BioBERT",C["green"]),("LDA",C["orange"]),("Meta",C["purple"])]]
 leg_l.append(Line2D([0],[0],marker="o",color="w",markerfacecolor=C["red"],markersize=4,label="ST methods"))
-ax.legend(handles=leg_l, fontsize=5.5, frameon=False, loc="lower left")
+ax.legend(handles=leg_l, fontsize=5.5, frameon=False, loc="upper right")
 
 save(fig, "fig3_unsupervised_multilabel_graph")
 print("Fig 3 done.")
@@ -327,7 +327,7 @@ _s("D", 5.5, 4, lambda ax: (
     ax.set_xscale("log"), ax.set_xlabel("Training Time (s, log)", fontsize=10),
     ax.set_ylabel("F1-macro", fontsize=10),
     ax.set_title("Cost-Benefit Landscape", fontweight="bold", fontsize=11),
-    ax.legend(handles=_leg_d, fontsize=6.5, frameon=False, loc="lower right")))
+    ax.legend(handles=_leg_d, fontsize=6.5, frameon=False, loc="upper left")))
 _pml_ml = _ML[_ML["dataset"]=="pubmed_multilabel"]
 _stg = _pml_ml["strategy"].values.astype(str); _sv = _pml_ml["f1_macro"].values; _se = _pml_ml["f1_macro_std"].values
 _sf = [str(_pml_ml.iloc[k].get("f1_macro_folds","")) for k in range(len(_stg))]
@@ -429,5 +429,5 @@ _s("L", 5, 3.5, lambda ax: (
     ax.set_xscale("log"), ax.set_xlabel("Number of Labels (log)", fontsize=10),
     ax.set_ylabel("Best F1-macro", fontsize=10),
     ax.set_title(f"Label Complexity (r={_rv:.2f})", fontweight="bold", fontsize=11),
-    ax.legend(handles=_leg_l, fontsize=6.5, frameon=False, loc="lower left")))
+    ax.legend(handles=_leg_l, fontsize=6.5, frameon=False, loc="upper right")))
 print("  panels A-L saved")
