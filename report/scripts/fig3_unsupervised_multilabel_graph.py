@@ -225,5 +225,5 @@ ax.set_xscale("log"); ax.set_xlabel("Number of Labels (log)", fontsize=7)
 ax.set_ylabel("Best F1-macro", fontsize=7)
 ax.set_title(f"(L) Label Complexity (r={rv:.2f})", loc="left", fontweight="bold", fontsize=8)
 
-save(fig, "fig345_unsupervised_multilabel_graph")
+save(fig, "fig3_unsupervised_multilabel_graph")
 print("Fig 3 done.")

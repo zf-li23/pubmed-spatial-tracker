@@ -176,5 +176,5 @@ ax.set_xticks([]); ax.set_yticks([])
 
 plt.subplots_adjust(left=0.05, right=0.98, top=0.96, bottom=0.05,
                     hspace=0.35, wspace=0.25)
-save(fig, "fig8_umap_embeddings")
-print("Fig 8 done.", flush=True)
+save(fig, "fig5_umap")
+print("Fig 5 done.", flush=True)

@@ -108,11 +108,9 @@ def export_fig(script, fig_label, panel_labels):
 # ── Export all ──
 SCRIPTS = [
     ("fig2", "fig2_classical_matrix.py", "ABCDEFGHI"),
-    ("fig3", "fig3_dl_unsupervised.py", "ABCD"),
-    ("fig4", "fig4_multilabel.py", "ABCD"),
-    ("fig5", "fig5_graph.py", "ABCD"),
-    ("fig6", "fig6_st_benchmark.py", "ABCD"),
-    ("fig7", "fig7_transfer_learning.py", "AB"),
+    ("fig3", "fig3_unsupervised_multilabel_graph.py", "ABCDEFGHIJKL"),
+    ("fig4", "fig4_st_benchmark_transfer.py", "ABCDEF"),
+    ("fig5", "fig5_umap.py", "ABCDEF"),
 ]
 
 base = Path(__file__).resolve().parent

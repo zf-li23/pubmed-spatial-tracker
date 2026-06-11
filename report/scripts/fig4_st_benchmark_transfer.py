@@ -21,41 +21,15 @@ st = pd.read_csv(REPO / "experiments" / "006_st_benchmark" / "results" / "st_ben
 ann = pd.read_csv(REPO / "data" / "spatial_tracker" / "annotated_articles.csv")
 tl = pd.read_csv(REPO / "experiments" / "007_transfer_learning" / "results" / "transfer_learning.csv")
 
-fig = plt.figure(figsize=(12, 11))
+fig = plt.figure(figsize=(13, 11))
 gs = fig.add_gridspec(3, 4, width_ratios=[1, 1, 1, 0.04],
-                      height_ratios=[1, 0.9, 0.7],
+                      height_ratios=[1.2, 1.1, 0.7],
                       hspace=0.4, wspace=0.22, left=0.06, right=0.93, top=0.95, bottom=0.06)
 
-# ── (A) ST Benchmark bars ──
-ax = fig.add_subplot(gs[0, 0])
-methods = [r["method"] for _, r in st.iterrows()]
-f1_v, f1_e = st["f1_macro"].values, st["f1_macro_std"].values
-cls = [C["blue"], C["green"], C["orange"]]
-ax.bar(methods, f1_v, yerr=f1_e, color=cls, width=0.5, capsize=3, edgecolor="white")
-ax.set_ylabel("F1-macro", fontsize=7)
-ax.set_title("(A) ST Benchmark", loc="left", fontweight="bold", fontsize=8)
-ax.set_xticks(range(len(methods)))
-ax.set_xticklabels(methods, rotation=15, ha="right", fontsize=6.5)
-
-def _cp(fa, fb):
-    from scipy import stats as S
-    if pd.isna(fa) or pd.isna(fb) or not str(fa).strip(): return None
-    try:
-        a = np.array([float(x) for x in str(fa).split(",")])
-        b = np.array([float(x) for x in str(fb).split(",")])
-        return S.ttest_rel(a, b)[1] if len(a) == len(b) else S.ttest_ind(a, b)[1]
-    except: return None
-
-bt = [f1_v[k] + f1_e[k] for k in range(len(methods))]
-by = max(bt)
-for i in range(len(methods)):
-    for j in range(i + 1, len(methods)):
-        pv = _cp(st.iloc[i].get("f1_macro_folds"), st.iloc[j].get("f1_macro_folds"))
-        sig_annotate(ax, i, j, by + 0.04 * (abs(j - i) - 1), pv)
-ax.set_ylim(0, by + 0.04 * (len(methods) - 1) + by * 0.15)
-
-# ── (B) Feature Importance ──
-ax = fig.add_subplot(gs[0, 1:3])
+# ═══════════════════════════════════════════════════════════════
+# Row 0: (A) Feature Importance — full width
+# ═══════════════════════════════════════════════════════════════
+ax = fig.add_subplot(gs[0, :3])
 texts = ann["title"].fillna("")
 vec = TfidfVectorizer(max_features=2000, stop_words="english", sublinear_tf=True)
 X_t = vec.fit_transform(texts)
@@ -95,25 +69,58 @@ gb.append((gs0, len(at), cc))
 DC6 = [C["blue"],C["green"],C["orange"],C["purple"],C["brown"],C["gray"]]
 for s, e, cix in gb:
     mid = (s + e - 1) / 2
-    ax.text(mid, 6.6, cl[cix].replace(" ", "\n"), ha="center", va="top", fontsize=5, fontweight="bold", color=DC6[cix])
+    ax.text(mid, 6.6, cl[cix].replace(" ", "\n"), ha="center", va="top", fontsize=6.5, fontweight="bold", color=DC6[cix])
     for j in range(s, e):
-        ax.text(j, 5.6, at[j], ha="center", va="top", fontsize=4, rotation=25, color="gray")
+        ax.text(j, 5.6, at[j], ha="center", va="top", fontsize=5.5, rotation=25, color="gray")
     if e < len(at): ax.axvline(e - 0.5, color="white", lw=1.5, ls="--", alpha=0.5)
-ax.set_yticks(range(len(cl))); ax.set_yticklabels(cl, fontsize=6)
-ax.set_title("(B) Top TF-IDF Terms", loc="left", fontweight="bold", fontsize=8)
-plt.colorbar(im, ax=ax, fraction=0.04, pad=0.02, label="SVM coeff")
+ax.set_yticks(range(len(cl))); ax.set_yticklabels(cl, fontsize=6.5)
+ax.set_title("(A) Top TF-IDF Terms by Category", loc="left", fontweight="bold", fontsize=9)
+plt.colorbar(im, ax=ax, fraction=0.03, pad=0.01, label="SVM coeff")
+
+# ═══════════════════════════════════════════════════════════════
+# Row 1: (B) ST bars  (C) Acc vs F1  (D) Tag Network
+# ═══════════════════════════════════════════════════════════════
+
+# (B) ST Benchmark bars
+ax = fig.add_subplot(gs[1, 0])
+methods = [r["method"] for _, r in st.iterrows()]
+f1_v, f1_e = st["f1_macro"].values, st["f1_macro_std"].values
+cls_b = [C["blue"], C["green"], C["orange"]]
+ax.bar(methods, f1_v, yerr=f1_e, color=cls_b, width=0.5, capsize=3, edgecolor="white")
+ax.set_ylabel("F1-macro", fontsize=7)
+ax.set_title("(B) ST Benchmark", loc="left", fontweight="bold", fontsize=8)
+ax.set_xticks(range(len(methods)))
+ax.set_xticklabels(methods, rotation=15, ha="right", fontsize=6.5)
+
+def _cp(fa, fb):
+    from scipy import stats as S
+    if pd.isna(fa) or pd.isna(fb) or not str(fa).strip(): return None
+    try:
+        a = np.array([float(x) for x in str(fa).split(",")])
+        b = np.array([float(x) for x in str(fb).split(",")])
+        return S.ttest_rel(a, b)[1] if len(a) == len(b) else S.ttest_ind(a, b)[1]
+    except: return None
+
+bt = [f1_v[k] + f1_e[k] for k in range(len(methods))]
+by = max(bt)
+for i in range(len(methods)):
+    for j in range(i + 1, len(methods)):
+        pv = _cp(st.iloc[i].get("f1_macro_folds"), st.iloc[j].get("f1_macro_folds"))
+        sig_annotate(ax, i, j, by + 0.04 * (abs(j - i) - 1), pv)
+ax.set_ylim(0, by + 0.04 * (len(methods) - 1) + by * 0.15)
 
 # (C) Accuracy vs F1
-ax = fig.add_subplot(gs[1, 0])
-av = st["accuracy"].values
+ax = fig.add_subplot(gs[1, 1])
+ax.scatter(st["accuracy"].values, f1_v, color=cls_b, s=60, zorder=5, edgecolors="white", linewidth=0.5)
 for i, m in enumerate(methods):
-    ax.scatter(av[i], f1_v[i], color=cls[i], s=60, zorder=5, edgecolors="white", linewidth=0.5)
-    ax.annotate(m.split("+")[-1] if "+" in m else m, (av[i], f1_v[i]), fontsize=6.5, ha="center", va="bottom", xytext=(0, 6), textcoords="offset points")
+    ax.annotate(m.split("+")[-1] if "+" in m else m, (st["accuracy"].values[i], f1_v[i]),
+                fontsize=6.5, ha="center", va="bottom", xytext=(0, 6), textcoords="offset points")
 ax.set_xlabel("Accuracy", fontsize=7); ax.set_ylabel("F1-macro", fontsize=7)
-ax.set_title("(C) Accuracy vs F1", loc="left", fontweight="bold", fontsize=8)
+ax.set_xlim(0.91, 0.945); ax.set_ylim(0.6, 0.87)
+ax.set_title("(C) Acc vs F1", loc="left", fontweight="bold", fontsize=8)
 
 # (D) Tag Network
-ax = fig.add_subplot(gs[1, 1:3])
+ax = fig.add_subplot(gs[1, 2])
 def sc(s):
     r = []; [r.extend([x.strip() for x in str(v).split("; ")]) for v in s.dropna()]; return r
 all_tags = sc(ann["tags"])
@@ -141,7 +148,7 @@ for i in range(10):
     lbl = tt[i].replace("Spatial ", "Sp.\n").replace("Cell-Cell Communication", "Cell-Cell\nCommunication")
     ax.annotate(lbl, (nx[i], ny[i]), fontsize=4.5, ha="center", va="center",
                bbox=dict(boxstyle="round,pad=0.15", facecolor="white", alpha=0.8, edgecolor="none"))
-ax.set_xlim(-1.5, 1.5); ax.set_ylim(-1.5, 1.5); ax.set_aspect("equal"); ax.axis("off")
+ax.set_xlim(-1.3, 1.3); ax.set_ylim(-1.3, 1.3); ax.set_aspect("equal"); ax.axis("off")
 ax.set_title("(D) Tag Co-occurrence", loc="left", fontweight="bold", fontsize=8)
 
 # ── (E) TL Waterfall ──
@@ -177,5 +184,5 @@ ax.set_xlabel("Time (s)", fontsize=7)
 ax.set_title("(F) Pre-training Cost", loc="left", fontweight="bold", fontsize=8)
 ax.legend(fontsize=5, frameon=False, loc="lower right")
 
-save(fig, "fig67_transfer_learning")
-print("Fig 6 done.")
+save(fig, "fig4_st_benchmark_transfer")
+print("Fig 4 done.")
