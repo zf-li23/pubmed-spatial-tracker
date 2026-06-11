@@ -168,8 +168,10 @@ print("Fig 1 done.")
 
 
 
+
 # ── Standalone panels ──
 import matplotlib.pyplot as plt
+import numpy as np
 from collections import Counter
 from plot_utils import C, PALETTE
 _PD = Path(__file__).resolve().parent.parent / "figures" / "panels"
@@ -180,12 +182,10 @@ def _s(l, w, h, fn):
     pf.savefig(str(_PD / f"fig1_{l}.png"), dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(pf)
 
-# Reload data for standalone use
 _DF = pd.read_csv(Path(__file__).resolve().parent.parent.parent / "data/spatial_tracker/annotated_articles.csv")
 def _sc(s):
     r = []; [r.extend([x.strip() for x in str(v).split("; ")]) for v in s.dropna()]; return r
-_AT = _sc(_DF["tags"]); _ATC = Counter(_AT)
-_CC = _DF["category"].value_counts()
+_ATC = Counter(_sc(_DF["tags"])); _CC = _DF["category"].value_counts()
 _TPA = _DF["tags"].dropna().apply(lambda x: len(str(x).split("; ")))
 
 # A: Year Trend
@@ -197,9 +197,11 @@ _s("A", 5, 3.5, lambda ax: (
     ax.set_title("Publication Year Trend", fontweight="bold", fontsize=11),
     ax.set_xlim(2016, 2026)))
 
-# B: Category Pie
+# B: Category Pie with labels
+_cats = _CC.index; _catv = _CC.values
 _s("B", 5, 3.5, lambda ax: (
-    ax.pie(_CC.values, labels=None, colors=PALETTE[:len(_CC)], startangle=90),
+    [ax.pie(_catv, labels=[n + " (" + f"{c/len(_DF)*100:.0f}%)" for n,c in zip(_cats,_catv)],
+            colors=PALETTE[:len(_cats)], startangle=90)],
     ax.set_title("Category Distribution", fontweight="bold", fontsize=11)))
 
 # C: Tag Distribution
@@ -216,10 +218,20 @@ _s("D", 5, 3.5, lambda ax: (
     ax.set_xlabel("Tags per Article", fontsize=10), ax.set_ylabel("Count", fontsize=10),
     ax.set_title("Tags per Article", fontweight="bold", fontsize=11)))
 
-# E: Category x Tag Heatmap placeholder
-_s("E", 5, 3.5, lambda ax: (
-    ax.text(0.5, 0.5, "Category x Tag Heatmap\n(see composite)", ha="center", va="center",
-            fontsize=10, color="gray", transform=ax.transAxes),
+# E: Category x Tag Heatmap
+_cat_order = ["Research","Technology","Review","Protocol","Data Resource","Benchmark"]
+_tag_order = [t for t,_ in _ATC.most_common(10)]
+_ct = np.zeros((len(_cat_order), len(_tag_order)))
+for _, row in _DF.iterrows():
+    cat = str(row["category"])
+    if cat in _cat_order:
+        tags = set(str(row["tags"]).split("; ")) if pd.notna(row["tags"]) else set()
+        for j, tg in enumerate(_tag_order):
+            if tg in tags: _ct[_cat_order.index(cat), j] += 1
+_s("E", 5, 4, lambda ax: (
+    ax.imshow(_ct, aspect="auto", cmap="YlOrRd"),
+    ax.set_xticks(range(len(_tag_order))), ax.set_xticklabels([t[:12] for t in _tag_order], rotation=30, ha="right", fontsize=6),
+    ax.set_yticks(range(len(_cat_order))), ax.set_yticklabels(_cat_order, fontsize=7),
     ax.set_title("Category x Tag Heatmap", fontweight="bold", fontsize=11)))
 
 # F: Technology
@@ -236,18 +248,20 @@ _s("G", 5, 3.5, lambda ax: (
     ax.set_xlabel("Count", fontsize=10),
     ax.set_title("Biological Topics", fontweight="bold", fontsize=11)))
 
-# H: Confidence Donut
+# H: Donut Chart
 _conf = _DF["confidence"].value_counts()
 _s("H", 5, 3.5, lambda ax: (
     ax.pie(_conf.values, labels=_conf.index, colors=[C["green"],C["orange"],C["red"]],
-           startangle=90, autopct="%1.0f%%"),
+           startangle=90, autopct="%1.0f%%", wedgeprops=dict(width=0.4)),
     ax.set_title("Annotation Confidence", fontweight="bold", fontsize=11)))
 
-# I: Boolean Flags
+# I: Boolean Flags (True/False grouped bars)
+_flags = {"has_new_data":"New Data","has_code":"Has Code","is_preprint":"Preprint"}
+_xl = list(_flags.values()); _tc2 = [int(_DF[k].sum()) for k in _flags]; _fc2 = [len(_DF)-c for c in _tc2]
 _s("I", 5, 3.5, lambda ax: (
-    ax.bar(["New Data","Has Code","Preprint"],
-           [_DF["has_new_data"].sum(), _DF["has_code"].sum(), _DF["is_preprint"].sum()],
-           color=[C["blue"],C["green"],C["orange"]], width=0.5),
-    ax.set_ylabel("Count", fontsize=10),
+    ax.bar(np.arange(3)-0.17, _tc2, 0.34, color=C["green"], label="True"),
+    ax.bar(np.arange(3)+0.17, _fc2, 0.34, color=C["gray"], alpha=0.5, label="False"),
+    ax.set_xticks(range(3)), ax.set_xticklabels(_xl, fontsize=8),
+    ax.set_ylabel("Count", fontsize=10), ax.legend(fontsize=8, frameon=False),
     ax.set_title("Boolean Attributes", fontweight="bold", fontsize=11)))
 print("  panels A-I saved")

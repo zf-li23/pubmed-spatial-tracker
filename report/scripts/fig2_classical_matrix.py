@@ -175,3 +175,121 @@ _s("I", 5, 3.5, lambda ax: (
     ax.set_title("Perf vs Time (see composite)", fontweight="bold", fontsize=11),
     ax.text(0.5, 0.5, "See composite Fig2-I", ha="center", va="center", fontsize=9, color="gray")))
 print("  panels saved")
+# ── Standalone panels ──
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.lines import Line2D
+from matplotlib.colors import Normalize
+from plot_utils import C, PALETTE, sig_annotate
+_PD = Path(__file__).resolve().parent.parent / "figures" / "panels"
+_PD.mkdir(parents=True, exist_ok=True)
+def _s(l, w, h, fn):
+    pf = plt.figure(figsize=(w, h), facecolor="white")
+    pa = pf.add_axes([0.1, 0.08, 0.87, 0.87]); fn(pa)
+    pf.savefig(str(_PD / f"fig2_{l}.png"), dpi=200, bbox_inches="tight", facecolor="white")
+    plt.close(pf)
+
+# Reuse data from main script
+def _cp(fa, fb):
+    from scipy import stats as S
+    if pd.isna(fa) or pd.isna(fb) or not str(fa).strip(): return None
+    try:
+        a = np.array([float(x) for x in str(fa).split(",")])
+        b = np.array([float(x) for x in str(fb).split(",")])
+        return S.ttest_rel(a,b)[1] if len(a)==len(b) else S.ttest_ind(a,b)[1]
+    except: return None
+
+def _tn(dk):
+    s = df[df["dataset"]==dk].dropna(subset=["f1_macro"])
+    return s.nlargest(5, "f1_macro")
+
+# A: OHSUMED heatmap
+_s("A", 4.5, 4.5, lambda ax: (
+    ax.imshow(mats["ohsumed"], aspect="auto", cmap="YlOrRd", norm=Normalize(vm, vx)),
+    [ax.text(j, i, f"{mats['ohsumed'][i,j]:.3f}", ha="center", va="center", fontsize=7,
+        color="white" if mats['ohsumed'][i,j]>(vm+vx)/2 else "black")
+     for i in range(7) for j in range(4) if not np.isnan(mats['ohsumed'][i,j])],
+    ax.set_xticks(range(4)), ax.set_xticklabels([FL[f] for f in Fl], rotation=30, ha="right", fontsize=8),
+    ax.set_yticks(range(7)), ax.set_yticklabels([MS[m] for m in Ml], fontsize=8),
+    ax.set_title("OHSUMED (1,650 labels)", fontweight="bold", fontsize=12)))
+
+# B: PML heatmap
+_s("B", 4.5, 4.5, lambda ax: (
+    ax.imshow(mats["pubmed_multilabel"], aspect="auto", cmap="YlOrRd", norm=Normalize(vm, vx)),
+    [ax.text(j, i, f"{mats['pubmed_multilabel'][i,j]:.3f}", ha="center", va="center", fontsize=7,
+        color="white" if mats['pubmed_multilabel'][i,j]>(vm+vx)/2 else "black")
+     for i in range(7) for j in range(4) if not np.isnan(mats['pubmed_multilabel'][i,j])],
+    ax.set_xticks(range(4)), ax.set_xticklabels([FL[f] for f in Fl], rotation=30, ha="right", fontsize=8),
+    ax.set_yticks(range(7)), ax.set_yticklabels([MS[m] for m in Ml], fontsize=8),
+    ax.set_title("PubMed-MultiLabel (16 labels)", fontweight="bold", fontsize=12)))
+
+# C: PGB heatmap
+_s("C", 4.5, 4.5, lambda ax: (
+    ax.imshow(mats["pgb"], aspect="auto", cmap="YlOrRd", norm=Normalize(vm, vx)),
+    [ax.text(j, i, f"{mats['pgb'][i,j]:.3f}", ha="center", va="center", fontsize=7,
+        color="white" if mats['pgb'][i,j]>(vm+vx)/2 else "black")
+     for i in range(7) for j in range(4) if not np.isnan(mats['pgb'][i,j])],
+    ax.set_xticks(range(4)), ax.set_xticklabels([FL[f] for f in Fl], rotation=30, ha="right", fontsize=8),
+    ax.set_yticks(range(7)), ax.set_yticklabels([MS[m] for m in Ml], fontsize=8),
+    ax.set_title("PGB (3 labels)", fontweight="bold", fontsize=12)))
+
+# D: Best per Dataset
+_s("D", 4, 3.5, lambda ax: (
+    ax.bar(["OHSUMED","PML","PGB"], [bd[k] for k in dls], color=DC, width=0.5),
+    ax.set_ylabel("Best F1-macro", fontsize=10), ax.set_title("Best per Dataset", fontweight="bold", fontsize=11)))
+
+# E: Training Time
+_s("E", 6, 3.5, lambda ax: (
+    ax.barh(range(len(tdf)), tdf["t"].values, color=C["blue"], height=0.6),
+    ax.set_yticks(range(len(tdf))), ax.set_yticklabels(tdf["l"].values, fontsize=7),
+    ax.set_xlabel("Time (s, log)", fontsize=10), ax.set_xscale("log"),
+    ax.set_title("Training Time", fontweight="bold", fontsize=11)))
+
+# F: PML Top-5 with significance
+t5 = _tn("pubmed_multilabel")
+lb = [f"{FL[r['feature']]}/{MS[r['model']]}" for _, r in t5.iterrows()]
+va, er = t5["f1_macro"].values, t5["f1_macro_std"].values
+_s("F", 4.5, 4, lambda ax: (
+    ax.bar(range(len(lb)), va, yerr=er, color=[FC[r["feature"]] for _, r in t5.iterrows()],
+           width=0.6, capsize=2, edgecolor="white", linewidth=0.3),
+    [sig_annotate(ax, 0, i, max(va[k]+er[k] for k in range(len(va)))+0.035*(i-1),
+                  _cp(t5.iloc[0].get("f1_macro_folds"), t5.iloc[i].get("f1_macro_folds")))
+     for i in range(1, len(va))] if len(va) > 1 else None,
+    ax.set_xticks(range(len(lb))), ax.set_xticklabels(lb, rotation=30, ha="right", fontsize=7),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("PML — Top 5", fontweight="bold", fontsize=11)))
+
+# G: OHSUMED Top-5
+t5 = _tn("ohsumed")
+lb = [f"{FL[r['feature']]}/{MS[r['model']]}" for _, r in t5.iterrows()]
+va, er = t5["f1_macro"].values, t5["f1_macro_std"].values
+_s("G", 4.5, 4, lambda ax: (
+    ax.bar(range(len(lb)), va, yerr=er, color=[FC[r["feature"]] for _, r in t5.iterrows()],
+           width=0.6, capsize=2, edgecolor="white", linewidth=0.3),
+    ax.set_xticks(range(len(lb))), ax.set_xticklabels(lb, rotation=30, ha="right", fontsize=7),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("OHSUMED — Top 5", fontweight="bold", fontsize=11)))
+
+# H: Feature Effectiveness
+_s("H", 5.5, 3.5, lambda ax: (
+    [ax.bar(np.arange(4)+idx*0.22,
+            [df[(df["dataset"]==ds)&(df["feature"]==f)]["f1_macro"].max()
+             if not df[(df["dataset"]==ds)&(df["feature"]==f)].empty else 0 for f in Fl],
+            0.22, color=DC[idx], label=["PML","OHSUMED","PGB"][idx],
+            edgecolor="white", linewidth=0.3)
+     for idx, ds in enumerate(["pubmed_multilabel","ohsumed","pgb"])],
+    ax.set_xticks(np.arange(4)+0.22), ax.set_xticklabels([FL[f] for f in Fl], fontsize=8),
+    ax.set_ylabel("Best F1-macro", fontsize=10), ax.legend(fontsize=7, frameon=False, ncol=3),
+    ax.set_title("Feature Effectiveness", fontweight="bold", fontsize=11)))
+
+# I: Perf vs Time
+_s("I", 5.5, 3.5, lambda ax: (
+    [ax.scatter(sf["train_time_s"], sf["f1_macro"], c=clr, marker=mk, s=15, alpha=0.7, edgecolors="none")
+     for ds, mk in [("ohsumed","o"),("pubmed_multilabel","s"),("pgb","^")]
+     for feat, clr in FC.items()
+     for sf in [df[(df["dataset"]==ds)&(df["feature"]==feat)].dropna(subset=["f1_macro","train_time_s"])]
+     if not sf.empty],
+    ax.set_xscale("log"), ax.set_xlabel("Training Time (s, log)", fontsize=10),
+    ax.set_ylabel("F1-macro", fontsize=10),
+    ax.set_title("Performance vs. Time", fontweight="bold", fontsize=11)))
+print("  panels saved")
