@@ -582,8 +582,8 @@ else:
 
 # Panel labels overlay
 add_textbox(slide, Inches(0.3), Inches(7.0), Inches(12.7), Inches(0.3),
-            "A: 年度趋势  B: 类别饼图  C: 标签分布  D: 标签/文章直方图  E: 类别×标签热力图  "
-            "F: 技术平台  G: 生物主题  H: 置信度环形图  I: 布尔标志分组柱状图",
+            "A: 年度发文趋势  B: 类别饼图  C: 分析标签分布  D: 标签数/篇直方图  E: 类别×标签热力图(%)  "
+            "F: 技术平台分布  G: 生物学主题分布  H: 置信度环形图  I: 布尔属性(新数据/代码/预印本)",
             font_size=9, color=GRAY, alignment=PP_ALIGN.CENTER)
 
 footer(slide)
@@ -1206,15 +1206,15 @@ add_bg(slide, WHITE)
 title_bar(slide, "Fig 2: 经典算法矩阵 — 全部子图 (A-I)", "Exp 001 经典算法 × 3 数据集 × 显著性分析")
 
 fig2_panels = [
-    ("fig2_A.png", "A: 特征×模型热力图 (PML)"),
-    ("fig2_B.png", "B: 特征×模型热力图 (OHSUMED)"),
-    ("fig2_C.png", "C: 特征×模型热力图 (PGB)"),
-    ("fig2_D.png", "D: 各数据集最佳模型对比"),
-    ("fig2_E.png", "E: 训练时间对比"),
-    ("fig2_F.png", "F: PML Top-5 显著性"),
-    ("fig2_G.png", "G: OHSUMED Top-5 显著性"),
-    ("fig2_H.png", "H: 特征有效性对比"),
-    ("fig2_I.png", "I: 性能 vs 训练时间散点图"),
+    ("fig2_A.png", "A: OHSUMED 特征×模型 F1-macro"),
+    ("fig2_B.png", "B: PML 特征×模型 F1-macro"),
+    ("fig2_C.png", "C: PGB 特征×模型 F1-macro"),
+    ("fig2_D.png", "D: 各数据集最佳 F1-macro"),
+    ("fig2_E.png", "E: 训练时间对比 (对数坐标)"),
+    ("fig2_F.png", "F: PML Top-5 模型 + 显著性"),
+    ("fig2_G.png", "G: OHSUMED Top-5 模型"),
+    ("fig2_H.png", "H: 各特征最佳 F1 跨数据集对比"),
+    ("fig2_I.png", "I: F1-macro vs 训练时间"),
 ]
 
 # 3x3 grid
@@ -1244,12 +1244,12 @@ add_bg(slide, WHITE)
 title_bar(slide, "Fig 3: 无监督学习 · 多标签策略 · 图模型 (A-F)", "Exp 002 BioBERT微调 · 003 LDA聚类 · 004 多标签策略")
 
 fig3_panels_1 = [
-    ("fig3_A.png", "A: BioBERT+MLP 各数据集 F1"),
-    ("fig3_B.png", "B: BioBERT+MLP 训练曲线"),
-    ("fig3_C.png", "C: LDA 主题聚类 NMI 对比"),
-    ("fig3_D.png", "D: 主题-词分布可视化"),
-    ("fig3_E.png", "E: 多标签策略 (BR/CC/LP) 对比"),
-    ("fig3_F.png", "F: OHSUMED 多标签策略细节"),
+    ("fig3_A.png", "A: BioBERT+MLP vs 最佳经典"),
+    ("fig3_B.png", "B: LDA 聚类质量 (NMI)"),
+    ("fig3_C.png", "C: 无监督 vs 有监督"),
+    ("fig3_D.png", "D: 成本-效益 (F1 vs 时间)"),
+    ("fig3_E.png", "E: 多标签策略 PML (BR/CC/LP)"),
+    ("fig3_F.png", "F: 多标签 F1 vs 时间"),
 ]
 
 # 2x3 grid
@@ -1285,12 +1285,12 @@ add_bg(slide, WHITE)
 title_bar(slide, "Fig 3: 无监督学习 · 多标签策略 · 图模型 (G-L)", "Exp 005 Node2Vec · GCN · GraphSAGE → 图模型对比")
 
 fig3_panels_2 = [
-    ("fig3_G.png", "G: Node2Vec 各分类器对比 (PGB)"),
-    ("fig3_H.png", "H: Node2Vec 嵌入可视化"),
-    ("fig3_I.png", "I: GCN vs GraphSAGE 对比"),
-    ("fig3_J.png", "J: 图模型训练曲线"),
-    ("fig3_K.png", "K: 各图方法详细指标"),
-    ("fig3_L.png", "L: 图方法综合雷达图"),
+    ("fig3_G.png", "G: OHSUMED 多标签策略"),
+    ("fig3_H.png", "H: 模型鲁棒性 (F1 箱线图)"),
+    ("fig3_I.png", "I: Node2Vec + 分类器"),
+    ("fig3_J.png", "J: 图方法对比 (PGB)"),
+    ("fig3_K.png", "K: ST k-NN 图方法"),
+    ("fig3_L.png", "L: 标签复杂度分析"),
 ]
 
 # 2x3 grid
@@ -1324,12 +1324,12 @@ add_bg(slide, WHITE)
 title_bar(slide, "Fig 4: ST 基准测试 · 迁移微调 (A-F)", "Exp 006 三方法基准 · Exp 007 迁移微调探索")
 
 fig4_panels = [
-    ("fig4_A.png", "A: 特征重要性热力图"),
-    ("fig4_B.png", "B: ST 三方法柱状图"),
-    ("fig4_C.png", "C: Accuracy vs F1 散点图"),
-    ("fig4_D.png", "D: 标签共现网络图"),
+    ("fig4_A.png", "A: 各类别 Top TF-IDF 词 (SVM 系数)"),
+    ("fig4_B.png", "B: ST 三方法基准 + 显著性"),
+    ("fig4_C.png", "C: Accuracy vs F1-macro"),
+    ("fig4_D.png", "D: 标签共现网络"),
     ("fig4_E.png", "E: 迁移学习瀑布图"),
-    ("fig4_F.png", "F: 预训练成本对比"),
+    ("fig4_F.png", "F: 预训练 vs 微调时间成本"),
 ]
 
 # 2x3 grid

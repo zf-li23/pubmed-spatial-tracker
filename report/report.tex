@@ -111,7 +111,7 @@ Spatial Tracker & 9,148 篇  & 40+   & 多维标签     & LLM  & 目标应用   
 （b）MeSH 层级树将 MeSH 词归类到更宽泛的概念之下。}
 \label{fig:mesh}
 \end{figure}
-\footnotetext{图片改编自 Lee \& Ho, arXiv:2305.02691, 2023 Figure~1。}
+\footnotetext{图片来自 Lee \& Ho, arXiv:2305.02691, 2023 Figure~1。}
 \textbf{PubMed-MultiLabel (PML)}\footnote{\url{https://www.kaggle.com/datasets/owaiskhan9654/pubmed-multilabel-text-classification}}
 包含 10K 篇文献，标注有 15 个 MeSH 顶级类别（另加 Other 类共 16 类）。
 数据干净、标签稠密，适合快速算法筛选。
@@ -121,9 +121,14 @@ Spatial Tracker & 9,148 篇  & 40+   & 多维标签     & LLM  & 目标应用   
 本文采样 5K 篇并引用其 3 类节点分类任务，用于验证图表示学习方法。
 
 \textbf{Spatial Tracker (ST)} 是本文自建的数据集。
-通过 PubMed 检索式
-\texttt{("Spatial Transcriptomics"[MeSH Major Topic] OR ...) AND 2016:2026[dp]}
-爬取并筛选得到 9,148 篇空间转录组学相关文献。
+通过以下 PubMed 检索式爬取并筛选得到 9,148 篇空间转录组学相关文献：
+{\small\begin{verbatim}
+("Spatial Transcriptomics"[MeSH Major Topic]
+ OR "spatial transcriptom*"[Title/Abstract]
+ OR "spatially resolved transcriptom*"[Title/Abstract])
+AND hasabstract[text] AND english[Language]
+AND 2016:2026[dp]
+\end{verbatim}}
 参考 Biomed-Enriched 方法\footnote{Touchent et al., arXiv:2506.20331, 2025}，
 使用 DeepSeek-v4-flash 大语言模型设计了包含 6 个类别、15 个分析标签、
 19 个技术平台和 17 个生物学领域的多维标签体系，完成了全部 9,148 篇的批量标注。
@@ -133,9 +138,9 @@ Spatial Tracker & 9,148 篇  & 40+   & 多维标签     & LLM  & 目标应用   
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{fig1_dataset_overview.png}
-\caption{数据集概览。（A）年度发文趋势；（B）类别分布；（C）标签频次分布；
-（D）每篇文章标签数直方图；（E）类别~$\times$~标签热力图；（F）技术平台分布；
-（G）生物学领域分布；（H）置信度分布；（I）布尔标志分组统计。}
+\caption{数据集概览。（A）年度发文趋势；（B）类别饼图；（C）分析标签分布（Top~15）；
+（D）每篇文章标签数直方图；（E）类别~$\times$~标签热力图（\%，行归一化）；（F）技术平台分布（Top~10）；
+（G）生物学主题分布（Top~10）；（H）标注置信度环形图；（I）布尔属性（has\_new\_data~/~has\_code~/~is\_preprint）。}
 \label{fig:overview}
 \end{figure}
 
@@ -154,7 +159,7 @@ Spatial Tracker & 9,148 篇  & 40+   & 多维标签     & LLM  & 目标应用   
 \caption{文本分类基本步骤\protect\footnotemark。}
 \label{fig:tcsteps}
 \end{figure}
-\footnotetext{图片改编自 Rostam \& Kert\'{e}sz, ACM TIST, 2025, Figure~3。}
+\footnotetext{图片来自 Rostam \& Kert\'{e}sz, ACM TIST, 2025, Figure~3。}
 
 本文采用 5 种互补的文本表示方法，从不同粒度和维度捕捉文献语义：
 
@@ -261,9 +266,11 @@ PGB (3~类)           & AdaBoost + TF-IDF & \textbf{0.4215} & SVM+TF-IDF (0.3775
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{fig2_classical_matrix.png}
-\caption{经典算法矩阵实验结果。（A--C）各数据集上的特征~$\times$~模型热力图；
-（D）最佳模型跨数据集对比；（E）训练时间对比；（F--G）PML 和 OHSUMED 上
-Top-5 模型的配对 $t$ 检验显著性；（H）特征有效性对比；（I）性能与训练时间散点图。}
+\caption{经典算法矩阵实验结果。（A）OHSUMED 特征~$\times$~模型 F1-macro 热力图；
+（B）PML 热力图；（C）PGB 热力图；（D）各数据集最佳 F1-macro 对比；
+（E）各组合训练时间对比（对数坐标）；（F）PML Top-5 模型及显著性标注；
+（G）OHSUMED Top-5 模型；（H）各特征的最佳 F1-macro 跨数据集对比；
+（I）F1-macro 与训练时间的散点图（对数坐标）。}
 \label{fig:classical}
 \end{figure}
 
@@ -317,10 +324,15 @@ Node2Vec 各分类器的结果基本持平（$\sim$0.3324），
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{fig3_unsupervised_multilabel_graph.png}
+\includegraphics[width=0.82\textwidth]{fig3_unsupervised_multilabel_graph.png}
 \caption{无监督学习、多标签策略与图模型实验结果。
-（A--B）BioBERT+MLP 结果；（C--D）LDA 聚类；
-（E--F）多标签策略；（G--L）图模型（Node2Vec、GCN、GraphSAGE）。}
+（A）BioBERT+MLP vs 最佳经典算法；（B）LDA 聚类质量（NMI）；
+（C）无监督 vs 有监督对比；（D）成本-效益散点图（F1 vs 时间）；
+（E）多标签策略对比（PML，BR/CC/LP）；
+（F）多标签策略 F1 vs 训练时间；（G）OHSUMED 多标签策略（1,650~标签）；
+（H）各模型在 PML 上的 F1 箱线图（模型鲁棒性）；
+（I）Node2Vec + 各分类器结果及显著性；（J）图方法对比（GCN / GraphSAGE / Node2Vec）；
+（K）ST~$k$-NN 图方法（GCN / GraphSAGE vs 基线）；（L）标签复杂度（F1-macro 随标签数变化）。}
 \label{fig:unsup}
 \end{figure}
 
@@ -361,7 +373,7 @@ BioBERT+MLP 达到全场最高 F1=0.8444，比 TF-IDF+SVM 提升 33\%。
 \caption{预训练与微调范式\protect\footnotemark。}
 \label{fig:pretrain}
 \end{figure}
-\footnotetext{图片改编自 Rostam \& Kert\'{e}sz, ACM TIST, 2025, Figure~4。}
+\footnotetext{图片来自 Rostam \& Kert\'{e}sz, ACM TIST, 2025, Figure~4。}
 
 核心问题是：在源域上预训练的分类器能否通过在 ST 上微调获得比直接训练更高的 F1？
 结果如表~\ref{tab:transfer} 所示。
@@ -394,9 +406,10 @@ ST k-NN 图           & GraphSAGE    & 0.7603 & --- \\
 \centering
 \includegraphics[width=\textwidth]{fig4_st_benchmark_transfer.png}
 \caption{ST 基准测试与迁移微调结果。
-（A）特征重要性热力图；（B）三方法柱状图对比；
-（C）Accuracy 与 F1 散点图；（D）标签共现网络；
-（E）迁移学习瀑布图；（F）预训练成本对比。}
+（A）各类别 Top TF-IDF 词热力图（SVM 系数）；（B）ST 三方法基准测试（含显著性标注）；
+（C）Accuracy 与 F1-macro 散点图；（D）Top~10 标签共现网络；
+（E）迁移学习瀑布图（零样本~$\to$~基线~$\to$~微调~$\to$~图方法）；
+（F）预训练与微调时间成本对比（附 F1 标注）。}
 \label{fig:transfer}
 \end{figure}
 
@@ -410,8 +423,12 @@ ST 数据集的各类别区分度最好，说明 LLM 标注的标签体系与 Bi
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{fig5_umap.png}
-\caption{UMAP 嵌入可视化。（A）OHSUMED；（B）PML；（C）PGB；
-（D）ST 按类别着色；（E）ST 按置信度着色；（F）ST 按技术平台着色。}
+\caption{UMAP 嵌入可视化。（A）PML BioBERT 嵌入（2K~点，16~类 MeSH 类别）；
+（B）PML TF-IDF 嵌入（2K~点，cosine~距离）；
+（C）OHSUMED BioBERT 嵌入（2K~点，Top-10 MeSH 词）；
+（D）ST BioBERT 嵌入（2K~点，6~类 LLM 标注类别）；
+（E）ST 微调后 BioBERT 嵌入（2K~点）；
+（F）PGB Node2Vec 嵌入（5K~节点，3~类）。}
 \label{fig:umap}
 \end{figure}
 
