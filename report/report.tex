@@ -10,6 +10,7 @@
 \usepackage{tabularx}
 \usepackage{caption}
 \usepackage{subcaption}
+\usepackage{float}
 \usepackage{hyperref}
 \usepackage{titlesec}
 \titleformat{\section}{\large\bfseries}{}{0em}{}
@@ -58,6 +59,11 @@ PubMed 年发文量从 2020 年以前不足 500 篇激增至 2025 年的 4,150 �
 (2)~\textbf{标签空间复杂}——一篇文献可能同时涉及研究类别、技术平台、分析方法和生物学领域，
 构成天然的多标签问题；
 (3)~\textbf{标注成本高}——大规模人工标注需要领域专家，时间和经济成本极高。
+BioBERT\footnote{Lee et al., Bioinformatics, 36(4), 2020} 等预训练语言模型在生物医学文本挖掘中取得了显著成功，
+PGB\footnote{Lee \& Ho, arXiv:2305.02691, 2023} 进一步将图神经网络引入生物医学文献理解，
+而 BioCreative VII LitCovid Track\footnote{Chen et al., Database, 2022} 等评测任务则推动了多标签文献分类的标准化评估。
+Biomed-Enriched\footnote{Touchent et al., arXiv:2506.20331, 2025} 提出的两阶段 LLM 标注方法
+为大规摸文献标注提供了新的低成本途径。
 
 针对上述挑战，本文设计了\textbf{多数据集~$\times$~多算法~$\times$~多特征表示}的系统性比较框架，
 回答以下核心研究问题：
@@ -97,7 +103,15 @@ Spatial Tracker & 9,148 篇  & 40+   & 多维标签     & LLM  & 目标应用   
 来自 TREC-9 Filtering Track，包含 1987--1991 年间的 MEDLINE 文献摘要，
 标注有 14,466 个 MeSH 词（经低频过滤保留 1,650 个），标签呈典型幂律分布。
 该数据集用于评估算法在极稀疏多标签场景下的性能。
-
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{image0.png}
+\caption{PubMed 文章及其关联的 MeSH 层级结构示例\protect\footnotemark。
+（a）一篇 PubMed 文章包含标题、摘要、引用列表、发表类型、MeSH 词和物质列表；
+（b）MeSH 层级树将 MeSH 词归类到更宽泛的概念之下。}
+\label{fig:mesh}
+\end{figure}
+\footnotetext{图片改编自 Lee \& Ho, arXiv:2305.02691, 2023 Figure~1。}
 \textbf{PubMed-MultiLabel (PML)}\footnote{\url{https://www.kaggle.com/datasets/owaiskhan9654/pubmed-multilabel-text-classification}}
 包含 10K 篇文献，标注有 15 个 MeSH 顶级类别（另加 Other 类共 16 类）。
 数据干净、标签稠密，适合快速算法筛选。
@@ -130,6 +144,17 @@ Spatial Tracker & 9,148 篇  & 40+   & 多维标签     & LLM  & 目标应用   
 % ═══════════════════════════════════════════════════════════════
 
 \subsection{文本表示}
+
+文本分类的基本流程包括数据预处理、特征提取、模型训练和评估等步骤
+（图~\ref{fig:tcsteps}）。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{image1.png}
+\caption{文本分类基本步骤\protect\footnotemark。}
+\label{fig:tcsteps}
+\end{figure}
+\footnotetext{图片改编自 Rostam \& Kert\'{e}sz, ACM TIST, 2025, Figure~3。}
 
 本文采用 5 种互补的文本表示方法，从不同粒度和维度捕捉文献语义：
 
@@ -326,6 +351,18 @@ BioBERT+MLP 达到全场最高 F1=0.8444，比 TF-IDF+SVM 提升 33\%。
 
 \subsection{Exp~007：迁移微调探索}
 
+预训练-微调范式（图~\ref{fig:pretrain}）是当前自然语言处理领域的主流方法\footnote{Rostam \& Kert\'{e}sz, ACM TIST, 2025; Sakai \& Lam, arXiv:2503.01159, 2025}：
+先在大型通用语料上预训练语言模型，再在特定任务数据上微调。
+本节将该范式应用于生物医学文献分类领域。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{image2.png}
+\caption{预训练与微调范式\protect\footnotemark。}
+\label{fig:pretrain}
+\end{figure}
+\footnotetext{图片改编自 Rostam \& Kert\'{e}sz, ACM TIST, 2025, Figure~4。}
+
 核心问题是：在源域上预训练的分类器能否通过在 ST 上微调获得比直接训练更高的 F1？
 结果如表~\ref{tab:transfer} 所示。
 
@@ -430,7 +467,21 @@ PML 的 16 个粗粒度类别与 ST 的 6 个类别在语义结构上更为接�
 \textbf{不足与展望}：(1)~OHSUMED 的 1,650 标签对当前所有方法仍构成挑战，
 层次化分类或标签嵌入是潜在改进方向；(2)~图模型在人工 $k$-NN 图上的表现
 未超越文本基线，需要探索更优的图构建策略；
-(3)~LLM 标注质量的人工抽样评估（Cohen's~$\kappa$）待执行。
+(3)~LLM 标注质量的人工抽样评估（Cohen's~$\kappa$）待执行；
+(4)~最新研究表明大语言模型在零样本和少样本设定下已接近传统分类器性能\footnote{Proboszcz \& Cichosz, arXiv:2603.11780, 2026}，
+将 LLM 作为分类器直接应用于文献标注是值得探索的方向。
+
+\bigskip
+\noindent\textbf{参考文献}\\[2pt]
+{\small
+[1]~Lee \& Ho. PGB: A PubMed Graph Benchmark for Heterogeneous Network Representation Learning. \textit{arXiv:2305.02691}, 2023.\\
+[2]~Touchent, Godey \& de~la~Clergerie. Biomed-Enriched: A Biomedical Dataset Enriched with LLMs for Pretraining and Extracting Rare and Hidden Content. \textit{arXiv:2506.20331}, 2025.\\
+[3]~Rostam \& Kert\'{e}sz. Advances in Pre-trained Language Models for Domain-Specific Text Classification: A Systematic Review. \textit{ACM Trans. Intell. Syst. Technol.}, 16(6), 2025.\\
+[4]~Sakai \& Lam. Large Language Models for Healthcare Text Classification: A Systematic Review. \textit{arXiv:2503.01159}, 2025.\\
+[5]~Proboszcz \& Cichosz. Large Language Models for Biomedical Article Classification. \textit{arXiv:2603.11780}, 2026.\\
+[6]~Chen et al. Multi-label classification for biomedical literature: an overview of the BioCreative VII LitCovid Track. \textit{Database}, 2022.\\
+[7]~Lee et al. BioBERT: a pre-trained biomedical language representation model for biomedical text mining. \textit{Bioinformatics}, 36(4), 2020.\\
+}
 
 \bigskip
 
