@@ -3,7 +3,89 @@
 > **机器学习概论 课程大作业** — 面向生物医学文献的多策略多标签分类研究
 > 聚焦空间转录组学（Spatial Transcriptomics）领域
 
+---
+
+**报告与演示文稿：**
+- 📄 [`REPORT.pdf`](REPORT.pdf) — 完整实验报告（11 页）
+- 📊 [`PRESENTATION.pptx`](PRESENTATION.pptx) — 汇报幻灯片（23 页）
+
+---
+
 ## 项目目标
+
+通过 **7 组实验 × 115 组子任务（98.3% 完成）** 的系统性比较，构建一个**多数据集 × 多算法 × 多文本表示**的实验框架，量化不同方法在生物医学文献分类上的表现，并应用于空间转录组学文献的自动标注与分类。
+
+**核心发现**：PML 预训练 + ST 微调的 BioBERT+MLP 达到 **F1=0.9143** 🏆，比直接训练提升 +9.6%。
+
+---
+
+## 快速开始
+
+### 环境准备
+
+```bash
+# CPU 环境
+conda create -n pubmed-tracker python=3.13
+conda activate pubmed-tracker
+pip install -r requirements.txt
+
+# GPU 环境（BioBERT+MLP 微调用）
+conda create -n biobert_env python=3.12
+pip install torch==2.5.1+cu121 --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements.txt
+```
+
+### 数据准备
+
+```bash
+# 下载原始数据集（OHSUMED / PML / PGB）
+bash data/download_ohsumed.sh
+bash data/download_pubmed_multilabel.sh
+bash data/download_pgb.sh
+
+# 空间转录组学数据集已内置
+# data/spatial_tracker/articles.csv       — 9,148 篇原始文献
+# data/spatial_tracker/annotated_articles.csv — LLM 标注结果
+```
+
+### 运行实验
+
+```bash
+# 查看所有实验说明
+cat experiments/README.md
+
+# 本地快速测试（小规模子集）
+bash experiments/001_classical_matrix/run.sh
+bash experiments/006_st_benchmark/run.sh
+
+# 完整复现（建议在 Slurm 集群上）
+sbatch experiments/001_classical_matrix/run_exp.slurm
+
+# GPU 实验
+sbatch --gres=gpu:1 experiments/002_biobert_mlp/run_exp.slurm
+```
+
+### 生成图表与报告
+
+```bash
+# 生成全部 5 张复合图和 42 个独立面板
+conda activate report-env  # 或使用已有环境
+python report/scripts/fig1_dataset_overview.py
+python report/scripts/fig2_classical_matrix.py
+python report/scripts/fig3_unsupervised_multilabel_graph.py
+python report/scripts/fig4_st_benchmark_transfer.py
+python report/scripts/fig5_umap.py
+
+# 编译实验报告（需要 XeLaTeX）
+cd report && xelatex report.tex && xelatex report.tex
+
+# 生成汇报 PPT
+conda run -n zf-li23 python report/gen_ppt.py
+```
+
+---
+
+## 数据集
 
 通过 **7 组实验 × 115 组子任务（98.3% 完成）** 的系统性比较，构建一个**多数据集 × 多算法 × 多文本表示**的实验框架，量化不同方法在生物医学文献分类上的表现，并应用于空间转录组学文献的自动标注与分类。
 
@@ -142,4 +224,4 @@ pip install torch==2.5.1+cu121 --index-url https://download.pytorch.org/whl/cu12
 pip install -r requirements.txt
 ```
 
-更多细节见 [`PLAN.md`](PLAN.md)（完整计划）、[`experiments/README.md`](experiments/README.md)（集群复现）和 [`report/experiment_retrospective.md`](report/experiment_retrospective.md)（实验回顾）。
+更多细节见 [`PLAN.md`](PLAN.md)（完整计划）、[`experiments/README.md`](experiments/README.md)（集群复现）、[`report/glossary.md`](report/glossary.md)（术语词典）和 [`report/experiment_retrospective.md`](report/experiment_retrospective.md)（实验回顾）。

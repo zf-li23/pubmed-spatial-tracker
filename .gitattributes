@@ -1,0 +1,13 @@
+# Normalize line endings
+* text=auto
+
+# Binary files
+*.png binary
+*.pdf binary
+*.pptx binary
+*.jpg binary
+*.jpeg binary
+*.npz binary
+*.pkl binary
+*.h5 binary
+*.joblib binary
