@@ -48,6 +48,39 @@ sbatch --gres=gpu:1 experiments/007_transfer_learning/run_exp.slurm --exps B2,C1
 2. **集群完整** — `sbatch run_exp.slurm` 复现全部结果
 3. **CPU/GPU 分离** — GPU 任务通过 `--gres=gpu:1` 和 `--out-suffix` 区分输出文件
 4. **缓存共享** — `_cache/` 存放预计算特征矩阵，跨实验复用
+
+## 环境说明
+
+本项目需要两个 conda 环境（因 GPU 驱动限制）：
+
+| 环境 | Python | PyTorch | 用途 |
+|---|---|---|---|
+| `pubmed-tracker` | 3.13 | CPU 版 | 所有 CPU 实验 |
+| `biobert_env` | 3.12 | 2.5.1+cu121 | GPU 实验（BioBERT+MLP 微调） |
+
+依赖见项目根目录的 `requirements.txt` 和 `environment.yml`。
+
+## 查看结果
+
+```bash
+# 检查 Slurm 队列
+squeue -u $USER
+
+# 查看实验输出
+cat experiments/NNN_name/slurm-*.out
+
+# 查看结果 CSV
+cat experiments/NNN_name/results/*.csv
+```
+
+## 已知问题
+
+| 问题 | 原因 | 解决 |
+|---|---|---|
+| `conda: command not found` | SSH 非交互式 shell | 在 Slurm 脚本中用 `source \$HOME/miniconda3/etc/profile.d/conda.sh` |
+| transformers 联网失败 | 集群无网络 | 设置 `local_files_only=True`，预下载模型缓存 |
+| `tokenizer_config.json` 0 字节 | HF 缓存损坏 | 手动重建配置文件 |
+| rsync .so 文件损坏 | 文件传输时被修改 | 分批传输，不要用 tar |
 5. **增量保存** — `save_results()` 合并写入已有 CSV，支持断点续跑
 
 ## 完成状态
