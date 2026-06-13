@@ -2,19 +2,19 @@
 
 Usage on cluster (experiments/ directory):
     conda activate pubmed-tracker
-    cd /path/to/pubmed-tracker/experiments
-    python extract_umap_data.py
+    cd /path/to/pubmed-tracker
+    python report/scripts/extract_umap_data.py
 
-Output: _cache/umap_*.npz  → rsync back to local experiments/_cache/
+Output: experiments/_cache/umap_*.npz  → rsync back to local
 """
 import sys, os, numpy as np
 from pathlib import Path
-HERE = Path(__file__).resolve().parent  # experiments/
-sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE.parent))
-from _common import load_dataset, get_cached_features
+HERE = Path(__file__).resolve().parent          # report/scripts/
+REPO = HERE.parent.parent                        # repo root
+sys.path.insert(0, str(REPO))
+from experiments._common import load_dataset, get_cached_features
 
-CACHE = HERE / "_cache"
+CACHE = REPO / "experiments" / "_cache"
 SUB = 2000
 SEED = 42
 

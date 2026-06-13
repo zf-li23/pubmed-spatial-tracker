@@ -1,24 +1,26 @@
 """Compute fine-tuned BioBERT embeddings for ST (Panel F).
 
 Fine-tunes BioBERT+MLP on ST (80% train), then extracts [CLS] embeddings
-for all 9,147 docs. Saves to _cache/umap_st_finetuned.npz.
+for all 9,147 docs. Saves to experiments/_cache/umap_st_finetuned.npz.
 
 Usage on cluster (GPU node):
     conda activate biobert_env
     cd /path/to/pubmed-tracker
-    python experiments/extract_finetuned_emb.py
+    python report/scripts/extract_finetuned_emb.py
 """
 
 import sys, os, numpy as np
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+HERE = Path(__file__).resolve().parent          # report/scripts/
+REPO = HERE.parent.parent                        # repo root
+sys.path.insert(0, str(REPO))
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 from experiments._common import load_dataset
 from src.models.deep import BioBERTFineTuner
 from sklearn.model_selection import StratifiedKFold
 
-CACHE = Path(__file__).resolve().parent.parent / "experiments" / "_cache"
+CACHE = REPO / "experiments" / "_cache"
 N_SUB = 2000  # subsample for UMAP (full 9K would be heavy)
 SEED = 42
 

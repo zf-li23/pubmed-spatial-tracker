@@ -1,4 +1,0 @@
-ari,dataset,feature,model,n_clusters,n_samples,nmi,train_time_s
-0.0005,ohsumed,lda,KMeans,1650,10000,0.4358,12.6
-0.0313,pubmed_multilabel,lda,KMeans,16,10000,0.1005,1.29
--0.0024,pgb,lda,KMeans,3,5000,0.0053,0.05

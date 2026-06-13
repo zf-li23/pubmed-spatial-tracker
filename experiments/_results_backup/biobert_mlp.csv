@@ -1,4 +1,0 @@
-accuracy,accuracy_folds,accuracy_std,batch_size,dataset,epochs,f1_macro,f1_macro_folds,f1_macro_std,f1_micro,f1_micro_folds,f1_micro_std,model,n_labels,n_samples,train_time_s
-,,,16,ohsumed,3,0.0012,"0.0013,0.0012,0.0012",0.0,0.2561,"0.2584,0.2568,0.2532",0.0022,BioBERT+MLP,1650,10000,1040.02
-,,,16,pubmed_multilabel,3,0.6445,"0.6500,0.6402,0.6432",0.0041,0.8484,"0.8492,0.8464,0.8497",0.0014,BioBERT+MLP,16,10000,1138.54
-0.9942,"0.9946,0.9934,0.9946",0.0006,16,pgb,3,0.3324,"0.3324,0.3322,0.3324",0.0001,,,,BioBERT+MLP,3,5000,539.5
