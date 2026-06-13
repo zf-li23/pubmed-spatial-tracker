@@ -267,7 +267,7 @@ Top-5 模型的配对 $t$ 检验显著性；（H）特征有效性对比；（I�
 \label{fig:classical}
 \end{figure}
 
-\subsection{Exp~002~$\sim$~004：BioBERT 微调、无监督聚类与多标签策略}
+\subsection{\texorpdfstring{Exp~002~$\sim$~004}{Exp 002–004}：BioBERT 微调、无监督聚类与多标签策略}
 
 \textbf{BioBERT+MLP 端到端微调（Exp~002）}显示：
 PML 上微调后 F1=0.6411，与冻结 BioBERT 嵌入配合 Logistic~Regression 的 0.6710 接近，
@@ -486,9 +486,14 @@ PML 的 16 个粗粒度类别与 ST 的 6 个类别在语义结构上更为接�
 \bigskip
 
 \noindent\textbf{AI~辅助编程声明：}
-本项目代码由 GitHub Copilot 全程辅助编写，包括项目架构设计、功能实现、
-代码审查、调试和文档编写。DeepSeek API 仅用作数据标注工具
-（标注空间转录组学文章标签）。所有核心算法的实现、实验设计与分析
-均由作者本人完成。
+本项目全程由 GitHub Copilot 辅助完成，包括代码编写、调试、文档撰写和报告排版。
+Copilot 调用的底层模型包括 OpenAI 和 DeepSeek 的 API。
+作者本人完成的工作包括：项目整体架构设计、实验方案设计、超参数选择、
+结果分析与结论提炼。
+
+\bigskip
+\noindent\textbf{数据标注声明：}
+空间转录组学文献的 6 维标签体系由作者设计，
+批量标注通过 DeepSeek-v4-flash API 调用完成。
 
 \end{document}
