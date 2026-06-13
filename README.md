@@ -224,4 +224,13 @@ pip install torch==2.5.1+cu121 --index-url https://download.pytorch.org/whl/cu12
 pip install -r requirements.txt
 ```
 
-更多细节见 [`PLAN.md`](PLAN.md)（完整计划）、[`experiments/README.md`](experiments/README.md)（集群复现）、[`report/glossary.md`](report/glossary.md)（术语词典）和 [`report/experiment_retrospective.md`](report/experiment_retrospective.md)（实验回顾）。
+### 打包（提交用）
+
+```bash
+# 生成提交用 ZIP（不含 publications/ 和 .github/）
+git ls-files | grep -v "^publications/" | grep -v "^.github/" \
+  | zip -@ pubmed-spatial-tracker-submission.zip
+```
+
+生成 `pubmed-spatial-tracker-submission.zip`（~33 MB，212 个文件）。
+原始数据集（OHSUMED/PML/PGB）不包含在内——通过 `data/download_*.sh` 脚本下载。
