@@ -26,7 +26,7 @@
 
 ## 实验结果总览
 
-### Exp 001: 经典算法矩阵（82/84 完成 ✅）
+### Exp 001: 经典算法矩阵（84/84 完成 ✅）
 
 7 模型 × 4 特征 × 3 数据集 = 84 组，5 折交叉验证。
 
@@ -121,8 +121,10 @@ data/
 report/                 # 分析报告
 ├── experiment_retrospective.md  # 完整实验回顾
 ├── annotation_stats.md          # 标注统计分析
-├── review_template.csv          # 人工抽检模板
-└── proposal.tex                 # 课程 proposal
+├── glossary.md                  # 完整术语词典
+├── report.tex                   # 实验报告（11页，含5张图）
+├── proposal.tex                 # 课程 proposal
+└── scripts/                     # 数据可视化脚本
 ```
 
 ---
@@ -140,4 +142,4 @@ pip install torch==2.5.1+cu121 --index-url https://download.pytorch.org/whl/cu12
 pip install -r requirements.txt
 ```
 
-更多细节见 [`PLAN.md`](PLAN.md)（完整计划）、[`CLUSTER_SETUP.md`](CLUSTER_SETUP.md)（集群部署）和 [`report/experiment_retrospective.md`](report/experiment_retrospective.md)（实验回顾）。
+更多细节见 [`PLAN.md`](PLAN.md)（完整计划）、[`experiments/README.md`](experiments/README.md)（集群复现）和 [`report/experiment_retrospective.md`](report/experiment_retrospective.md)（实验回顾）。
